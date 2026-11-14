@@ -1,0 +1,9 @@
+.tools/
+build/
+measure/captures/
+__pycache__/
+third_party/
+measure/fits/*.log
+measure/fits/batch.txt
+measure/capture_run.txt
+measure/stimuli/*.wav

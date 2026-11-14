@@ -1,0 +1,30 @@
+{
+ "A": {
+  "click": 0.5,
+  "length": 8.0
+ },
+ "B": {
+  "tones": [
+   {
+    "start": 0.5,
+    "dbfs": -30
+   },
+   {
+    "start": 3.5,
+    "dbfs": -18
+   },
+   {
+    "start": 6.5,
+    "dbfs": -6
+   },
+   {
+    "start": 9.5,
+    "dbfs": 0
+   }
+  ],
+  "sweep": 12.5,
+  "pink": 17.5,
+  "silence": 19.5,
+  "length": 22.5
+ }
+}
