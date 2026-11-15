@@ -29,3 +29,19 @@ endif()
 # offline harness (same engine, for measurement)
 add_executable(render harness/render.cpp)
 target_compile_features(render PRIVATE cxx_std_20)
+
+# ---------------------------------------------------------------- Drive Lab (saturation + pump + filter)
+smtg_add_vst3plugin(DriveLab
+    third_party/vst3sdk/public.sdk/source/vst/vstsinglecomponenteffect.cpp
+    plugin/drive/plugin.cpp
+    plugin/drive/entry.cpp
+)
+target_compile_features(DriveLab PRIVATE cxx_std_20)
+target_include_directories(DriveLab PRIVATE plugin/drive dsp)
+target_link_libraries(DriveLab PRIVATE sdk)
+smtg_target_configure_version_file(DriveLab)
+if(SMTG_MAC)
+    smtg_target_set_bundle(DriveLab
+        BUNDLE_IDENTIFIER "local.echolab.drive"
+        COMPANY_NAME "Echo Lab")
+endif()

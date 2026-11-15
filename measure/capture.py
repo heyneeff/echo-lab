@@ -68,7 +68,7 @@ class Live:
         return out
 
 
-def ensure_stim(live, name, wav, beats):
+def ensure_stim(live, name, wav, beats, target="EchoBoy"):
     t = live.track(name)
     if t is None:
         live.cmd("create_midi_track", index=-1)
@@ -92,7 +92,7 @@ def ensure_stim(live, name, wav, beats):
             if abs(v) < 0.05:
                 break
             lo, hi = (mid, hi) if v < 0 else (lo, mid)
-    live.cmd("set_track_output_routing", track_index=t, routing_type="EchoBoy", routing_channel="")
+    live.cmd("set_track_output_routing", track_index=t, routing_type=target, routing_channel="")
     info = live.cmd("get_track_info", track_index=t)
     if not info["clip_slots"][0]["has_clip"]:
         live.cmd("create_clip", track_index=t, clip_index=0, length=beats)

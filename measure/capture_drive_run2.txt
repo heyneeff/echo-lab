@@ -1,0 +1,13 @@
+captured dry
+captured E_d2 {'Style': 'E', 'Drive': '2.0', 'Punish': 'Off', 'LowCut': '0.00', 'Tone': '0.50', 'HighCut': '1.00', 'Mix': '1.00', 'AutoGain': 'Off', 'LowThump': 'Off', 'HighSlope': 'Gentle', 'OutputTrim': '1.00'}
+captured E_d5 {'Style': 'E', 'Drive': '5.0', 'Punish': 'Off', 'LowCut': '0.00', 'Tone': '0.50', 'HighCut': '1.00', 'Mix': '1.00', 'AutoGain': 'Off', 'LowThump': 'Off', 'HighSlope': 'Gentle', 'OutputTrim': '1.00'}
+captured E_d8 {'Style': 'E', 'Drive': '8.0', 'Punish': 'Off', 'LowCut': '0.00', 'Tone': '0.50', 'HighCut': '1.00', 'Mix': '1.00', 'AutoGain': 'Off', 'LowThump': 'Off', 'HighSlope': 'Gentle', 'OutputTrim': '1.00'}
+captured N_d2 {'Style': 'N', 'Drive': '2.0', 'Punish': 'Off', 'LowCut': '0.00', 'Tone': '0.50', 'HighCut': '1.00', 'Mix': '1.00', 'AutoGain': 'Off', 'LowThump': 'Off', 'HighSlope': 'Gentle', 'OutputTrim': '1.00'}
+captured N_d5 {'Style': 'N', 'Drive': '5.0', 'Punish': 'Off', 'LowCut': '0.00', 'Tone': '0.50', 'HighCut': '1.00', 'Mix': '1.00', 'AutoGain': 'Off', 'LowThump': 'Off', 'HighSlope': 'Gentle', 'OutputTrim': '1.00'}
+captured N_d8 {'Style': 'N', 'Drive': '8.0', 'Punish': 'Off', 'LowCut': '0.00', 'Tone': '0.50', 'HighCut': '1.00', 'Mix': '1.00', 'AutoGain': 'Off', 'LowThump': 'Off', 'HighSlope': 'Gentle', 'OutputTrim': '1.00'}
+captured T_d2 {'Style': 'T', 'Drive': '2.0', 'Punish': 'Off', 'LowCut': '0.00', 'Tone': '0.50', 'HighCut': '1.00', 'Mix': '1.00', 'AutoGain': 'Off', 'LowThump': 'Off', 'HighSlope': 'Gentle', 'OutputTrim': '1.00'}
+captured T_d5 {'Style': 'T', 'Drive': '5.0', 'Punish': 'Off', 'LowCut': '0.00', 'Tone': '0.50', 'HighCut': '1.00', 'Mix': '1.00', 'AutoGain': 'Off', 'LowThump': 'Off', 'HighSlope': 'Gentle', 'OutputTrim': '1.00'}
+captured T_d8 {'Style': 'T', 'Drive': '8.0', 'Punish': 'Off', 'LowCut': '0.00', 'Tone': '0.50', 'HighCut': '1.00', 'Mix': '1.00', 'AutoGain': 'Off', 'LowThump': 'Off', 'HighSlope': 'Gentle', 'OutputTrim': '1.00'}
+captured P_d2 {'Style': 'P', 'Drive': '2.0', 'Punish': 'Off', 'LowCut': '0.00', 'Tone': '0.50', 'HighCut': '1.00', 'Mix': '1.00', 'AutoGain': 'Off', 'LowThump': 'Off', 'HighSlope': 'Gentle', 'OutputTrim': '1.00'}
+captured P_d5 {'Style': 'P', 'Drive': '5.0', 'Punish': 'Off', 'LowCut': '0.00', 'Tone': '0.50', 'HighCut': '1.00', 'Mix': '1.00', 'AutoGain': 'Off', 'LowThump': 'Off', 'HighSlope': 'Gentle', 'OutputTrim': '1.00'}
+captured P_d8 {'Style': 'P', 'Drive': '8.0', 'Punish': 'Off', 'LowCut': '0.00', 'Tone': '0.50', 'HighCut': '1.00', 'Mix': '1.00', 'AutoGain': 'Off', 'LowThump': 'Off', 'HighSlope': 'Gentle', 'OutputTrim': '1.00'}
