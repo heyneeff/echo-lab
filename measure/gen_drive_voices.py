@@ -8,7 +8,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 ORDER = [("Tape", "A"), ("Desk", "E"), ("Iron", "N"), ("Tube", "T"), ("Pentode", "P"),
          ("Crush", None), ("ORPHEO", None), ("Spare", None)]
-FIELDS = ["gainPerDriveDb", "baseGainDb", "ceiling", "knee", "asym", "bias", "emphHz", "emphDb",
+FIELDS = ["gainPerDriveDb", "baseGainDb", "ceiling", "knee", "asym", "bias", "biasTrack", "emphHz", "emphDb",
           "lowHz", "highHz", "tiltDb", "invert", "outDb", "punishDb"]
 
 

@@ -98,6 +98,8 @@ struct DriveVoice {
     double knee = 0.6;            // 0 = very soft (tanh-like) .. 0.95 = nearly hard clip
     double asym = 0.1;            // positive/negative ceiling imbalance (even harmonics)
     double bias = 0.05;           // DC offset into the clipper (more even harmonics as level drops)
+    double biasTrack = 0.0;       // tube grid-current: bias shifts with the signal's level, so clipping
+                                  // stays lopsided (strong 2nd harmonic) even when driven hard
     double emphHz = 3000, emphDb = 0;   // pre-emphasis high shelf (de-emphasis = inverse)
     double lowHz = 10, highHz = 22000;  // voice band limits (post)
     double tiltDb = 0;                  // post tilt around 1 kHz (+ = brighter)
@@ -118,7 +120,12 @@ struct DriveParams {
 
 class DriveEngine {
 public:
-    void prepare(double sampleRate) { sr = sampleRate; setVoice(voice); }
+    void prepare(double sampleRate) {
+        sr = sampleRate;
+        envAtt = 1.0 - std::exp(-1.0 / (0.002 * sr * 4));   // 2 ms at the 4x rate
+        envRel = 1.0 - std::exp(-1.0 / (0.040 * sr * 4));   // 40 ms
+        setVoice(voice);
+    }
     void reset() { for (auto& c : ch) c.reset(); }
 
     void setVoice(const DriveVoice& v) {
@@ -173,7 +180,13 @@ public:
                 double x = c.pre.tick(dry) * inGain;
                 double up[4], dn[4];
                 c.os.upsample(x, up);
-                for (int j = 0; j < 4; ++j) dn[j] = clip(up[j]);
+                for (int j = 0; j < 4; ++j) {
+                    if (voice.biasTrack != 0) {  // level follower at 4x rate (fast attack, slower release)
+                        double a = std::abs(up[j]);
+                        c.env += (a - c.env) * (a > c.env ? envAtt : envRel);
+                    }
+                    dn[j] = clip(up[j] + voice.biasTrack * c.env);
+                }
                 double y = c.os.downsample(dn);
                 y = c.de.tick(y);
                 y = c.vlo.tick(y); y = c.vhi.tick(y);
@@ -198,11 +211,12 @@ private:
         Oversampler4x os;
         std::array<double, kDly> dly{};
         int dp = 0;
+        double env = 0;
         void reset() { pre.reset(); de.reset(); vlo.reset(); vhi.reset(); tiltLo.reset(); tiltHi.reset();
-                       ulo.reset(); uhi.reset(); os.reset(); dly.fill(0); dp = 0; }
+                       ulo.reset(); uhi.reset(); os.reset(); dly.fill(0); dp = 0; env = 0; }
     };
     std::array<Ch, 2> ch;
-    double sr = 44100, inGain = 1, outGain = 1;
+    double sr = 44100, inGain = 1, outGain = 1, envAtt = 0.01, envRel = 0.001;
 };
 
 }  // namespace echolab

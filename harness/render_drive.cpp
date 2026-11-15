@@ -69,7 +69,7 @@ bool loadVoice(const char* path, echolab::DriveVoice& v) {
     };
     double inv = v.invert ? 1 : 0;
     num("gainPerDriveDb", v.gainPerDriveDb); num("baseGainDb", v.baseGainDb); num("ceiling", v.ceiling);
-    num("knee", v.knee); num("asym", v.asym); num("bias", v.bias); num("emphHz", v.emphHz);
+    num("knee", v.knee); num("asym", v.asym); num("bias", v.bias); num("biasTrack", v.biasTrack); num("emphHz", v.emphHz);
     num("emphDb", v.emphDb); num("lowHz", v.lowHz); num("highHz", v.highHz); num("tiltDb", v.tiltDb);
     num("invert", inv); num("outDb", v.outDb); num("punishDb", v.punishDb);
     v.invert = inv > 0.5;

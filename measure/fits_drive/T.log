@@ -1,8 +1,9 @@
   init from curve: ceiling 0.231 asym -0.413
-  r0 gain      e=   181.70 {'baseGainDb': -6.389, 'gainPerDriveDb': 2.626, 'ceiling': 0.202, 'outDb': -0.008}
-  r0 character e=  3425.51 {'knee': 0.598, 'asym': -0.262, 'bias': 0.051, 'emphHz': 5744.291, 'emphDb': 0.0}
-  r0 tone      e=    38.28 {'lowHz': 10.598, 'highHz': 22000.0, 'tiltDb': 0.0}
-  r1 gain      e=   112.78 {'baseGainDb': -6.539, 'gainPerDriveDb': 2.505, 'ceiling': 0.2, 'outDb': -0.008}
-  r1 character e=  3130.55 {'knee': 0.488, 'asym': -0.216, 'bias': 0.041, 'emphHz': 12000.0, 'emphDb': 0.001}
-  r1 tone      e=    38.37 {'lowHz': 10.598, 'highHz': 22000.0, 'tiltDb': 0.0}
-fit T: total 3168.9 {'gain': 112.8, 'character': 3130.5, 'tone': 38.4}
+  r0 gain      e=   528.50 {'baseGainDb': -5.754, 'gainPerDriveDb': 2.861, 'ceiling': 0.221, 'outDb': 0.003}
+  r0 character e=  4451.06 {'knee': 0.51, 'asym': -0.381, 'bias': 0.053, 'biasTrack': 0.287, 'emphHz': 2037.002, 'emphDb': 0.0}
+  r0 tone      e=    38.28 {'lowHz': 13.992, 'highHz': 22000.0, 'tiltDb': -0.0}
+  r1 gain      e=   483.67 {'baseGainDb': -5.971, 'gainPerDriveDb': 2.832, 'ceiling': 0.219, 'outDb': 0.003}
+  r1 character e=  4289.65 {'knee': 0.376, 'asym': -0.352, 'bias': 0.064, 'biasTrack': 0.281, 'emphHz': 12000.0, 'emphDb': 0.0}
+  r1 tone      e=    38.30 {'lowHz': 8.584, 'highHz': 22000.0, 'tiltDb': -0.0}
+fit T: total 4363.2 {'gain': 483.7, 'character': 4289.6, 'tone': 38.3}
+T punishDb = 16.74 (target gain 16.64 dB)

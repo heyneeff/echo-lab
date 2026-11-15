@@ -31,13 +31,13 @@ DRIVES = (2, 5, 8)
 PARAMS = {  # name: (initial, lo, hi, log)
     "baseGainDb": (-3.0, -30, 15, False), "gainPerDriveDb": (3.3, 0.5, 6.0, False),
     "ceiling": (0.34, 0.05, 1.5, True), "outDb": (0.0, -12, 12, False),
-    "knee": (0.5, 0.0, 0.97, False), "asym": (0.1, -0.85, 0.85, False), "bias": (0.05, -0.4, 0.4, False),
+    "knee": (0.5, 0.0, 0.97, False), "asym": (0.1, -0.85, 0.85, False), "bias": (0.05, -0.4, 0.4, False), "biasTrack": (0.3, -1.2, 1.2, False),
     "emphHz": (3000, 300, 12000, True), "emphDb": (0.0, -12, 12, False),
     "lowHz": (12, 5, 300, True), "highHz": (20000, 2000, 22000, True), "tiltDb": (0.0, -6, 6, False),
 }
 STAGES = [
     ("gain", ["baseGainDb", "gainPerDriveDb", "ceiling", "outDb"]),
-    ("character", ["knee", "asym", "bias", "emphHz", "emphDb"]),
+    ("character", ["knee", "asym", "bias", "biasTrack", "emphHz", "emphDb"]),
     ("tone", ["lowHz", "highHz", "tiltDb"]),
 ]
 DRY = AD.load(STIM)
