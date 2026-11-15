@@ -31,7 +31,7 @@ DRIVES = (2, 5, 8)
 PARAMS = {  # name: (initial, lo, hi, log)
     "baseGainDb": (-3.0, -30, 15, False), "gainPerDriveDb": (3.3, 0.5, 6.0, False),
     "ceiling": (0.34, 0.05, 1.5, True), "outDb": (0.0, -12, 12, False),
-    "knee": (0.5, 0.0, 0.97, False), "asym": (0.1, -0.6, 0.6, False), "bias": (0.05, -0.4, 0.4, False),
+    "knee": (0.5, 0.0, 0.97, False), "asym": (0.1, -0.85, 0.85, False), "bias": (0.05, -0.4, 0.4, False),
     "emphHz": (3000, 300, 12000, True), "emphDb": (0.0, -12, 12, False),
     "lowHz": (12, 5, 300, True), "highHz": (20000, 2000, 22000, True), "tiltDb": (0.0, -6, 6, False),
 }
@@ -63,7 +63,7 @@ def err(ref, ours, stage):
                 for ra, rb in zip(a[name], b[name]):
                     if ra["in_dbfs"] >= -24:
                         for h in ("2", "3", "5"):
-                            e += 0.03 * (max(ra["harmonics_db"][h], -90) - max(rb["harmonics_db"][h], -90)) ** 2
+                            e += 0.08 * (max(ra["harmonics_db"][h], -90) - max(rb["harmonics_db"][h], -90)) ** 2
             for ya, yb in zip(a["curve"]["y"], b["curve"]["y"]):
                 if ya is not None and yb is not None:
                     e += 40.0 * (ya - yb) ** 2
@@ -85,6 +85,13 @@ def main():
     invert = (ys[-1] or 0) < (ys[0] or 0)
     voice = {k: v[0] for k, v in PARAMS.items()}
     voice["invert"] = 1 if invert else 0
+    # start the clipper where the measurement says it is: the two output ceilings at heavy drive
+    yc = ref[8]["curve"]["y"]
+    hi, lo = abs(yc[-1] or 0.3), abs(yc[0] or 0.3)          # ends of the curve (|output| at x=+1 / -1)
+    pos, neg = (lo, hi) if invert else (hi, lo)               # undo the polarity flip
+    voice["ceiling"] = max((pos + neg) / 2, 0.05)
+    voice["asym"] = float(np.clip((pos - neg) / max(pos + neg, 1e-6), -0.85, 0.85))
+    print("  init from curve: ceiling %.3f asym %+.3f" % (voice["ceiling"], voice["asym"]), flush=True)
     errs = {}
     with tempfile.TemporaryDirectory() as tmp:
         def profile(v):

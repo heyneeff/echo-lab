@@ -33,7 +33,7 @@ def main():
     rec = ensure_resample(live)
     outdir = os.path.join(HERE, "captures", a.tag)
     os.makedirs(outdir, exist_ok=True)
-    runs = [("dry", 0, False)] + [(s, d, False) for s in STYLES for d in (2, 5, 8)] + [("A", 5, True)]
+    runs = [("dry", 0, False)] + [(s, d, False) for s in STYLES for d in (2, 5, 8)] + [(s, 5, True) for s in STYLES]
     for style, drive, punish in runs:
         name = "%s_d%d%s" % (style, drive, "_punish" if punish else "") if style != "dry" else "dry"
         if a.only and a.only not in name:

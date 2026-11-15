@@ -1,0 +1,8 @@
+  init from curve: ceiling 0.336 asym -0.056
+  r0 gain      e=    10.78 {'baseGainDb': -9.583, 'gainPerDriveDb': 3.259, 'ceiling': 0.336, 'outDb': 0.001}
+  r0 character e=  1951.12 {'knee': 0.109, 'asym': -0.069, 'bias': 0.079, 'emphHz': 1232.829, 'emphDb': 0.0}
+  r0 tone      e=     6.31 {'lowHz': 26.828, 'highHz': 22000.0, 'tiltDb': -0.001}
+  r1 gain      e=    16.92 {'baseGainDb': -9.645, 'gainPerDriveDb': 3.361, 'ceiling': 0.345, 'outDb': 0.001}
+  r1 character e=  1623.74 {'knee': 0.167, 'asym': 0.069, 'bias': 0.124, 'emphHz': 12000.0, 'emphDb': 0.0}
+  r1 tone      e=     6.31 {'lowHz': 27.954, 'highHz': 22000.0, 'tiltDb': -0.001}
+fit A: total 1604.0 {'gain': 16.9, 'character': 1623.7, 'tone': 6.3}
