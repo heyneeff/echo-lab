@@ -12,7 +12,9 @@ namespace echolab {
 
 enum ParamId : int {
     kTime = 0, kTimeR, kFeedback, kMix, kStyle, kMode, kSaturation, kLowCut, kHighCut,
-    kWobble, kDuck, kDuckRelease, kWidth, kOutput, kBypass, kNumParams
+    kWobble, kDuck, kDuckRelease, kWidth, kOutput, kBypass,
+    kThrow, kAge, kSpace, kWarp,  // performance macros (appended: ids stay stable)
+    kNumParams
 };
 
 enum class Map { Linear, Log, LogOffLow, LogOffHigh, List };
@@ -43,6 +45,17 @@ inline const ParamDef kParams[kNumParams] = {
     {kWidth, "Width", "%", 0, 100, 100, Map::Linear},
     {kOutput, "Output", "dB", -24, 12, 0, Map::Linear},
     {kBypass, "Bypass", "", 0, 1, 0, Map::List},
+    {kThrow, "Throw", "%", 0, 100, 0, Map::Linear},
+    {kAge, "Age", "%", 0, 100, 0, Map::Linear},
+    {kSpace, "Space", "%", 0, 100, 0, Map::Linear},
+    {kWarp, "Warp", "x", 0.5, 2.0, 1.0, Map::Log},
+};
+
+// order the host lists parameters in: macros first, then the echo itself
+inline const int kDisplayOrder[kNumParams] = {
+    kThrow, kAge, kSpace, kWarp,
+    kStyle, kTime, kTimeR, kFeedback, kMix, kMode, kSaturation, kLowCut, kHighCut,
+    kWobble, kDuck, kDuckRelease, kWidth, kOutput, kBypass,
 };
 
 inline int stepCount(const ParamDef& p) { return p.map == Map::List ? (int)(p.max - p.min) : 0; }
@@ -81,6 +94,7 @@ inline std::string toText(const ParamDef& p, double n) {
     if (p.id == kMode) return kModeNames[std::clamp((int)v, 0, 2)];
     if (p.id == kBypass) return v > 0.5 ? "On" : "Off";
     if ((p.map == Map::LogOffLow || p.map == Map::LogOffHigh) && v <= 0) return "Off";
+    if (p.id == kWarp) { std::snprintf(buf, sizeof buf, "%.2fx", v); return buf; }
     if (p.units[0] == 'H' && v >= 1000) std::snprintf(buf, sizeof buf, "%.2f kHz", v / 1000);
     else if (p.units[0] == 'm' && v >= 1000) std::snprintf(buf, sizeof buf, "%.2f s", v / 1000);
     else if (p.units[0] == 'd') std::snprintf(buf, sizeof buf, "%+.1f dB", v);

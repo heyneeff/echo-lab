@@ -21,7 +21,10 @@ ORDER = [
     ("Dark Analog", "DM-2"),
     ("Digital", "Digital Delay"),
     ("Radio", "AM Radio"),
+    ("ORPHEO", None),  # our signature style: voiced by ear with Neeff (no reference)
 ]
+# The Style list is a FIXED 8 slots: Live stores the choice as a normalized value, so the list
+# must never change length or saved sessions would jump to another style.
 FIELDS = ["loopHPHz", "loopLPHz", "loopLP2Hz", "loopTiltDb", "shelfHz", "loopPeakHz", "loopPeakDb",
           "loopPeakQ", "wetHPHz", "wetLPHz", "wetLPPoles", "wetBrickHz", "satType", "satDrive",
           "satBias", "satKnee", "wowCents", "wowRateHz", "flutterCents", "flutterRateHz",
@@ -32,8 +35,9 @@ INTS = {"wetLPPoles", "satType"}
 def main():
     entries = []
     for ours, ref in ORDER:
-        f = os.path.join(HERE, "fits", ref + ".json")
-        if not os.path.exists(f):
+        f = os.path.join(HERE, "fits", (ref or "") + ".json")
+        if not ref or not os.path.exists(f):
+            entries.append('    {.name = "%s (soon)", .satType = 2},  // placeholder: clean until fitted/voiced' % ours)
             continue
         fit = json.load(open(f))
         v = fit["values"]
@@ -63,6 +67,7 @@ inline const Style* findStyle(const char* name) {
 }  // namespace echolab
 """ % "\n".join(entries)
     open(os.path.join(ROOT, "dsp", "Styles.h"), "w").write(out)
+    assert len(entries) == 8, "Style list must stay at 8 slots"
     print("wrote %d styles: %s" % (len(entries), [e.split('"')[1] for e in entries]))
 
 

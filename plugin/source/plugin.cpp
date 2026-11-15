@@ -60,7 +60,8 @@ tresult PLUGIN_API EchoLabPlugin::initialize(FUnknown* context) {
     if (r != kResultOk) return r;
     addAudioInput(STR16("Stereo In"), SpeakerArr::kStereo);
     addAudioOutput(STR16("Stereo Out"), SpeakerArr::kStereo);
-    for (const auto& d : kParams) {
+    for (int id : kDisplayOrder) {
+        const auto& d = kParams[id];
         parameters.addParameter(new TableParameter(d));
         norm[d.id] = toNorm(d, d.def);
     }
@@ -115,6 +116,28 @@ void EchoLabPlugin::applyParams() {
     p.width = plain(kWidth) / 100.0;
     p.mode = (int)plain(kMode);
     p.outputDb = plain(kOutput);
+
+    // --- performance macros: offsets on top of the base settings (all at rest = no change)
+    const double throwAmt = plain(kThrow) / 100.0, age = plain(kAge) / 100.0;
+    const double space = plain(kSpace) / 100.0, warp = plain(kWarp);
+    if (throwAmt > 0) {  // dub throw: feedback toward self-oscillation, echo forward, less ducking
+        p.feedback += throwAmt * (1.05 - p.feedback);
+        p.mix += throwAmt * (std::max(p.mix, 0.6) - p.mix);
+        p.duck *= 1.0 - throwAmt;
+    }
+    if (age > 0) {  // older tape: more wobble, more drive, darker top
+        p.wobble *= 1.0 + 3.0 * age;
+        p.saturationDb += 12.0 * age;
+        double cut = 20000.0 * std::pow(3500.0 / 20000.0, age);
+        p.highCutHz = p.highCutHz > 0 ? std::min(p.highCutHz, cut) : (age > 0.02 ? cut : 0.0);
+    }
+    if (space > 0) {  // spread: right repeat lands later, full width
+        if (p.mode == 0) { p.mode = 1; p.timeMs[1] = p.timeMs[0]; }
+        p.timeMs[1] *= 1.0 + 0.5 * space;
+        p.width += space * (1.0 - p.width);
+    }
+    p.timeMs[0] = std::clamp(p.timeMs[0] * warp, 5.0, 3900.0);  // tape speed (repitches while moving)
+    p.timeMs[1] = std::clamp(p.timeMs[1] * warp, 5.0, 3900.0);
     engine.updateParams(p);
 }
 
