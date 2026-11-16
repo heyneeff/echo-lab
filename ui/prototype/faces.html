@@ -82,14 +82,32 @@ body.dragging .drop { display: grid; }
 .meters { width: 78px; height: 74px; position: relative; }
 .meters canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 
-/* punish: guarded switch, black edition */
-.guard { display: grid; justify-items: center; gap: 4px; }
-.guard .box { position: relative; width: 56px; height: 76px; border-radius: 8px; background: #08080a; box-shadow: inset 0 2px 6px #000, 0 0 0 1px #ffffff12; perspective: 300px; cursor: pointer; }
-.guard .sw { position: absolute; left: 19px; top: 20px; width: 18px; height: 36px; border-radius: 9px; background: linear-gradient(90deg, #666, #ddd, #777); box-shadow: 0 4px 6px #000a; transition: transform .12s; transform-origin: 50% 100%; transform: rotateX(-35deg); }
-.guard.armed .sw.on { transform: rotateX(35deg); }
-.guard .cover { position: absolute; inset: 4px; border-radius: 6px; background: repeating-linear-gradient(-45deg, #d42a1c 0 7px, #8e170f 7px 14px); opacity: .95; transform-origin: 50% 0; transition: transform .25s; box-shadow: 0 6px 10px #000a; }
-.guard.armed .cover { transform: rotateX(78deg); }
-.guard .name { font: 800 9px var(--sans); letter-spacing: .3em; color: var(--red); text-shadow: 0 0 8px #ff4a2b88; }
+/* punish: a rail control like the knobs, with Prometheus' flame; arm, then fire */
+.pun { display: grid; justify-items: center; gap: 3px; cursor: pointer; user-select: none; -webkit-user-select: none; }
+.pun .pdial { position: relative; width: 84px; height: 84px; }
+.pun svg.ring { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.pun .ring-track { fill: none; stroke: #2c2c32; stroke-width: 5; }
+.pun .ring-on { fill: none; stroke: var(--red); stroke-width: 5; stroke-linecap: round; opacity: 0; transform-box: fill-box; transform-origin: center; transition: opacity .15s; }
+.pun .pdots circle { fill: #4a4950; transition: fill .15s; }
+.pun .pcap { position: absolute; inset: 24%; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 40% 30%, #6b6b72, #36363c 55%, #1d1d21);
+  box-shadow: 0 6px 12px -2px #000c, 0 0 0 3px #141417, 0 0 0 4px #ffffff0d; transition: box-shadow .2s; }
+.pun .pcap svg { width: 52%; height: 52%; overflow: visible; }
+.pun .flame { fill: #4a4950; transition: fill .15s, filter .15s; }
+.pun .flame-core { fill: #2a2a2f; transition: fill .15s; }
+.pun .name { font: 700 11px var(--sans); letter-spacing: .3em; color: var(--red); text-shadow: 0 0 10px #ff4a2b55; }
+.pun .val { font: 10px var(--vec); color: var(--dim); }
+.pun.armed .ring-on { opacity: 1; stroke-dasharray: 5 8; animation: pspin 1.6s linear infinite; }
+.pun.armed .flame { fill: var(--orange); filter: drop-shadow(0 0 4px #ff8a1f); }
+.pun.armed .val { color: var(--orange); animation: pblink .5s steps(2) infinite; }
+.pun.on .ring-on { opacity: 1; filter: drop-shadow(0 0 5px var(--red)); }
+.pun.on .pdots circle { fill: var(--red); }
+.pun.on .flame { fill: var(--red); filter: drop-shadow(0 0 8px var(--red)); }
+.pun.on .flame-core { fill: #ffc93c; }
+.pun.on .pcap { box-shadow: 0 6px 12px -2px #000c, 0 0 0 3px #141417, 0 0 22px #ff4a2b66, inset 0 0 14px #ff4a2b44; }
+.pun.on .val { color: var(--red); }
+.pun:active .pcap { transform: scale(.97); }
+@keyframes pspin { to { transform: rotate(360deg); } }
+@keyframes pblink { 50% { opacity: .35; } }
 </style>
 </head>
 <body>
@@ -353,7 +371,7 @@ seg($("#eModes"), ["SINGLE", "DUAL", "PING"], 0, i => { E.mode = i; updateEcho()
 
 K.drive = knob($("#dBig"), { name: "DRIVE", min: 0, max: 10, value: D.drive, size: 84, color: COL.red, fmt: v => v.toFixed(1), onchange: v => { D.drive = v; updateDrive(); } });
 K.pump = knob($("#dBig"), { name: "PUMP", min: 0, max: 100, value: 0, size: 84, color: COL.teal, fmt: v => v.toFixed(0) + " %", onchange: v => D.pump = v });
-$("#dBig").insertAdjacentHTML("beforeend", `<div class="guard" id="punish" style="margin-top:6px"><div class="box"><div class="sw" id="punSw"></div><div class="cover"></div></div><div class="name">PUNISH</div></div>`);
+$("#dBig").insertAdjacentHTML("beforeend", `<div class="pun" id="punish"><div class="pdial"><svg class="ring" viewBox="0 0 100 100"><circle cx="50" cy="50" r="39" class="ring-track"/><circle cx="50" cy="50" r="39" class="ring-on"/><g class="pdots"><circle cx="50.00" cy="1.00" r="1.6"/><circle cx="74.50" cy="7.56" r="1.6"/><circle cx="92.44" cy="25.50" r="1.6"/><circle cx="99.00" cy="50.00" r="1.6"/><circle cx="92.44" cy="74.50" r="1.6"/><circle cx="74.50" cy="92.44" r="1.6"/><circle cx="50.00" cy="99.00" r="1.6"/><circle cx="25.50" cy="92.44" r="1.6"/><circle cx="7.56" cy="74.50" r="1.6"/><circle cx="1.00" cy="50.00" r="1.6"/><circle cx="7.56" cy="25.50" r="1.6"/><circle cx="25.50" cy="7.56" r="1.6"/></g></svg><div class="pcap"><svg viewBox="0 0 100 100"><path class="flame" d="M50 14 C62 32 74 42 70 62 C67 78 58 86 50 86 C40 86 30 78 31 62 C32 52 39 46 40 34 C47 42 50 50 48 60 C56 54 58 34 50 14Z"/><path class="flame-core" d="M50 52 C56 60 58 66 56 72 C54 78 46 78 44 72 C42 66 46 60 50 52Z"/></svg></div></div><div class="name">PUNISH</div><div class="val" id="punState">SAFE</div></div>`);
 const dS = $("#dSmall");
 K.tone = knob(dS, { name: "TONE", min: -12, max: 12, value: 0, color: COL.amber, fmt: dB, onchange: v => { D.tone = v; updateDrive(); } });
 knob(dS, { name: "FILTER", min: 80, max: 20000, value: 20000, log: true, color: COL.orange, fmt: v => v > 19900 ? "OFF" : hz(v), onchange: v => { D.filter = v > 19900 ? 20000 : v; updateDrive(); } });
@@ -364,8 +382,15 @@ const setDStyle = i => { D.style = (i + DSTY.length) % DSTY.length; $("#dStyleNa
 $("#dPrev").onclick = () => setDStyle(D.style - 1); $("#dNext").onclick = () => setDStyle(D.style + 1); setDStyle(D.style);
 seg($("#dRates"), ["1/2", "1/4", "1/8"], 1, i => D.rate = i);
 seg($("#dAuto"), ["AUTO GAIN", "OFF"], 0, i => { D.auto = i === 0; updateDrive(); });
-(function () { const P = $("#punish"), sw = $("#punSw");
-  P.onclick = () => { if (!P.classList.contains("armed")) { P.classList.add("armed"); return; } D.punish = !D.punish; sw.classList.toggle("on", D.punish); updateDrive(); if (!D.punish) setTimeout(() => P.classList.remove("armed"), 400); }; })();
+(function () { // two-step guard: arm, then punish; arming lapses after 3 s
+  const P = $("#punish"), st = $("#punState"); let lapse = null;
+  const paint = () => { P.classList.toggle("on", D.punish); st.textContent = D.punish ? "+18 dB" : P.classList.contains("armed") ? "ARMED" : "SAFE"; };
+  P.onclick = () => {
+    if (D.punish) { D.punish = false; P.classList.remove("armed"); }
+    else if (P.classList.contains("armed")) { clearTimeout(lapse); P.classList.remove("armed"); D.punish = true; }
+    else { P.classList.add("armed"); lapse = setTimeout(() => { P.classList.remove("armed"); paint(); }, 3000); }
+    updateDrive(); paint(); };
+  paint(); })();
 // the hero displays are X/Y pads, like Portal / Thermal
 function xyPad(el, onxy) { let on = false; const at = e => { const r = el.getBoundingClientRect(); onxy(Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), Math.min(1, Math.max(0, 1 - (e.clientY - r.top) / r.height))); };
   el.addEventListener("pointerdown", e => { on = true; el.setPointerCapture(e.pointerId); at(e); }); el.addEventListener("pointermove", e => on && at(e)); el.addEventListener("pointerup", () => on = false); }
