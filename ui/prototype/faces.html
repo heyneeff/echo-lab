@@ -9,485 +9,528 @@
 <style>
 :root {
   --room: #0f0c0a;
-  /* FO-64 cream chassis */
-  --chassis: #ddd3bd; --chassis-hi: #f1ead9; --chassis-lo: #a99d84; --chassis-deep: #6e6553;
-  /* CT-12 lavender, used for Drive Lab */
-  --lav: #c9c2d6; --lav-hi: #e9e4f2; --lav-lo: #8d84a3; --lav-deep: #3c3750;
+  --chassis: #ddd3bd; --chassis-hi: #f1ead9; --chassis-lo: #b3a68a;
   --screen: #0d0a09; --ink: #2b241b; --engrave: #5d523f;
-  --amber: #ffb000; --amber-dim: #8a6420; --amber-glow: rgba(255,176,0,.55);
-  --phos: #7dd3ff; --phos2: #b490ff; --rust: #d6452b;
+  --amber: #ffb000; --amber-glow: rgba(255,176,0,.55);
   --led-red: #ff4a2b; --led-off: #4d2a22;
   --brass: #b8924a; --brass-hi: #ecd29a;
   --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --vec: "Share Tech Mono", ui-monospace, monospace;
 }
 * { box-sizing: border-box; }
-html, body { margin: 0; background: radial-gradient(1200px 700px at 50% 0%, #241c15, var(--room)); color: var(--ink); font-family: var(--mono); min-height: 100vh; }
-.wrap { max-width: 980px; margin: 0 auto; padding: 28px 16px 60px; display: grid; gap: 34px; }
-.note { color: #8b7d66; font-size: 12px; text-align: center; letter-spacing: .08em; }
+html, body { margin: 0; height: 100%; background: radial-gradient(1200px 700px at 50% 0%, #241c15, var(--room)); color: var(--ink); font-family: var(--mono); overflow: hidden; }
 
-/* ---------------------------------------------------------------- chassis */
-.unit { position: relative; border-radius: 14px; padding: 18px 30px 22px; background: linear-gradient(180deg, var(--chassis-hi), var(--chassis) 30%, var(--chassis-lo));
-  box-shadow: 0 1px 0 #fff8 inset, 0 -2px 0 #0003 inset, 0 30px 60px -20px #000c, 0 4px 0 #000a; }
-.unit.lav { --chassis: var(--lav); --chassis-hi: var(--lav-hi); --chassis-lo: var(--lav-lo); --chassis-deep: var(--lav-deep); --engrave: #4a4260; }
-/* fluted column cheeks */
-.unit::before, .unit::after { content: ""; position: absolute; top: 14px; bottom: 14px; width: 14px; border-radius: 6px;
+/* ------------------------------------------------------------ top bar (not part of the unit) */
+.bar { height: 46px; display: flex; align-items: center; gap: 10px; padding: 0 16px; font: 12px var(--vec); color: #c9b48f; letter-spacing: .12em; }
+.bar .grp { display: flex; gap: 6px; align-items: center; }
+.bar button, .bar label.btn { font: 12px var(--vec); letter-spacing: .12em; color: #ffb36b; background: #1a1411; border: 1px solid #ff8a1f55; padding: 6px 10px; cursor: pointer; clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px); }
+.bar button.on { color: #120d0b; background: #ffb000; border-color: #ffb000; }
+.bar .sp { flex: 1; }
+.bar .hint { color: #7d6f59; font-size: 11px; }
+#stage { position: absolute; left: 0; right: 0; top: 46px; bottom: 0; display: grid; place-items: center; }
+#units { width: 1060px; height: 640px; transform-origin: 50% 50%; position: relative; }
+.unit { position: absolute; inset: 0; display: none; }
+.unit.show { display: block; }
+.drop { position: fixed; inset: 0; background: #0009; display: none; place-items: center; font: 22px var(--vec); color: #ffb000; letter-spacing: .2em; z-index: 9; }
+body.dragging .drop { display: grid; }
+
+/* ------------------------------------------------------------ chassis */
+.chassis { position: absolute; inset: 0; border-radius: 14px; padding: 12px 28px 14px; background: linear-gradient(180deg, var(--chassis-hi), var(--chassis) 30%, var(--chassis-lo));
+  box-shadow: 0 1px 0 #fff8 inset, 0 -2px 0 #0003 inset, 0 30px 60px -20px #000c, 0 4px 0 #000a;
+  display: grid; grid-template-rows: 30px 360px 1fr; gap: 12px; }
+.lav { --chassis: #c9c2d6; --chassis-hi: #e9e4f2; --chassis-lo: #9a91b0; --engrave: #4a4260; }
+.chassis::before, .chassis::after { content: ""; position: absolute; top: 14px; bottom: 14px; width: 12px; border-radius: 6px;
   background: repeating-linear-gradient(90deg, #0000 0 2px, #0002 2px 3px, #fff6 3px 4px, #0000 4px 6px); opacity: .8; }
-.unit::before { left: 8px; } .unit::after { right: 8px; }
-.meander { height: 12px; margin: 0 -6px 12px; opacity: .55; background-repeat: repeat-x; background-size: 24px 12px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='12'%3E%3Cpath d='M0 11H22V1H6V8H16V4H11' fill='none' stroke='%235d523f' stroke-width='1.4'/%3E%3C/svg%3E"); }
-.plate { display: flex; align-items: baseline; gap: 14px; margin-bottom: 12px; }
-.plate h1 { font: 700 22px/1 Cinzel, serif; letter-spacing: .32em; margin: 0; color: var(--ink); text-shadow: 0 1px 0 #fff7; }
-.plate .model { font-size: 10.5px; letter-spacing: .28em; color: var(--engrave); }
-.plate .epithet { margin-left: auto; font: 500 11px Cinzel, serif; letter-spacing: .3em; color: var(--engrave); }
-.emblem { width: 34px; height: 34px; border-radius: 50%; border: 1.5px dashed var(--engrave); display: grid; place-items: center; font-size: 8px; color: var(--engrave); opacity: .7; align-self: center; }
+.chassis::before { left: 8px; } .chassis::after { right: 8px; }
+.head { display: flex; align-items: center; gap: 14px; border-bottom: 1px solid #0002; box-shadow: 0 1px 0 #fff6; padding-bottom: 6px; }
+.head h1 { font: 700 21px/1 Cinzel, serif; letter-spacing: .3em; margin: 0; color: var(--ink); text-shadow: 0 1px 0 #fff7; }
+.head .model { font-size: 10px; letter-spacing: .26em; color: var(--engrave); }
+.head .meander { flex: 1; height: 10px; opacity: .5; background-repeat: repeat-x; background-size: 20px 10px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='10'%3E%3Cpath d='M0 9H18V1H5V7H13V4H9' fill='none' stroke='%235d523f' stroke-width='1.3'/%3E%3C/svg%3E"); }
+.head .epithet { font: 500 10.5px Cinzel, serif; letter-spacing: .26em; color: var(--engrave); }
+.emblem { width: 28px; height: 28px; border-radius: 50%; border: 1.5px dashed var(--engrave); display: grid; place-items: center; font-size: 6.5px; color: var(--engrave); opacity: .7; }
+.leds { display: flex; gap: 12px; }
+.led { display: flex; align-items: center; gap: 5px; font-size: 8.5px; letter-spacing: .14em; color: var(--engrave); }
+.led i { width: 9px; height: 9px; border-radius: 50%; background: var(--led-off); box-shadow: inset 0 1px 2px #0008; }
+.led i.on { background: var(--led-red); box-shadow: 0 0 9px var(--led-red); }
+.led i.amb.on { background: var(--amber); box-shadow: 0 0 9px var(--amber); }
 
-/* ---------------------------------------------------------------- glass */
-.glass { position: relative; background: var(--screen); border-radius: 10px; overflow: hidden;
-  box-shadow: 0 0 0 6px #2a241c, 0 0 0 7px #0006, inset 0 0 40px #000, inset 0 2px 8px #000; }
-.unit.lav .glass { box-shadow: 0 0 0 6px #2a2438, 0 0 0 7px #0006, inset 0 0 40px #000, inset 0 2px 8px #000; }
-.glass canvas { display: block; width: 100%; height: 100%; }
+.main { display: grid; grid-template-columns: 640px 1fr; gap: 14px; min-height: 0; }
+.col { display: grid; gap: 10px; min-height: 0; }
+.glass { position: relative; background: var(--screen); border-radius: 9px; overflow: hidden; min-height: 0;
+  box-shadow: 0 0 0 5px #2a241c, 0 0 0 6px #0006, inset 0 0 40px #000, inset 0 2px 8px #000; }
+.lav .glass { box-shadow: 0 0 0 5px #2a2438, 0 0 0 6px #0006, inset 0 0 40px #000, inset 0 2px 8px #000; }
+.glass canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .glass::after { content: ""; position: absolute; inset: 0; pointer-events: none;
   background: repeating-linear-gradient(0deg, #0000 0 2px, #0000001f 2px 3px), radial-gradient(120% 90% at 50% 40%, #0000 60%, #0008); }
-.glass .cap { position: absolute; left: 12px; bottom: 8px; font-size: 10px; letter-spacing: .2em; color: var(--amber-dim); z-index: 2; }
-.glass .capr { left: auto; right: 12px; }
-
-.top { display: grid; grid-template-columns: 1.55fr 1fr; gap: 22px; }
-.side { display: grid; gap: 14px; align-content: start; }
-.vu { background: linear-gradient(#f7f1e3, #e9dfc8); border-radius: 8px; height: 92px; position: relative; box-shadow: inset 0 2px 6px #0004, 0 0 0 4px #b9ad93, 0 0 0 5px #0003; overflow: hidden; }
+.vus { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; height: 74px; }
+.vu { position: relative; background: linear-gradient(#f7f1e3, #e6dbc2); border-radius: 6px; box-shadow: inset 0 2px 5px #0004, 0 0 0 3px #b3a68b, 0 0 0 4px #0003; overflow: hidden; }
+.lav .vu { background: linear-gradient(#f6f3fb, #e2dcec); box-shadow: inset 0 2px 5px #0004, 0 0 0 3px #a49bb8, 0 0 0 4px #0003; }
 .vu canvas { width: 100%; height: 100%; display: block; }
-.vu .lbl { position: absolute; left: 10px; bottom: 6px; font-size: 9.5px; letter-spacing: .2em; color: #6f6450; }
-.counter { height: 34px; }
-.leds { display: flex; justify-content: space-between; padding: 2px 4px; }
-.led { display: grid; justify-items: center; gap: 5px; font-size: 9px; letter-spacing: .14em; color: var(--engrave); }
-.led i { width: 11px; height: 11px; border-radius: 50%; background: var(--led-off); box-shadow: inset 0 1px 2px #0008; transition: background .05s, box-shadow .05s; }
-.led i.on { background: var(--led-red); box-shadow: 0 0 10px var(--led-red), inset 0 -1px 2px #0005; }
-.led i.amb.on { background: var(--amber); box-shadow: 0 0 10px var(--amber); }
+.vu span { position: absolute; left: 7px; bottom: 4px; font-size: 8.5px; letter-spacing: .2em; color: #6f6450; }
 
-/* ---------------------------------------------------------------- knobs */
-.panel { margin-top: 22px; padding-top: 16px; border-top: 1px solid #0002; box-shadow: 0 1px 0 #fff6 inset; display: grid; gap: 18px; }
-.row { display: flex; flex-wrap: wrap; gap: 14px 20px; justify-content: space-between; align-items: flex-start; }
-.knob { width: 78px; display: grid; justify-items: center; gap: 6px; user-select: none; -webkit-user-select: none; touch-action: none; }
-.knob.big { width: 104px; }
-.knob .dial { position: relative; width: 64px; height: 64px; cursor: ns-resize; }
-.knob.big .dial { width: 88px; height: 88px; }
-.knob svg.scale { position: absolute; inset: -10px; width: calc(100% + 20px); height: calc(100% + 20px); overflow: visible; }
-.knob .cap { position: absolute; inset: 6px; border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #fffaf0, #e8dcc2 45%, #b9aa8b 100%);
-  box-shadow: 0 6px 10px -2px #0008, 0 0 0 4px #3b3226, 0 0 0 5px #0007, inset 0 -3px 4px #0003; }
-.knob .cap::before { content: ""; position: absolute; inset: -4px; border-radius: 50%; z-index: -1;
-  background: repeating-conic-gradient(#2a231a 0 4deg, #4a3f30 4deg 8deg); }
-.knob .ptr { position: absolute; left: 50%; top: 9%; width: 3px; height: 34%; margin-left: -1.5px; border-radius: 2px;
-  background: linear-gradient(var(--brass-hi), var(--brass)); box-shadow: 0 0 2px #0006; transform-origin: 50% 120%; }
-.knob .name { font-size: 10px; letter-spacing: .2em; color: var(--ink); text-align: center; }
-.knob .val { font-size: 10.5px; color: var(--amber); background: var(--screen); border-radius: 4px; padding: 2px 6px; min-width: 56px; text-align: center;
-  text-shadow: 0 0 6px var(--amber-glow); box-shadow: inset 0 1px 3px #000; }
-.unit.lav .knob .cap { background: radial-gradient(circle at 35% 30%, #fbf9ff, #ddd6ea 45%, #9e94b5 100%); box-shadow: 0 6px 10px -2px #0008, 0 0 0 4px #2a2438, 0 0 0 5px #0007, inset 0 -3px 4px #0003; }
-
-/* ---------------------------------------------------------------- keys */
-.keys { display: flex; gap: 8px; flex-wrap: wrap; }
-.key { font: 600 10.5px var(--mono); letter-spacing: .18em; color: var(--ink); padding: 10px 14px 9px; border-radius: 6px; border: 0; cursor: pointer;
-  background: linear-gradient(#f6efde, #ddd2ba); box-shadow: 0 3px 0 #9d9077, 0 4px 6px #0005, inset 0 1px 0 #fff; transition: transform .05s, box-shadow .05s; }
+/* ------------------------------------------------------------ controls */
+.deck { display: grid; gap: 10px 14px; align-items: center; min-height: 0; border-top: 1px solid #0002; box-shadow: 0 1px 0 #fff6 inset; padding-top: 10px; }
+.knob { display: grid; justify-items: center; gap: 4px; user-select: none; -webkit-user-select: none; touch-action: none; }
+.knob .dial { position: relative; width: 50px; height: 50px; cursor: ns-resize; }
+.knob.big .dial { width: 76px; height: 76px; }
+.knob svg { position: absolute; inset: -9px; width: calc(100% + 18px); height: calc(100% + 18px); overflow: visible; pointer-events: none; }
+.knob .cap { position: absolute; inset: 5px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fffaf0, #e8dcc2 45%, #b9aa8b 100%);
+  box-shadow: 0 5px 8px -2px #0008, 0 0 0 3px #3b3226, 0 0 0 4px #0007, inset 0 -3px 4px #0003; }
+.knob .cap::before { content: ""; position: absolute; inset: -3px; border-radius: 50%; z-index: -1; background: repeating-conic-gradient(#2a231a 0 4deg, #4a3f30 4deg 8deg); }
+.lav .knob .cap { background: radial-gradient(circle at 35% 30%, #fbf9ff, #ddd6ea 45%, #9e94b5 100%); box-shadow: 0 5px 8px -2px #0008, 0 0 0 3px #2a2438, 0 0 0 4px #0007, inset 0 -3px 4px #0003; }
+.knob .ptr { position: absolute; left: 50%; top: 9%; width: 3px; height: 34%; margin-left: -1.5px; border-radius: 2px; background: linear-gradient(var(--brass-hi), var(--brass)); transform-origin: 50% 120%; }
+.knob .name { font-size: 8.5px; letter-spacing: .18em; color: var(--ink); white-space: nowrap; }
+.knob .val { font: 10px var(--vec); color: var(--amber); background: var(--screen); border-radius: 3px; padding: 1px 5px; min-width: 52px; text-align: center; text-shadow: 0 0 6px var(--amber-glow); box-shadow: inset 0 1px 3px #000; }
+.keys { display: grid; gap: 6px; }
+.key { font: 600 9.5px var(--mono); letter-spacing: .16em; color: var(--ink); padding: 8px 10px 7px; border-radius: 5px; border: 0; cursor: pointer; white-space: nowrap;
+  background: linear-gradient(#f6efde, #ddd2ba); box-shadow: 0 3px 0 #9d9077, 0 4px 6px #0005, inset 0 1px 0 #fff; }
 .key:active, .key.on { transform: translateY(2px); box-shadow: 0 1px 0 #9d9077, 0 1px 3px #0005, inset 0 1px 3px #0003; }
-.key.on { color: #8a1d0e; background: linear-gradient(#efe4cb, #d9cba9); }
-.key.on::before { content: "● "; color: var(--led-red); text-shadow: 0 0 6px var(--led-red); }
-.unit.lav .key { background: linear-gradient(#f3f0f8, #d5cee3); box-shadow: 0 3px 0 #8a819e, 0 4px 6px #0005, inset 0 1px 0 #fff; }
-.label { font-size: 9.5px; letter-spacing: .24em; color: var(--engrave); margin-bottom: 6px; }
+.key.on { color: #8a1d0e; } .key.on::before { content: "● "; color: var(--led-red); text-shadow: 0 0 6px var(--led-red); }
+.lav .key { background: linear-gradient(#f3f0f8, #d5cee3); box-shadow: 0 3px 0 #8a819e, 0 4px 6px #0005, inset 0 1px 0 #fff; }
+.lav .key.on, .lav .key:active { box-shadow: 0 1px 0 #8a819e, 0 1px 3px #0005, inset 0 1px 3px #0003; }
+.cap-l { font-size: 8.5px; letter-spacing: .22em; color: var(--engrave); margin-bottom: 2px; }
+.vsep { width: 1px; align-self: stretch; background: #0002; box-shadow: 1px 0 0 #fff6; }
 
-/* rotary style selector */
-.rotary { position: relative; width: 250px; height: 140px; }
-.rotary .knob { position: absolute; left: 50%; top: 52px; transform: translateX(-50%); width: auto; }
-.rotary .pos { position: absolute; font-size: 9px; letter-spacing: .12em; color: var(--engrave); cursor: pointer; white-space: nowrap; transform: translate(-50%, -50%); }
-.rotary .pos.on { color: #8a1d0e; font-weight: 700; }
+#echo .deck { grid-template-columns: auto 1px auto 1px 1fr; }
+.trio { display: flex; gap: 18px; }
+.quad { display: grid; grid-template-columns: repeat(4, 66px); gap: 6px 8px; }
+.styles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.styles .key { padding: 7px 4px 6px; font-size: 8.5px; letter-spacing: .1em; }
+.modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 10px; }
 
-/* punish: guarded switch */
-.guard { display: grid; justify-items: center; gap: 6px; }
-.guard .box { position: relative; width: 70px; height: 92px; border-radius: 8px; background: #2b2420; box-shadow: inset 0 2px 6px #000, 0 0 0 3px #1b1612; perspective: 300px; cursor: pointer; }
-.guard .sw { position: absolute; left: 26px; top: 26px; width: 18px; height: 40px; border-radius: 9px; background: linear-gradient(90deg, #888, #eee, #999); box-shadow: 0 4px 6px #000a; transition: transform .12s; transform-origin: 50% 100%; transform: rotateX(-35deg); }
+#drive .deck { grid-template-columns: auto 1px auto 1px auto 1px 1fr; }
+.dstyles { grid-template-columns: repeat(3, 76px); }
+.guard { display: grid; justify-items: center; gap: 4px; }
+.guard .box { position: relative; width: 62px; height: 82px; border-radius: 7px; background: #2b2420; box-shadow: inset 0 2px 6px #000, 0 0 0 3px #1b1612; perspective: 300px; cursor: pointer; }
+.guard .sw { position: absolute; left: 22px; top: 22px; width: 18px; height: 38px; border-radius: 9px; background: linear-gradient(90deg, #888, #eee, #999); box-shadow: 0 4px 6px #000a; transition: transform .12s; transform-origin: 50% 100%; transform: rotateX(-35deg); }
 .guard.armed .sw.on { transform: rotateX(35deg); }
-.guard .cover { position: absolute; inset: 4px; border-radius: 6px; background: repeating-linear-gradient(-45deg, #c8261a 0 8px, #9b1b12 8px 16px); opacity: .92; transform-origin: 50% 0;
-  transition: transform .25s; box-shadow: 0 6px 10px #000a; }
+.guard .cover { position: absolute; inset: 4px; border-radius: 5px; background: repeating-linear-gradient(-45deg, #c8261a 0 8px, #9b1b12 8px 16px); opacity: .93; transform-origin: 50% 0; transition: transform .25s; box-shadow: 0 6px 10px #000a; }
 .guard.armed .cover { transform: rotateX(78deg); }
-.guard .name { font-size: 10px; letter-spacing: .24em; color: #8a1d0e; font-weight: 700; }
-
-@media (max-width: 760px) {
-  .top { grid-template-columns: 1fr; }
-  .unit { padding: 16px 22px 20px; }
-  .plate .epithet { display: none; }
-}
+.guard .name { font-size: 9px; letter-spacing: .24em; color: #8a1d0e; font-weight: 700; }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="note">PROTOTYPE · drag knobs up/down · the displays run on the same maths as the plugins · press TAP or PLAY to feed them</div>
-
-  <!-- ============================================================ ECHO LAB -->
-  <section class="unit" id="echo">
-    <div class="meander"></div>
-    <div class="plate"><h1>ECHO LAB</h1><span class="model">MODEL EL-8 · TAPE LOOP</span><span class="epithet">ΗΧΩ · SHE WHO ANSWERS</span><div class="emblem">EMBLEM</div></div>
-    <div class="top">
-      <div class="glass" style="height:360px"><canvas id="ring"></canvas></div>
-      <div class="side">
-        <div class="vu"><canvas id="vuIn"></canvas><span class="lbl">INPUT</span></div>
-        <div class="vu"><canvas id="vuOut"></canvas><span class="lbl">ECHO</span></div>
-        <div><div class="glass" style="height:104px"><canvas id="ladder"></canvas></div></div>
-        <div class="leds"><div class="led"><i id="ledRec"></i>REC</div><div class="led"><i id="ledPlay" class="amb"></i>PLAY</div><div class="led"><i id="ledSat"></i>SAT</div><div class="led"><i id="ledDuck" class="amb"></i>DUCK</div></div>
-      </div>
-    </div>
-    <div class="panel">
-      <div class="row" id="echoKnobs"></div>
-      <div class="row" style="align-items:center">
-        <div><div class="label">STYLE</div><div class="rotary" id="styleRot"></div></div>
-        <div><div class="label">MODE</div><div class="keys" id="modeKeys"></div></div>
-        <div><div class="label">SOURCE</div><div class="keys"><button class="key" id="tap">TAP</button><button class="key" id="play">▶ PLAY</button></div></div>
-      </div>
-      <div class="row" id="echoKnobs2"></div>
-    </div>
-  </section>
-
-  <!-- ============================================================ DRIVE LAB -->
-  <section class="unit lav" id="drive">
-    <div class="meander" style="filter:hue-rotate(220deg)"></div>
-    <div class="plate"><h1>DRIVE LAB</h1><span class="model">MODEL DL-6 · SATURATOR</span><span class="epithet">ΦΑΕΘΩΝ · WHO DROVE THE SUN</span><div class="emblem">EMBLEM</div></div>
-    <div class="top">
-      <div class="glass" style="height:300px"><canvas id="curve"></canvas></div>
-      <div class="side">
-        <div><div class="glass" style="height:128px"><canvas id="harm"></canvas></div></div>
-        <div><div class="glass" style="height:100px"><canvas id="scope"></canvas></div></div>
-        <div class="leds"><div class="led"><i id="ledHeat"></i>HEAT</div><div class="led"><i id="ledPump" class="amb"></i>PUMP</div><div class="led"><i id="ledPun"></i>PUNISH</div><div class="led"><i id="ledClip"></i>CLIP</div></div>
-      </div>
-    </div>
-    <div class="panel">
-      <div class="row" style="align-items:center">
-        <div id="driveBig"></div>
-        <div><div class="label">STYLE</div><div class="keys" id="driveStyles"></div></div>
-        <div class="guard" id="punish"><div class="box"><div class="sw" id="punSw"></div><div class="cover"></div></div><div class="name">PUNISH</div></div>
-      </div>
-      <div class="row" id="driveKnobs"></div>
-    </div>
-  </section>
+<div class="bar">
+  <span>SOURCE</span>
+  <div class="grp"><button id="srcDemo">DEMO</button><label class="btn" for="fileIn">FILE…</label><input id="fileIn" type="file" accept="audio/*" hidden><button id="srcMic">MIC</button><button id="srcStop">■ STOP</button></div>
+  <span class="hint" id="srcName">drop any audio file on the page</span>
+  <span class="sp"></span>
+  <span>CHAIN</span>
+  <div class="grp"><button id="useDrive" class="on">DRIVE</button><span>→</span><button id="useEcho" class="on">ECHO</button></div>
+  <span class="sp"></span>
+  <div class="grp"><button id="showEcho" class="on">ECHO LAB</button><button id="showDrive">DRIVE LAB</button></div>
 </div>
+<div id="stage"><div id="units">
+
+  <!-- =========================================================== ECHO LAB -->
+  <section class="unit show" id="echo"><div class="chassis">
+    <div class="head"><h1>ECHO LAB</h1><span class="model">EL-8 · TAPE LOOP</span><div class="meander"></div>
+      <div class="leds"><div class="led"><i id="ledRec"></i>REC</div><div class="led"><i id="ledPlay" class="amb"></i>PLAY</div><div class="led"><i id="ledSat"></i>SAT</div><div class="led"><i id="ledDuck" class="amb"></i>DUCK</div></div>
+      <span class="epithet">ΗΧΩ · SHE WHO ANSWERS</span><div class="emblem">EMBLEM</div></div>
+    <div class="main">
+      <div class="glass"><canvas id="ring"></canvas></div>
+      <div class="col" style="grid-template-rows: 74px 1fr 1fr">
+        <div class="vus"><div class="vu"><canvas id="vuIn"></canvas><span>INPUT</span></div><div class="vu"><canvas id="vuOut"></canvas><span>ECHO</span></div></div>
+        <div class="glass"><canvas id="ladder"></canvas></div>
+        <div class="glass"><canvas id="duckScope"></canvas></div>
+      </div>
+    </div>
+    <div class="deck">
+      <div class="trio" id="eBig"></div>
+      <div class="vsep"></div>
+      <div class="quad" id="eSmall"></div>
+      <div class="vsep"></div>
+      <div><div class="cap-l">STYLE</div><div class="styles" id="eStyles"></div><div class="modes" id="eModes"></div></div>
+    </div>
+  </div></section>
+
+  <!-- =========================================================== DRIVE LAB -->
+  <section class="unit lav" id="drive"><div class="chassis">
+    <div class="head"><h1>DRIVE LAB</h1><span class="model">DL-6 · SATURATOR</span><div class="meander" style="filter:hue-rotate(220deg)"></div>
+      <div class="leds"><div class="led"><i id="ledHeat"></i>HEAT</div><div class="led"><i id="ledPump" class="amb"></i>PUMP</div><div class="led"><i id="ledPun"></i>PUNISH</div><div class="led"><i id="ledClip"></i>CLIP</div></div>
+      <span class="epithet">ΦΑΕΘΩΝ · WHO DROVE THE SUN</span><div class="emblem">EMBLEM</div></div>
+    <div class="main">
+      <div class="glass"><canvas id="curve"></canvas></div>
+      <div class="col" style="grid-template-rows: 74px 1fr 1fr">
+        <div class="vus"><div class="vu"><canvas id="vuDIn"></canvas><span>INPUT</span></div><div class="vu"><canvas id="vuDOut"></canvas><span>OUTPUT</span></div></div>
+        <div class="glass"><canvas id="harm"></canvas></div>
+        <div class="glass"><canvas id="scope"></canvas></div>
+      </div>
+    </div>
+    <div class="deck">
+      <div id="dBig"></div>
+      <div class="vsep"></div>
+      <div><div class="cap-l">STYLE</div><div class="keys dstyles" id="dStyles"></div></div>
+      <div class="vsep"></div>
+      <div class="guard" id="punish"><div class="box"><div class="sw" id="punSw"></div><div class="cover"></div></div><div class="name">PUNISH</div></div>
+      <div class="vsep"></div>
+      <div style="display:grid;gap:8px"><div class="quad" id="dSmall" style="grid-template-columns:repeat(6,64px)"></div><div style="display:flex;gap:10px;align-items:center"><span class="cap-l" style="margin:0">PUMP RATE</span><div class="keys" id="dRates" style="grid-template-columns:repeat(3,auto)"></div><span class="cap-l" style="margin:0 0 0 10px">AUTO GAIN</span><div class="keys" id="dAuto"></div></div></div>
+    </div>
+  </div></section>
+</div></div>
+<div class="drop">DROP AUDIO TO RUN IT THROUGH</div>
 
 <script>
-// ===================================================================== knob widget
+// ===================================================================== helpers
+const $ = s => document.querySelector(s);
+const ms = v => v >= 1000 ? (v / 1000).toFixed(2) + " s" : v.toFixed(0) + " ms";
+const dB = v => (v > 0 ? "+" : "") + v.toFixed(1) + " dB";
+const hz = v => v < 1000 ? v.toFixed(0) + " Hz" : (v / 1000).toFixed(1) + " kHz";
 function knob(parent, { name, min, max, value, fmt, big, log, onchange }) {
   const el = document.createElement("div"); el.className = "knob" + (big ? " big" : "");
-  el.innerHTML = `<div class="dial"><svg class="scale" viewBox="-60 -60 120 120"></svg><div class="cap"><div class="ptr"></div></div></div><div class="name">${name}</div><div class="val"></div>`;
+  el.innerHTML = `<div class="dial"><svg viewBox="-60 -60 120 120"></svg><div class="cap"><div class="ptr"></div></div></div><div class="name">${name}</div><div class="val"></div>`;
   parent.appendChild(el);
   const svg = el.querySelector("svg"), ptr = el.querySelector(".ptr"), val = el.querySelector(".val");
-  let ticks = ""; for (let i = 0; i <= 10; i++) { const a = (-135 + 27 * i) * Math.PI / 180, r1 = 52, r2 = i % 5 ? 47 : 44;
-    ticks += `<line x1="${Math.sin(a) * r1}" y1="${-Math.cos(a) * r1}" x2="${Math.sin(a) * r2}" y2="${-Math.cos(a) * r2}" stroke="#5d523f" stroke-width="${i % 5 ? 1 : 1.8}"/>`; }
-  svg.innerHTML = ticks;
+  let t = ""; for (let i = 0; i <= 10; i++) { const a = (-135 + 27 * i) * Math.PI / 180, r1 = 54, r2 = i % 5 ? 49 : 45;
+    t += `<line x1="${Math.sin(a) * r1}" y1="${-Math.cos(a) * r1}" x2="${Math.sin(a) * r2}" y2="${-Math.cos(a) * r2}" stroke="#5d523f" stroke-width="${i % 5 ? 1.2 : 2}"/>`; }
+  svg.innerHTML = t;
   const toN = v => log ? Math.log(v / min) / Math.log(max / min) : (v - min) / (max - min);
   const fromN = n => log ? min * Math.pow(max / min, n) : min + n * (max - min);
-  let n = toN(value);
+  let n = toN(value), drag = null;
   const paint = () => { ptr.style.transform = `rotate(${-135 + 270 * n}deg)`; const v = fromN(n); val.textContent = fmt ? fmt(v) : v.toFixed(0); onchange && onchange(v); };
-  let drag = null;
-  el.querySelector(".dial").addEventListener("pointerdown", e => { drag = { y: e.clientY, n }; e.target.setPointerCapture(e.pointerId); });
-  el.addEventListener("pointermove", e => { if (!drag) return; n = Math.min(1, Math.max(0, drag.n + (drag.y - e.clientY) / (e.shiftKey ? 600 : 180))); paint(); });
-  el.addEventListener("pointerup", () => drag = null);
-  el.querySelector(".dial").addEventListener("dblclick", () => { n = toN(value); paint(); });
-  el.querySelector(".dial").addEventListener("wheel", e => { e.preventDefault(); n = Math.min(1, Math.max(0, n - e.deltaY / 800)); paint(); }, { passive: false });
+  const dial = el.querySelector(".dial");
+  dial.addEventListener("pointerdown", e => { drag = { y: e.clientY, n }; dial.setPointerCapture(e.pointerId); });
+  dial.addEventListener("pointermove", e => { if (!drag) return; n = Math.min(1, Math.max(0, drag.n + (drag.y - e.clientY) / (e.shiftKey ? 700 : 200))); paint(); });
+  dial.addEventListener("pointerup", () => drag = null);
+  dial.addEventListener("dblclick", () => { n = toN(value); paint(); });
+  dial.addEventListener("wheel", e => { e.preventDefault(); n = Math.min(1, Math.max(0, n - e.deltaY / 900)); paint(); }, { passive: false });
   paint();
-  return { get: () => fromN(n) };
 }
 function keys(parent, names, cur, onpick) {
   parent.innerHTML = names.map((nm, i) => `<button class="key ${i === cur ? "on" : ""}" data-i="${i}">${nm}</button>`).join("");
   parent.addEventListener("click", e => { const b = e.target.closest("[data-i]"); if (!b) return; parent.querySelectorAll(".key").forEach(k => k.classList.toggle("on", k === b)); onpick(+b.dataset.i); });
 }
-function fitCanvas(c) { const d = devicePixelRatio || 1, r = c.getBoundingClientRect(); if (c.width !== Math.round(r.width * d)) { c.width = Math.round(r.width * d); c.height = Math.round(r.height * d); } const g = c.getContext("2d"); g.setTransform(d, 0, 0, d, 0, 0); return [g, r.width, r.height]; }
-const ms = v => v >= 1000 ? (v / 1000).toFixed(2) + " s" : v.toFixed(0) + " ms";
+function toggleKey(parent, label, on, onflip) { parent.innerHTML = `<button class="key ${on ? "on" : ""}">${label}</button>`; const b = parent.firstChild; b.onclick = () => { on = !on; b.classList.toggle("on", on); onflip(on); }; }
+function fit(c) { const d = devicePixelRatio || 1, W = c.clientWidth, H = c.clientHeight; if (c.width !== Math.round(W * d) || c.height !== Math.round(H * d)) { c.width = Math.round(W * d); c.height = Math.round(H * d); } const g = c.getContext("2d"); g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, W, H); return [g, W, H]; }
+function scaleUnits() { const s = Math.min(innerWidth / 1090, (innerHeight - 52) / 660, 1.35); $("#units").style.transform = `scale(${s})`; }
+addEventListener("resize", scaleUnits); scaleUnits();
 
-// ===================================================================== ECHO LAB model
-// Styles: per-lap loss of highs comes from each style's fitted loop low-pass (dsp/Styles.h)
-const STYLES = [
-  { n: "STUDIO", lp: 21000, wob: 0 }, { n: "SPACE TAPE", lp: 2689, wob: 9.5 }, { n: "PLEX", lp: 8971, wob: 3.8 }, { n: "MEMORY", lp: 7225, wob: 21.8 },
-  { n: "DARK ANALOG", lp: 2739, wob: 0 }, { n: "DIGITAL", lp: 21000, wob: 0 }, { n: "RADIO", lp: 6387, wob: 0 }, { n: "ORPHEO", lp: 12000, wob: 4 }];
-const E = { time: 375, fb: 55, mix: 35, sat: 4, lo: 20, hi: 20000, wob: 100, duck: 60, style: 1, mode: 0, playing: false };
-const TAPE = 2.0; // the loop is two seconds of tape; heads are fixed, the tape moves
-let marks = [], lastIn = 0, inLevel = 0, outLevel = 0, outPeak = 0, startT = performance.now() / 1000, duckEnv = 0;
-const K1 = document.getElementById("echoKnobs"), K2 = document.getElementById("echoKnobs2");
-knob(K1, { name: "TIME", min: 10, max: 2000, value: E.time, log: true, big: true, fmt: ms, onchange: v => E.time = v });
-knob(K1, { name: "FEEDBACK", min: 0, max: 110, value: E.fb, big: true, fmt: v => v.toFixed(0) + " %", onchange: v => E.fb = v });
-knob(K1, { name: "SATURATION", min: -12, max: 24, value: E.sat, fmt: v => (v > 0 ? "+" : "") + v.toFixed(1) + " dB", onchange: v => E.sat = v });
-knob(K1, { name: "MIX", min: 0, max: 100, value: E.mix, fmt: v => v.toFixed(0) + " %", onchange: v => E.mix = v });
-knob(K1, { name: "WOBBLE", min: 0, max: 200, value: E.wob, fmt: v => v.toFixed(0) + " %", onchange: v => E.wob = v });
-knob(K2, { name: "LOW CUT", min: 20, max: 1000, value: 20, log: true, fmt: v => v < 21 ? "OFF" : v.toFixed(0) + " Hz", onchange: v => E.lo = v });
-knob(K2, { name: "HIGH CUT", min: 1000, max: 20000, value: 20000, log: true, fmt: v => v > 19900 ? "OFF" : (v / 1000).toFixed(1) + " kHz", onchange: v => E.hi = v });
-knob(K1, { name: "DUCK", min: 0, max: 100, value: 60, big: true, fmt: v => v.toFixed(0) + " %", onchange: v => E.duck = v });
-knob(K2, { name: "DUCK REL", min: 20, max: 2000, value: 250, log: true, fmt: ms, onchange: v => E.rel = v });
-knob(K2, { name: "WIDTH", min: 0, max: 100, value: 100, fmt: v => v.toFixed(0) + " %" });
-knob(K2, { name: "OUTPUT", min: -24, max: 12, value: 0, fmt: v => (v > 0 ? "+" : "") + v.toFixed(1) + " dB" });
-// rotary style switch
-(function () {
-  const R = document.getElementById("styleRot"); const holder = document.createElement("div"); R.appendChild(holder);
-  const k = { el: null }; holder.className = "knob"; holder.style.cssText = "position:absolute;left:50%;top:52px;transform:translateX(-50%)";
-  holder.innerHTML = `<div class="dial" style="width:56px;height:56px"><div class="cap"><div class="ptr"></div></div></div>`;
-  const ptr = holder.querySelector(".ptr");
-  STYLES.forEach((s, i) => { const a = (-120 + i * (240 / (STYLES.length - 1))) * Math.PI / 180, r = 62;
-    const p = document.createElement("span"); p.className = "pos"; p.textContent = s.n; p.dataset.i = i;
-    p.style.left = (125 + Math.sin(a) * r * 1.7) + "px"; p.style.top = (80 - Math.cos(a) * r * 1.05) + "px"; R.appendChild(p); });
-  const set = i => { E.style = i; ptr.style.transform = `rotate(${-120 + i * (240 / (STYLES.length - 1))}deg)`; R.querySelectorAll(".pos").forEach(p => p.classList.toggle("on", +p.dataset.i === i)); };
-  R.addEventListener("click", e => { const p = e.target.closest(".pos"); if (p) set(+p.dataset.i); });
-  holder.addEventListener("click", () => set((E.style + 1) % STYLES.length));
-  set(E.style);
-})();
-keys(document.getElementById("modeKeys"), ["SINGLE", "DUAL", "PING-PONG"], 0, i => E.mode = i);
-
-// the source: TAP = one hit, PLAY = a little drum figure at 120 BPM
-function hit(amp = 1, pan = 0) { const now = performance.now() / 1000; marks.push({ t: now, amp, lap: 0, pan, side: E.mode === 2 ? 0 : -1 }); lastIn = now; inLevel = Math.max(inLevel, amp); }
-document.getElementById("tap").addEventListener("click", () => hit(1));
-const PAT = [1, 0, .5, 0, .8, 0, .4, .3]; let step = 0, stepT = 0;
-document.getElementById("play").addEventListener("click", e => { E.playing = !E.playing; e.target.classList.toggle("on", E.playing); stepT = performance.now() / 1000; });
-
-// per-lap physics, the same chain as the DSP loop: gain * saturation knee, loop low-pass (style + High Cut)
-function lapGain() { const satC = Math.max(0, E.sat) / 24; return (E.fb / 100) * (1 - 0.12 * satC); }
-function lapHeat(lap) { // 0 = white-hot full bandwidth, 1 = dark rust: how much top end survives `lap` passes
-  const lp = Math.min(STYLES[E.style].lp, E.hi); const keep = Math.pow(Math.min(1, lp / 21000), 0.55); return 1 - Math.pow(keep, lap); }
-function heatColor(h, a) { // white -> amber -> rust -> ember
-  const stops = [[255, 244, 214], [255, 176, 0], [214, 69, 43], [110, 24, 16]];
-  const x = Math.min(2.999, h * 3), i = Math.floor(x), f = x - i, c = stops[i].map((v, k) => v + (stops[i + 1][k] - v) * f);
-  return `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`; }
-
-function echoTick(now, dt) {
-  if (E.playing && now - stepT > 0.25) { stepT += 0.25; if (PAT[step % 8]) hit(PAT[step % 8]); step++; }
-  const T = E.time / 1000;
-  const born = [];
-  for (const m of marks) {
-    const age = now - m.t;
-    if (!m.played && age >= Math.min(T, TAPE * 0.97)) {
-      m.played = true;
-      const duck = 1 - (E.duck / 100) * duckEnv;
-      const lvl = m.amp * (m.lap === 0 ? 1 : 1) * duck;
-      if (m.lap > 0 || true) { outLevel = Math.max(outLevel, m.lap === 0 ? 0 : lvl); }
-      const g = lapGain();
-      if (m.amp * g > 0.02 && m.lap < 40) born.push({ t: now, amp: Math.min(1.4, m.amp * g * (1 + Math.max(0, E.sat) / 60)), lap: m.lap + 1, side: E.mode === 2 ? 1 - (m.side < 0 ? 0 : m.side) : -1 });
-      if (m.lap > 0 || m.lap === 0) document.getElementById("ledPlay").classList.add("on");
-    }
-  }
-  marks.push(...born);
-  marks = marks.filter(m => now - m.t < TAPE * 0.97); // the erase head sits just before the record head
-  duckEnv = Math.max(now - lastIn < 0.12 ? 1 : 0, duckEnv * Math.exp(-dt / ((E.rel || 250) / 1000)));
-  inLevel *= Math.exp(-dt / 0.12); outLevel *= Math.exp(-dt / 0.18);
-  setTimeout(() => document.getElementById("ledPlay").classList.remove("on"), 40);
-  document.getElementById("ledRec").classList.toggle("on", now - lastIn < 0.08);
-  document.getElementById("ledSat").classList.toggle("on", E.sat > 10 && marks.some(m => m.amp > 0.7));
-  document.getElementById("ledDuck").classList.toggle("on", E.duck > 0 && duckEnv > 0.3);
-}
-
-// ===================================================================== VECTOR DISPLAY KIT
-// glowing wireframe line-art: red / orange / amber with teal accents, chamfered double frames
-const V = { red: "#ff4a2b", orange: "#ff8a1f", amber: "#ffc93c", teal: "#2fd6a8", blue: "#3b8cff", dim: "rgba(255,74,43,.22)", font: "'Share Tech Mono', ui-monospace, monospace" };
+// ===================================================================== vector display kit
+const V = { red: "#ff4a2b", orange: "#ff8a1f", amber: "#ffc93c", teal: "#2fd6a8", font: "'Share Tech Mono', ui-monospace, monospace" };
 function glow(g, col, blur = 10) { g.strokeStyle = col; g.fillStyle = col; g.shadowColor = col; g.shadowBlur = blur; }
 function chamfer(g, x, y, w, h, c) { g.beginPath(); g.moveTo(x + c, y); g.lineTo(x + w - c, y); g.lineTo(x + w, y + c); g.lineTo(x + w, y + h - c); g.lineTo(x + w - c, y + h); g.lineTo(x + c, y + h); g.lineTo(x, y + h - c); g.lineTo(x, y + c); g.closePath(); }
-function vframe(g, W, H, col, title, right) {
-  g.lineWidth = 1.2; glow(g, col, 6);
-  chamfer(g, 5, 5, W - 10, H - 10, 12); g.stroke();
-  g.globalAlpha = 0.45; chamfer(g, 10, 10, W - 20, H - 20, 9); g.stroke(); g.globalAlpha = 1;
-  // corner brackets
-  g.lineWidth = 2; glow(g, V.amber, 8);
-  for (const [x, y, sx, sy] of [[16, 16, 1, 1], [W - 16, 16, -1, 1], [16, H - 16, 1, -1], [W - 16, H - 16, -1, -1]]) { g.beginPath(); g.moveTo(x, y + 10 * sy); g.lineTo(x, y); g.lineTo(x + 10 * sx, y); g.stroke(); }
-  g.shadowBlur = 0;
-  if (title) { g.font = "12px " + V.font; const tw = g.measureText(title).width; g.fillStyle = "#0b0907"; g.fillRect(26, 0, tw + 14, 12); glow(g, col, 8); g.fillText(title, 33, 10); }
-  if (right) { g.font = "12px " + V.font; const tw = g.measureText(right).width; g.fillStyle = "#0b0907"; g.fillRect(W - tw - 40, H - 12, tw + 14, 12); glow(g, V.amber, 8); g.fillText(right, W - tw - 33, H - 2); }
-  g.shadowBlur = 0;
-}
 function text(g, s, x, y, col, size = 12, align = "left") { g.font = size + "px " + V.font; g.textAlign = align; glow(g, col, 8); g.fillText(s, x, y); g.shadowBlur = 0; g.textAlign = "left"; }
-const lapCol = h => h < 0.15 ? V.amber : h < 0.45 ? V.orange : h < 0.8 ? V.red : "rgba(170,40,20,.8)";
-
-function drawRing(now) {
-  const [g, W, H] = fitCanvas(document.getElementById("ring")); g.clearRect(0, 0, W, H);
-  const sty = STYLES[E.style], T = Math.min(E.time / 1000, TAPE * 0.97);
-  const duckAmt = (E.duck / 100) * duckEnv, duckDb = duckAmt > 0.001 ? 20 * Math.log10(1 - duckAmt * 0.94) : 0;
-  vframe(g, W, H, V.red, "TAPE LOOP · " + sty.n, ms(E.time) + " · FB " + E.fb.toFixed(0) + "%");
-  // isometric projection of the loop
-  const cx = W * 0.47, cy = H * 0.6, R = Math.min(W * 0.34, H * 0.62);
-  const wob = (sty.wob + 3) * E.wob / 100, wr = t => 1 + wob * 0.0012 * Math.sin(t * 1.3) + wob * 0.0005 * Math.sin(t * 7.9);
-  const P = (a, r, z) => [cx + Math.cos(a) * r, cy + Math.sin(a) * r * 0.42 - z];
-  const A = f => Math.PI / 2 + f * 2 * Math.PI; // record head at the front
-  // tape loop: three wire rings + cross ties (a track)
-  g.lineWidth = 1;
-  for (const [rr, col, a] of [[0.92, V.orange, .55], [1, V.red, .9], [1.08, V.orange, .55]]) {
-    glow(g, col, 6); g.globalAlpha = a; g.beginPath();
-    for (let i = 0; i <= 120; i++) { const [x, y] = P(i / 120 * 2 * Math.PI, R * rr * wr(now + i * .02), 0); i ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke(); }
-  g.globalAlpha = .35; glow(g, V.red, 4);
-  const spin = now / TAPE; // tape moves: ties travel
-  for (let i = 0; i < 48; i++) { const a = A(i / 48 + spin); const [x1, y1] = P(a, R * .92, 0), [x2, y2] = P(a, R * 1.08, 0); g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); }
-  g.globalAlpha = 1;
-  // duck rings (teal), pressed in while the input plays
-  glow(g, V.teal, 10); g.lineWidth = 1.5;
-  for (let k = 0; k < 3; k++) { const rr = R * (0.55 - k * 0.07) * (1 - duckAmt * 0.35); g.globalAlpha = E.duck > 0 ? 0.35 + 0.65 * duckAmt : 0.15; g.beginPath(); g.ellipse(cx, cy, rr, rr * 0.42, 0, 0, 7); g.stroke(); }
-  g.globalAlpha = 1;
-  // heads as wireframe blocks (yellow), playback head where the delay puts it
-  const block = (a, col, label) => { const [x, y] = P(a, R * 1.2, 0), w = 14, h = 10, d = 8;
-    glow(g, col, 10); g.lineWidth = 1.3; g.strokeRect(x - w / 2, y - h, w, h); g.beginPath(); g.moveTo(x - w / 2, y - h); g.lineTo(x - w / 2 + d, y - h - d * .6); g.lineTo(x + w / 2 + d, y - h - d * .6); g.lineTo(x + w / 2, y - h); g.moveTo(x + w / 2 + d, y - h - d * .6); g.lineTo(x + w / 2 + d, y - d * .6); g.lineTo(x + w / 2, y); g.stroke();
-    text(g, label, x, y + 16, col, 11, "center"); };
-  block(A(0), V.amber, "REC"); block(A(T / TAPE), V.teal, "PLAY");
-  // the delay arc
-  g.setLineDash([3, 6]); glow(g, V.teal, 6); g.lineWidth = 1; g.beginPath();
-  for (let i = 0; i <= 60; i++) { const [x, y] = P(A(i / 60 * T / TAPE), R * 1.2, 0); i ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke(); g.setLineDash([]);
-  // echoes: wireframe columns standing on the tape, travelling with it, cooling each lap
-  const sorted = [...marks].sort((m1, m2) => Math.sin(A((now - m1.t) / TAPE)) - Math.sin(A((now - m2.t) / TAPE)));
-  const satC = Math.max(0, E.sat) / 24;
-  for (const m of sorted) {
-    const age = now - m.t, a = A(age / TAPE), h = lapHeat(m.lap);
-    const amp = Math.min(1.2, m.amp) * (m.lap ? (1 - duckAmt * 0.94) : 1);
-    const off = m.side === 0 ? -0.06 : m.side === 1 ? 0.06 : 0;
-    const [bx, by] = P(a, R * (1 + off), 0), z = 10 + amp * H * 0.42, w = 5 + 4 * satC, col = lapCol(h);
-    glow(g, col, 12); g.lineWidth = 1.2;
-    g.globalAlpha = Math.min(1, 0.3 + amp) * (m.played ? 0.45 : 1); // already heard: an afterimage until the erase head
-    // column: two verticals + flutes + capital and base (classical order, in wire)
-    g.beginPath(); g.moveTo(bx - w, by); g.lineTo(bx - w, by - z); g.moveTo(bx + w, by); g.lineTo(bx + w, by - z);
-    g.moveTo(bx, by); g.lineTo(bx, by - z); g.stroke();
-    g.beginPath(); g.ellipse(bx, by - z, w + 3, (w + 3) * .42, 0, 0, 7); g.stroke();
-    g.beginPath(); g.ellipse(bx, by, w + 2, (w + 2) * .42, 0, 0, 7); g.stroke();
-    if (satC > 0.25 && amp > 0.4) { g.globalAlpha *= .5; for (let k = 1; k < 4; k++) { const j = Math.sin(m.t * 77 + k) * satC * 6; g.beginPath(); g.moveTo(bx - w + j, by - z * k / 4); g.lineTo(bx + w + j, by - z * k / 4); g.stroke(); } }
-    g.globalAlpha = 1;
-  }
+function vframe(g, W, H, col, title, right) {
+  g.lineWidth = 1.2; glow(g, col, 6); chamfer(g, 5, 5, W - 10, H - 10, 11); g.stroke();
+  g.globalAlpha = .4; chamfer(g, 9, 9, W - 18, H - 18, 8); g.stroke(); g.globalAlpha = 1;
+  g.lineWidth = 2; glow(g, V.amber, 8);
+  for (const [x, y, sx, sy] of [[15, 15, 1, 1], [W - 15, 15, -1, 1], [15, H - 15, 1, -1], [W - 15, H - 15, -1, -1]]) { g.beginPath(); g.moveTo(x, y + 9 * sy); g.lineTo(x, y); g.lineTo(x + 9 * sx, y); g.stroke(); }
   g.shadowBlur = 0;
-  // read-outs
-  text(g, "LAPS " + (marks.length ? Math.max(0, ...marks.map(m => m.lap)) : 0), W - 24, 34, V.amber, 12, "right");
-  text(g, E.fb >= 100 ? "!! SELF-OSCILLATION" : "", W - 24, 52, V.red, 12, "right");
-  if (E.duck > 0) { text(g, "DUCK " + duckDb.toFixed(1) + " dB", 24, 34, V.teal, 13);
-    glow(g, V.teal, 8); g.strokeRect(24, 42, 110, 8); g.fillRect(24, 42, 110 * duckAmt, 8); g.shadowBlur = 0; }
-  text(g, ["SINGLE", "DUAL", "PING-PONG"][E.mode], 24, H - 24, V.orange, 11);
+  const tag = (s, x, y, c) => { g.font = "11px " + V.font; const tw = g.measureText(s).width; g.fillStyle = "#0d0a09"; g.fillRect(x - 6, y - 10, tw + 12, 12); text(g, s, x, y, c, 11); };
+  if (title) tag(title, 30, 9, col);
+  if (right) { g.font = "11px " + V.font; const tw = g.measureText(right).width; tag(right, W - tw - 30, H - 1, V.amber); }
+}
+const heat = h => { const s = [[255, 236, 190], [255, 201, 60], [255, 138, 31], [255, 74, 43], [140, 30, 18]]; const x = Math.min(3.999, Math.max(0, h) * 4), i = Math.floor(x), f = x - i; return s[i].map((v, k) => Math.round(v + (s[i + 1][k] - v) * f)); };
+const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+function vu(id, lvl) {
+  const [g, W, H] = fit(document.getElementById(id)), cx = W / 2, cy = H * 1.22, R = H * 1.02;
+  g.strokeStyle = "#6f6450"; g.lineWidth = 1; g.beginPath(); g.arc(cx, cy, R, -Math.PI * .76, -Math.PI * .24); g.stroke();
+  for (let i = 0; i <= 10; i++) { const a = -Math.PI * .76 + i * Math.PI * .052; const r2 = R - (i % 5 ? 4 : 8); g.beginPath(); g.moveTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R); g.lineTo(cx + Math.cos(a) * r2, cy + Math.sin(a) * r2); g.stroke(); }
+  g.strokeStyle = "#c8261a"; g.lineWidth = 2.5; g.beginPath(); g.arc(cx, cy, R - 2, -Math.PI * .34, -Math.PI * .24); g.stroke();
+  const db = 20 * Math.log10(Math.max(lvl, 1e-5)), n = Math.min(1.04, Math.max(0, (db + 30) / 33));
+  const a = -Math.PI * .76 + n * Math.PI * .52;
+  g.strokeStyle = "#1b1712"; g.lineWidth = 1.5; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(a) * (R + 3), cy + Math.sin(a) * (R + 3)); g.stroke();
 }
 
-function drawLadder() { // Microcosm bands: each repeat a stripe, thickness = level, colour = heat
-  const [g, W, H] = fitCanvas(document.getElementById("ladder")); g.clearRect(0, 0, W, H);
-  vframe(g, W, H, V.red, "REPEATS");
-  const n = 14, gain = lapGain(), cx = W * 0.12, cy = H * 1.05;
-  let r = 18;
-  for (let k = 1; k <= n; k++) {
-    const amp = Math.pow(gain, k - 1), db = 20 * Math.log10(Math.max(amp, 1e-6)), th = Math.max(0, (db + 48) / 48) * 7;
-    if (th <= 0.2) break;
-    const col = k === 1 ? V.amber : lapCol(lapHeat(k - 1));
-    glow(g, col, 8); g.lineWidth = th; g.beginPath(); g.arc(cx, cy, r + th / 2, -Math.PI * 0.5, -Math.PI * 0.03); g.stroke();
-    r += th + 2.5;
-  }
-  g.shadowBlur = 0;
-  text(g, (20 * Math.log10(Math.max(gain, 1e-6))).toFixed(1) + " dB/rep", W - 18, H - 18, V.amber, 11, "right");
-}
-
-let trail = [];
-function drawDrive(now) {
-  const s = DSTY[D.style], P0 = D.punish;
-  const lineCol = P0 ? V.red : V.orange;
-  let [g, W, H] = fitCanvas(document.getElementById("curve")); g.clearRect(0, 0, W, H);
-  vframe(g, W, H, P0 ? V.red : V.orange, "TRANSFER · " + s.n, "DRIVE " + D.drive.toFixed(1));
-  // isometric node grid (the plotted plane)
-  const cx = W / 2, cy = H * 0.56, sx = W * 0.36, sy = H * 0.3;
-  const Q = (x, y) => [cx + x * sx + y * sx * 0.18, cy - y * sy + x * sy * 0.12];
-  g.lineWidth = 1; glow(g, "rgba(255,138,31,.35)", 0);
-  for (let i = -4; i <= 4; i++) { let [a, b] = Q(i / 4, -1.2), [c, d] = Q(i / 4, 1.2); g.beginPath(); g.moveTo(a, b); g.lineTo(c, d); g.stroke(); [a, b] = Q(-1, i * .3); [c, d] = Q(1, i * .3); g.beginPath(); g.moveTo(a, b); g.lineTo(c, d); g.stroke(); }
-  glow(g, V.teal, 6); g.setLineDash([3, 5]); { const [a, b] = Q(-1, -1), [c, d] = Q(1, 1); g.beginPath(); g.moveTo(a, b); g.lineTo(c, d); g.stroke(); } g.setLineDash([]);
-  // the curve, double-stroked like the reference panels
-  for (const [w, al] of [[5, .25], [1.8, 1]]) { glow(g, lineCol, 14); g.globalAlpha = al; g.lineWidth = w; g.beginPath();
-    for (let i = 0; i <= 160; i++) { const x = -1 + i / 80, [px, py] = Q(x, shape(x)); i ? g.lineTo(px, py) : g.moveTo(px, py); } g.stroke(); }
-  g.globalAlpha = 1;
-  // plotted nodes (rings) along the curve
-  glow(g, V.amber, 10); g.lineWidth = 1.3;
-  for (const x of [-0.75, -0.4, 0, 0.4, 0.75]) { const [px, py] = Q(x, shape(x)); g.beginPath(); g.arc(px, py, 6, 0, 7); g.stroke(); g.beginPath(); g.arc(px, py, 2, 0, 7); g.fill(); }
-  // the signal riding the curve, with pump
-  const beat = now * D.bpm / 60, per = D.rate === 0 ? .5 : D.rate === 1 ? 1 : 2, ph = (beat * per) % 1;
-  const pump = 1 - (D.pump / 100) * (1 - (1 - Math.pow(1 - Math.min(ph / .85, 1), 2.2)));
-  const env = 0.35 + 0.65 * Math.abs(Math.sin(now * 0.7)), xin = Math.sin(now * 2 * Math.PI * 1.7) * env;
-  trail.push([xin, shape(xin) * pump, now]); trail = trail.filter(p => now - p[2] < 0.7);
-  for (const [x, y, t] of trail) { const [px, py] = Q(x, y); g.globalAlpha = 1 - (now - t) / 0.7; glow(g, V.amber, 6); g.fillRect(px - 1, py - 1, 2, 2); }
-  g.globalAlpha = 1; { const [px, py] = Q(xin, shape(xin) * pump); glow(g, "#fff3d0", 18); g.beginPath(); g.arc(px, py, 4, 0, 7); g.fill(); g.beginPath(); g.arc(px, py, 10, 0, 7); g.stroke(); }
-  g.shadowBlur = 0;
-  if (P0) { // red alert banner
-    const bw = 210; glow(g, V.red, 12); g.lineWidth = 1.5; g.strokeRect(26, 28, bw, 40); g.globalAlpha = .18 + .12 * Math.sin(now * 8); g.fillRect(26, 28, bw, 40); g.globalAlpha = 1;
-    text(g, "SYSTEM PUNISH", 36, 47, V.red, 16); text(g, "+18 dB INTO THE CLIPPER", 36, 62, V.orange, 10);
-  }
-  if (D.pump > 0) { text(g, "PUMP " + ["1/2", "1/4", "1/8"][D.rate], W - 24, 34, V.teal, 12, "right"); glow(g, V.teal, 8); g.strokeRect(W - 124, 42, 100, 6); g.fillRect(W - 124, 42, 100 * pump, 6); g.shadowBlur = 0; }
-  // harmonics: wireframe blocks
-  const N = 256, re = new Float32Array(9), im = new Float32Array(9);
-  for (let i = 0; i < N; i++) { const y = shape(0.8 * Math.sin(2 * Math.PI * i / N)); for (let h = 1; h <= 8; h++) { re[h] += y * Math.cos(2 * Math.PI * h * i / N); im[h] += y * Math.sin(2 * Math.PI * h * i / N); } }
-  const mag = h => Math.hypot(re[h], im[h]) / (N / 2), f = mag(1) || 1;
-  let thd = 0; for (let h = 2; h <= 8; h++) thd += mag(h) ** 2; thd = Math.sqrt(thd) / f;
-  [g, W, H] = fitCanvas(document.getElementById("harm")); g.clearRect(0, 0, W, H);
-  vframe(g, W, H, V.red, "HARMONICS", "THD " + (thd * 100).toFixed(1) + "%");
-  const bw = (W - 50) / 8;
-  for (let h = 1; h <= 8; h++) {
-    const db = 20 * Math.log10(Math.max(mag(h) / f, 1e-5)), hh = Math.max(2, (db + 70) / 70 * (H - 50));
-    const x = 22 + (h - 1) * bw, y = H - 22, w = bw - 10, d = 6, col = h === 1 ? V.teal : h % 2 ? (P0 ? V.red : V.orange) : V.amber;
-    glow(g, col, 8); g.lineWidth = 1.2; g.strokeRect(x, y - hh, w, hh);
-    g.beginPath(); g.moveTo(x, y - hh); g.lineTo(x + d, y - hh - d); g.lineTo(x + w + d, y - hh - d); g.lineTo(x + w, y - hh); g.moveTo(x + w + d, y - hh - d); g.lineTo(x + w + d, y - d); g.lineTo(x + w, y); g.stroke();
-    text(g, h === 1 ? "F" : "" + h, x + w / 2, H - 9, col, 9, "center");
-  }
-  // scope on a green grid
-  [g, W, H] = fitCanvas(document.getElementById("scope")); g.clearRect(0, 0, W, H);
-  vframe(g, W, H, V.teal, "SCOPE");
-  g.lineWidth = 1; glow(g, "rgba(47,214,168,.18)", 0);
-  for (let x = 20; x < W - 15; x += 18) { g.beginPath(); g.moveTo(x, 16); g.lineTo(x, H - 14); g.stroke(); }
-  for (let y = 16; y < H - 12; y += 14) { g.beginPath(); g.moveTo(16, y); g.lineTo(W - 16, y); g.stroke(); }
-  const wave = (fn, c, w, dash) => { glow(g, c, 8); g.lineWidth = w; g.setLineDash(dash || []); g.beginPath(); for (let i = 20; i <= W - 20; i += 2) { const t = i / W * 2; const v = fn(Math.sin(2 * Math.PI * t * 2 + now * 3) * 0.8); i > 20 ? g.lineTo(i, H / 2 - v * H * 0.3) : g.moveTo(i, H / 2 - v * H * 0.3); } g.stroke(); g.setLineDash([]); };
-  wave(x => x, "rgba(47,214,168,.6)", 1, [2, 3]); wave(x => shape(x) * pump, P0 ? V.red : V.orange, 1.8);
-  g.shadowBlur = 0;
-  document.getElementById("ledHeat").classList.toggle("on", thd > 0.08);
-  document.getElementById("ledClip").classList.toggle("on", Math.abs(shape(xin)) > 1.02);
-  document.getElementById("ledPun").classList.toggle("on", P0);
-  document.getElementById("ledPump").classList.toggle("on", D.pump > 0 && ph < 0.12);
-}
-
-function drawVU(id, level) {
-  const [g, W, H] = fitCanvas(document.getElementById(id)); g.clearRect(0, 0, W, H);
-  const cx = W / 2, cy = H * 1.15, R = H * 0.95;
-  g.strokeStyle = "#6f6450"; g.lineWidth = 1;
-  g.beginPath(); g.arc(cx, cy, R, -Math.PI * 0.78, -Math.PI * 0.22); g.stroke();
-  for (let i = 0; i <= 10; i++) { const a = -Math.PI * 0.78 + i * Math.PI * 0.056; g.beginPath(); g.moveTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R); g.lineTo(cx + Math.cos(a) * (R - (i % 5 ? 5 : 9)), cy + Math.sin(a) * (R - (i % 5 ? 5 : 9))); g.stroke(); }
-  g.strokeStyle = "#c8261a"; g.lineWidth = 2.5; g.beginPath(); g.arc(cx, cy, R - 2, -Math.PI * 0.78 + Math.PI * 0.45, -Math.PI * 0.22); g.stroke();
-  const a = -Math.PI * 0.78 + Math.min(1, level) * Math.PI * 0.56;
-  g.strokeStyle = "#1b1712"; g.lineWidth = 1.6; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(a) * (R + 4), cy + Math.sin(a) * (R + 4)); g.stroke();
-}
-
-// ===================================================================== DRIVE LAB model
-// clipper: the DriveEngine shape: pre-gain, knee, asymmetric ceiling, level-following bias
+// ===================================================================== AUDIO ENGINE
+const ctx = new (window.AudioContext || window.webkitAudioContext)();
+const N = (type, opts) => new (window[type])(ctx, opts);
+const master = N("GainNode", { gain: 0.9 }); master.connect(ctx.destination);
+const input = N("GainNode");          // every source plugs in here
+// ---- DRIVE section
+const D = { drive: 4, style: 4, punish: false, tone: 0, mix: 100, pump: 0, rate: 1, filter: 20000, res: 20, out: 0, auto: true, on: true, bpm: 120 };
 const DSTY = [
-  { n: "TAPE", knee: .8, asym: .05, bias: 0, track: .1, col: "#ffb000" }, { n: "DESK", knee: .35, asym: .18, bias: .06, track: .5, col: "#ffcf6b" },
-  { n: "IRON", knee: .55, asym: .1, bias: .03, track: .3, col: "#e8a05a" }, { n: "TUBE", knee: .7, asym: .3, bias: .08, track: .6, col: "#ff8a3d" },
-  { n: "PENTODE", knee: .25, asym: .4, bias: .1, track: .9, col: "#ff5d3a" }, { n: "CRUSH", knee: .02, asym: .02, bias: 0, track: 0, col: "#ff2b2b" }];
-const D = { drive: 4, style: 4, punish: false, tone: 0, mix: 100, pump: 0, rate: 1, filter: 20000, res: 20, out: 0, bpm: 120 };
-function shape(x) {
-  const s = DSTY[D.style];
-  const gain = Math.pow(10, (D.drive * 3.3 + (D.punish ? 18 : 0) - 3) / 20);
-  const lvl = Math.abs(x) * gain;
-  let u = x * gain + s.bias + s.track * 0.12 * Math.min(1, lvl);
-  const ceil = 1 + (u > 0 ? s.asym : -s.asym) * 0.6;
-  const k = Math.max(0.02, s.knee), a = Math.abs(u) / ceil;
+  { n: "TAPE", knee: .8, asym: .05, bias: 0, track: .1 }, { n: "DESK", knee: .35, asym: .18, bias: .06, track: .5 },
+  { n: "IRON", knee: .55, asym: .1, bias: .03, track: .3 }, { n: "TUBE", knee: .7, asym: .3, bias: .08, track: .6 },
+  { n: "PENTODE", knee: .25, asym: .4, bias: .1, track: .9 }, { n: "CRUSH", knee: .02, asym: .02, bias: 0, track: 0 }];
+function shape(x) { // DriveEngine-shaped clipper: pre-gain, knee, asymmetric ceiling, level-following bias
+  const s = DSTY[D.style], gain = Math.pow(10, (D.drive * 3.3 + (D.punish ? 18 : 0) - 3) / 20);
+  const lvl = Math.abs(x) * gain, u = x * gain + s.bias + s.track * 0.12 * Math.min(1, lvl);
+  const ceil = 1 + (u > 0 ? s.asym : -s.asym) * 0.6, k = Math.max(0.02, s.knee), a = Math.abs(u) / ceil;
   let y = a < 1 - k ? a : (1 - k) + k * Math.tanh((a - (1 - k)) / k);
-  if (D.style === 5) y = Math.min(a, 1) - 0.08 * Math.sin(a * 9) * Math.min(1, a); // crush: hard + folding grit
+  if (D.style === 5) y = Math.min(a, 1) - 0.08 * Math.sin(a * 9) * Math.min(1, a);
   return Math.sign(u) * y * ceil - (s.bias + s.track * 0.06) * 0.9;
 }
-const DB = document.getElementById("driveBig"), DK = document.getElementById("driveKnobs");
-knob(DB, { name: "DRIVE", min: 0, max: 10, value: D.drive, big: true, fmt: v => v.toFixed(1), onchange: v => D.drive = v });
-knob(DK, { name: "TONE", min: -12, max: 12, value: 0, fmt: v => (v > 0 ? "+" : "") + v.toFixed(1) + " dB", onchange: v => D.tone = v });
-knob(DK, { name: "MIX", min: 0, max: 100, value: 100, fmt: v => v.toFixed(0) + " %", onchange: v => D.mix = v });
-knob(DK, { name: "PUMP", min: 0, max: 100, value: 0, fmt: v => v.toFixed(0) + " %", onchange: v => D.pump = v });
-knob(DK, { name: "FILTER", min: 80, max: 20000, value: 20000, log: true, fmt: v => v > 19900 ? "OFF" : v < 1000 ? v.toFixed(0) + " Hz" : (v / 1000).toFixed(1) + " kHz", onchange: v => D.filter = v });
-knob(DK, { name: "RESONANCE", min: 0, max: 100, value: 20, fmt: v => v.toFixed(0) + " %", onchange: v => D.res = v });
-knob(DK, { name: "OUTPUT", min: -24, max: 12, value: 0, fmt: v => (v > 0 ? "+" : "") + v.toFixed(1) + " dB", onchange: v => D.out = v });
-keys(document.getElementById("driveStyles"), DSTY.map(s => s.n), D.style, i => D.style = i);
-(function () { // guarded switch: first click lifts the cover, second throws the switch
-  const P = document.getElementById("punish"), sw = document.getElementById("punSw");
-  P.addEventListener("click", () => {
-    if (!P.classList.contains("armed")) { P.classList.add("armed"); return; }
-    D.punish = !D.punish; sw.classList.toggle("on", D.punish);
-    if (!D.punish) setTimeout(() => P.classList.remove("armed"), 400);
+const dIn = N("GainNode"), dDry = N("GainNode"), dWet = N("GainNode"), dOut = N("GainNode");
+const shaper = N("WaveShaperNode", { oversample: "4x" });
+const lowS = N("BiquadFilterNode", { type: "lowshelf", frequency: 400 }), highS = N("BiquadFilterNode", { type: "highshelf", frequency: 2500 });
+const dFilt = N("BiquadFilterNode", { type: "lowpass", frequency: 20000, Q: .7 });
+const pumpG = N("GainNode"), autoG = N("GainNode"), dLevel = N("GainNode");
+const anDPre = N("AnalyserNode", { fftSize: 2048 }), anDPost = N("AnalyserNode", { fftSize: 2048 }), anDOut = N("AnalyserNode", { fftSize: 2048 });
+input.connect(dIn); dIn.connect(anDPre); dIn.connect(dDry); dIn.connect(shaper);
+const viewShaper = N("WaveShaperNode", { oversample: "none" }); // same curve, no oversampling: sample-aligned for the X/Y display
+dIn.connect(viewShaper); viewShaper.connect(anDPost); shaper.connect(autoG); autoG.connect(lowS); lowS.connect(highS); highS.connect(dFilt); dFilt.connect(dWet);
+dDry.connect(pumpG); dWet.connect(pumpG); pumpG.connect(dLevel); dLevel.connect(dOut); dOut.connect(anDOut);
+function updateDrive() {
+  const c = new Float32Array(4097); let rIn = 0, rOut = 0;
+  for (let i = 0; i < 4097; i++) c[i] = shape(i / 2048 - 1);
+  for (let i = 0; i < 256; i++) { const x = 0.25 * Math.sin(2 * Math.PI * i / 256); rIn += x * x; const y = shape(x); rOut += y * y; }
+  shaper.curve = c; viewShaper.curve = c;
+  autoG.gain.setTargetAtTime(D.auto ? Math.min(4, Math.sqrt(rIn / Math.max(rOut, 1e-9))) : 1, ctx.currentTime, .03);
+  lowS.gain.value = -D.tone / 2; highS.gain.value = D.tone / 2;
+  dFilt.frequency.setTargetAtTime(Math.min(D.filter, 20000), ctx.currentTime, .02); dFilt.Q.value = .7 + D.res / 100 * 14;
+  const m = D.on ? D.mix / 100 : 0;
+  dWet.gain.setTargetAtTime(Math.sin(m * Math.PI / 2), ctx.currentTime, .02); dDry.gain.setTargetAtTime(Math.cos(m * Math.PI / 2), ctx.currentTime, .02);
+  dLevel.gain.setTargetAtTime(D.on ? Math.pow(10, D.out / 20) : 1, ctx.currentTime, .02);
+}
+// ---- ECHO section: two delay lines with a routing matrix (single / dual / ping-pong)
+const STYLES = [
+  { n: "STUDIO", lp: 21000, hp: 12, wob: 0 }, { n: "SPACE TAPE", lp: 2689, hp: 123, wob: 9.5 }, { n: "PLEX", lp: 8971, hp: 42, wob: 3.8 }, { n: "MEMORY", lp: 7225, hp: 42, wob: 21.8 },
+  { n: "DARK ANALOG", lp: 2739, hp: 54, wob: 0 }, { n: "DIGITAL", lp: 21000, hp: 46, wob: 0 }, { n: "RADIO", lp: 6387, hp: 76, wob: 0 }, { n: "ORPHEO", lp: 12000, hp: 40, wob: 4 }];
+const E = { time: 375, fb: 55, mix: 35, sat: 4, lo: 20, hi: 20000, wob: 100, duck: 60, rel: 250, width: 100, out: 0, style: 1, mode: 0, on: true };
+const TAPE = 2.2;
+const eIn = N("GainNode"), eDry = N("GainNode"), eWetSum = N("GainNode"), duckG = N("GainNode"), eWet = N("GainNode"), eOut = N("GainNode");
+const anEIn = N("AnalyserNode", { fftSize: 2048 }), anWrite = N("AnalyserNode", { fftSize: 1024, smoothingTimeConstant: 0 }), anWet = N("AnalyserNode", { fftSize: 2048 });
+dOut.connect(eIn); eIn.connect(anEIn); eIn.connect(eDry); eDry.connect(eOut);
+const lines = [0, 1].map(i => {
+  const write = N("GainNode"), sat = N("WaveShaperNode", { oversample: "2x" }), delay = N("DelayNode", { maxDelayTime: 3 });
+  const hp = N("BiquadFilterNode", { type: "highpass", Q: .5 }), lp = N("BiquadFilterNode", { type: "lowpass", Q: .5 }), pan = N("StereoPannerNode");
+  write.connect(sat); sat.connect(delay); delay.connect(hp); hp.connect(lp); lp.connect(pan); pan.connect(eWetSum);
+  const lfo = N("OscillatorNode", { frequency: 0.9 + i * 0.13 }), lfoG = N("GainNode", { gain: 0 }); lfo.connect(lfoG); lfoG.connect(delay.delayTime); lfo.start();
+  const fl = N("OscillatorNode", { frequency: 6.5 + i }), flG = N("GainNode", { gain: 0 }); fl.connect(flG); flG.connect(delay.delayTime); fl.start();
+  return { write, sat, delay, hp, lp, pan, lfoG, flG, inG: N("GainNode"), self: N("GainNode"), cross: N("GainNode") };
+});
+lines.forEach((L, i) => { eIn.connect(L.inG); L.inG.connect(L.write); L.lp.connect(L.self); L.self.connect(L.write); L.lp.connect(L.cross); L.cross.connect(lines[1 - i].write); });
+lines[0].write.connect(anWrite);
+eWetSum.connect(duckG); duckG.connect(eWet); eWet.connect(eOut); eWet.connect(anWet); eOut.connect(master);
+function updateEcho() {
+  const t = ctx.currentTime, st = STYLES[E.style], T = E.time / 1000, fb = E.fb / 100;
+  const c = Math.min(2, Math.max(0.08, Math.pow(10, -E.sat / 20))); // loop ceiling: more saturation = lower ceiling
+  const curve = new Float32Array(2049); for (let i = 0; i < 2049; i++) { const x = (i / 1024 - 1) * 2; curve[i] = c * Math.tanh(x / c); }
+  const mode = E.mode, w = E.width / 100;
+  lines.forEach((L, i) => {
+    L.sat.curve = curve;
+    const Ti = mode === 1 && i === 1 ? Math.min(2, T * 1.5) : T;
+    L.delay.delayTime.setTargetAtTime(Ti, t, 0.06); // tape-like glide when Time moves
+    L.hp.frequency.setTargetAtTime(Math.max(st.hp, E.lo), t, .02); L.lp.frequency.setTargetAtTime(Math.min(st.lp, E.hi, 20000), t, .02);
+    const cents = (st.wob + 2) * E.wob / 100; L.lfoG.gain.value = Ti * (Math.pow(2, cents / 1200) - 1) * 0.6; L.flG.gain.value = Ti * (Math.pow(2, cents * .25 / 1200) - 1) * 0.3;
+    L.inG.gain.value = mode === 2 ? (i === 0 ? 1 : 0) : (mode === 0 && i === 1 ? 0 : 1);
+    L.self.gain.value = mode === 2 ? 0 : fb; L.cross.gain.value = mode === 2 ? fb : 0;
+    L.pan.pan.value = mode === 0 ? 0 : (i === 0 ? -w : w);
   });
-})();
+  const m = E.on ? E.mix / 100 : 0;
+  eWet.gain.setTargetAtTime(Math.sin(m * Math.PI / 2), t, .02); eDry.gain.setTargetAtTime(E.on ? Math.cos(m * Math.PI / 2) : 1, t, .02);
+  eOut.gain.setTargetAtTime(E.on ? Math.pow(10, E.out / 20) : 1, t, .02);
+}
+
+// ---- sources
+let srcNode = null, micStream = null;
+function stopSrc() { if (srcNode) { try { srcNode.stop && srcNode.stop(); } catch (e) {} srcNode.disconnect(); srcNode = null; } if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; } ["#srcDemo", "#srcMic"].forEach(s => $(s).classList.remove("on")); }
+function playBuffer(buf, label) { stopSrc(); ctx.resume(); const s = ctx.createBufferSource(); s.buffer = buf; s.loop = true; s.connect(input); s.start(); srcNode = s; $("#srcName").textContent = label; }
+async function demoBuffer() { // sparse groove so the echoes have room: kick, snare, hats, a minor stab and a bass line
+  const sr = 44100, bpm = 120, beats = 16, len = beats * 60 / bpm, oc = new OfflineAudioContext(2, Math.ceil(len * sr), sr), spb = 60 / bpm;
+  const out = oc.createGain(); out.gain.value = .8; out.connect(oc.destination);
+  const noise = oc.createBuffer(1, sr, sr); { const d = noise.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
+  const kick = t => { const o = oc.createOscillator(), g = oc.createGain(); o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(42, t + .12); g.gain.setValueAtTime(1, t); g.gain.exponentialRampToValueAtTime(.001, t + .35); o.connect(g); g.connect(out); o.start(t); o.stop(t + .4); };
+  const snare = t => { const s = oc.createBufferSource(); s.buffer = noise; const f = oc.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 1900; f.Q.value = .7; const g = oc.createGain(); g.gain.setValueAtTime(.7, t); g.gain.exponentialRampToValueAtTime(.001, t + .18); s.connect(f); f.connect(g); g.connect(out); s.start(t); s.stop(t + .2);
+    const o = oc.createOscillator(), og = oc.createGain(); o.frequency.value = 190; og.gain.setValueAtTime(.4, t); og.gain.exponentialRampToValueAtTime(.001, t + .1); o.connect(og); og.connect(out); o.start(t); o.stop(t + .12); };
+  const hat = (t, a) => { const s = oc.createBufferSource(); s.buffer = noise; const f = oc.createBiquadFilter(); f.type = "highpass"; f.frequency.value = 8000; const g = oc.createGain(); g.gain.setValueAtTime(a, t); g.gain.exponentialRampToValueAtTime(.001, t + .04); s.connect(f); f.connect(g); g.connect(out); s.start(t); s.stop(t + .05); };
+  const tone = (t, midi, dur, a, type = "sawtooth", cut = 2400) => { const o = oc.createOscillator(), f = oc.createBiquadFilter(), g = oc.createGain(); o.type = type; o.frequency.value = 440 * Math.pow(2, (midi - 69) / 12);
+    f.type = "lowpass"; f.frequency.setValueAtTime(cut, t); f.frequency.exponentialRampToValueAtTime(cut / 4, t + dur); f.Q.value = 4; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(a, t + .005); g.gain.exponentialRampToValueAtTime(.001, t + dur); o.connect(f); f.connect(g); g.connect(out); o.start(t); o.stop(t + dur + .05); };
+  const bassNotes = [45, 45, 48, 43];
+  for (let b = 0; b < beats; b++) { const t = b * spb;
+    if (b % 4 === 0 || b % 4 === 2) kick(t); if (b % 4 === 1 || b % 4 === 3) snare(t);
+    hat(t + spb / 2, .25);
+    if (b % 2 === 0) tone(t + spb * .5, bassNotes[Math.floor(b / 4)] - 12, .22, .5, "sawtooth", 900);
+    if (b % 4 === 3) [57, 60, 64].forEach(m => tone(t + spb * .75, m + (b === 15 ? 2 : 0), .16, .16, "sawtooth", 3500)); }
+  return oc.startRendering();
+}
+let demoBuf = null;
+$("#srcDemo").onclick = async () => { demoBuf = demoBuf || await demoBuffer(); playBuffer(demoBuf, "DEMO · 120 BPM GROOVE"); $("#srcDemo").classList.add("on"); };
+$("#srcStop").onclick = () => { stopSrc(); $("#srcName").textContent = "stopped"; };
+$("#srcMic").onclick = async () => { try { stopSrc(); await ctx.resume(); micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+  srcNode = ctx.createMediaStreamSource(micStream); srcNode.connect(input); $("#srcMic").classList.add("on"); $("#srcName").textContent = "MIC · use headphones"; } catch (e) { $("#srcName").textContent = "mic not allowed"; } };
+async function loadFile(f) { const buf = await ctx.decodeAudioData(await f.arrayBuffer()); playBuffer(buf, f.name.toUpperCase().slice(0, 40)); }
+$("#fileIn").onchange = e => e.target.files[0] && loadFile(e.target.files[0]);
+addEventListener("dragover", e => { e.preventDefault(); document.body.classList.add("dragging"); });
+addEventListener("dragleave", e => { if (!e.relatedTarget) document.body.classList.remove("dragging"); });
+addEventListener("drop", e => { e.preventDefault(); document.body.classList.remove("dragging"); const f = e.dataTransfer.files[0]; if (f) loadFile(f); });
+const flip = (id, fn) => $(id).onclick = e => { e.target.classList.toggle("on"); fn(e.target.classList.contains("on")); };
+flip("#useDrive", on => { D.on = on; updateDrive(); }); flip("#useEcho", on => { E.on = on; updateEcho(); });
+const show = which => { $("#echo").classList.toggle("show", which === "echo"); $("#drive").classList.toggle("show", which === "drive"); $("#showEcho").classList.toggle("on", which === "echo"); $("#showDrive").classList.toggle("on", which === "drive"); };
+$("#showEcho").onclick = () => show("echo"); $("#showDrive").onclick = () => show("drive");
+
+// ===================================================================== CONTROLS
+const eB = $("#eBig"), eS = $("#eSmall");
+knob(eB, { name: "TIME", min: 10, max: 2000, value: E.time, log: true, big: true, fmt: ms, onchange: v => { E.time = v; updateEcho(); } });
+knob(eB, { name: "FEEDBACK", min: 0, max: 110, value: E.fb, big: true, fmt: v => v.toFixed(0) + " %", onchange: v => { E.fb = v; updateEcho(); } });
+knob(eB, { name: "DUCK", min: 0, max: 100, value: E.duck, big: true, fmt: v => v.toFixed(0) + " %", onchange: v => E.duck = v });
+knob(eS, { name: "SATURATION", min: -12, max: 24, value: E.sat, fmt: dB, onchange: v => { E.sat = v; updateEcho(); } });
+knob(eS, { name: "MIX", min: 0, max: 100, value: E.mix, fmt: v => v.toFixed(0) + " %", onchange: v => { E.mix = v; updateEcho(); } });
+knob(eS, { name: "WOBBLE", min: 0, max: 200, value: E.wob, fmt: v => v.toFixed(0) + " %", onchange: v => { E.wob = v; updateEcho(); } });
+knob(eS, { name: "DUCK REL", min: 20, max: 2000, value: E.rel, log: true, fmt: ms, onchange: v => E.rel = v });
+knob(eS, { name: "LOW CUT", min: 20, max: 1000, value: 20, log: true, fmt: v => v < 21 ? "OFF" : hz(v), onchange: v => { E.lo = v; updateEcho(); } });
+knob(eS, { name: "HIGH CUT", min: 1000, max: 20000, value: 20000, log: true, fmt: v => v > 19900 ? "OFF" : hz(v), onchange: v => { E.hi = v; updateEcho(); } });
+knob(eS, { name: "WIDTH", min: 0, max: 100, value: 100, fmt: v => v.toFixed(0) + " %", onchange: v => { E.width = v; updateEcho(); } });
+knob(eS, { name: "OUTPUT", min: -24, max: 12, value: 0, fmt: dB, onchange: v => { E.out = v; updateEcho(); } });
+keys($("#eStyles"), STYLES.map(s => s.n), E.style, i => { E.style = i; updateEcho(); });
+keys($("#eModes"), ["SINGLE", "DUAL", "PING-PONG"], 0, i => { E.mode = i; updateEcho(); });
+knob($("#dBig"), { name: "DRIVE", min: 0, max: 10, value: D.drive, big: true, fmt: v => v.toFixed(1), onchange: v => { D.drive = v; updateDrive(); } });
+const dS = $("#dSmall");
+knob(dS, { name: "TONE", min: -12, max: 12, value: 0, fmt: dB, onchange: v => { D.tone = v; updateDrive(); } });
+knob(dS, { name: "MIX", min: 0, max: 100, value: 100, fmt: v => v.toFixed(0) + " %", onchange: v => { D.mix = v; updateDrive(); } });
+knob(dS, { name: "PUMP", min: 0, max: 100, value: 0, fmt: v => v.toFixed(0) + " %", onchange: v => D.pump = v });
+knob(dS, { name: "FILTER", min: 80, max: 20000, value: 20000, log: true, fmt: v => v > 19900 ? "OFF" : hz(v), onchange: v => { D.filter = v > 19900 ? 20000 : v; updateDrive(); } });
+knob(dS, { name: "RESONANCE", min: 0, max: 100, value: 20, fmt: v => v.toFixed(0) + " %", onchange: v => { D.res = v; updateDrive(); } });
+knob(dS, { name: "OUTPUT", min: -24, max: 12, value: 0, fmt: dB, onchange: v => { D.out = v; updateDrive(); } });
+keys($("#dStyles"), DSTY.map(s => s.n), D.style, i => { D.style = i; updateDrive(); });
+keys($("#dRates"), ["1/2", "1/4", "1/8"], 1, i => D.rate = i);
+toggleKey($("#dAuto"), "ON", true, on => { D.auto = on; updateDrive(); });
+(function () { const P = $("#punish"), sw = $("#punSw");
+  P.onclick = () => { if (!P.classList.contains("armed")) { P.classList.add("armed"); return; } D.punish = !D.punish; sw.classList.toggle("on", D.punish); updateDrive(); if (!D.punish) setTimeout(() => P.classList.remove("armed"), 400); }; })();
+updateDrive(); updateEcho();
+
+// ===================================================================== MEASURE (what the displays read)
+const bufs = new Map(); const td = an => { let b = bufs.get(an); if (!b) bufs.set(an, b = new Float32Array(an.fftSize)); an.getFloatTimeDomainData(b); return b; };
+const rms = a => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * a[i]; return Math.sqrt(s / a.length); };
+const fq = new Float32Array(512);
+function brightness() { // spectral centroid of what is being written onto the tape -> 0 (bright) .. 1 (dark)
+  anWrite.getFloatFrequencyData(fq); let num = 0, den = 0; const bin = ctx.sampleRate / 1024;
+  for (let i = 2; i < 512; i++) { const p = Math.pow(10, fq[i] / 10); num += p * i * bin; den += p; }
+  const c = den > 1e-12 ? num / den : 2000; return Math.min(1, Math.max(0, 1 - Math.log(c / 250) / Math.log(7000 / 250)));
+}
+const NB = 220; const tape = Array.from({ length: NB }, () => ({ t: -9, lvl: 0, h: 0 }));
+let duckEnv = 0, lastT = 0; const levels = { eIn: 0, wet: 0, dIn: 0, dOut: 0 };
+function measure(now, dt) {
+  const inL = rms(td(anEIn)), wr = rms(td(anWrite)), wet = rms(td(anWet));
+  levels.eIn = Math.max(inL, levels.eIn * Math.exp(-dt / .3)); levels.wet = Math.max(wet, levels.wet * Math.exp(-dt / .3));
+  levels.dIn = Math.max(rms(td(anDPre)), levels.dIn * Math.exp(-dt / .3)); levels.dOut = Math.max(rms(td(anDOut)), levels.dOut * Math.exp(-dt / .3));
+  const pos = Math.floor(((now % TAPE) / TAPE) * NB); const b = tape[pos]; b.t = now; b.lvl = wr; b.h = brightness(); // record head overwrites the bin under it
+  const target = Math.min(1, inL * 6); // ducker: instant attack, release = DUCK REL
+  duckEnv = target > duckEnv ? target : duckEnv * Math.exp(-dt / (E.rel / 1000));
+  duckG.gain.setTargetAtTime(1 - (E.duck / 100) * duckEnv * 0.94, ctx.currentTime, 0.008);
+  const beat = ctx.currentTime * D.bpm / 60, per = [.5, 1, 2][D.rate], ph = (beat * per) % 1;
+  const pumpVal = 1 - (D.pump / 100) * (1 - (1 - Math.pow(1 - Math.min(ph / .85, 1), 2.2)));
+  pumpG.gain.setTargetAtTime(D.on ? pumpVal : 1, ctx.currentTime, 0.004);
+  return { ph, pumpVal };
+}
+
+// ===================================================================== DISPLAYS
+function drawRing(now) {
+  const [g, W, H] = fit($("#ring")), st = STYLES[E.style], T = Math.min(E.time / 1000, TAPE * .98);
+  const duckAmt = (E.duck / 100) * duckEnv, duckDb = 20 * Math.log10(1 - duckAmt * .94);
+  vframe(g, W, H, V.red, "TAPE LOOP · " + st.n + " · " + ["SINGLE", "DUAL", "PING-PONG"][E.mode], ms(E.time) + " · FB " + E.fb.toFixed(0) + "%");
+  const cx = W * .5, cy = H * .61, R = Math.min(W * .4, H * .7);
+  const P = (a, r, z) => [cx + Math.cos(a) * r, cy + Math.sin(a) * r * .38 - z];
+  const A = f => Math.PI / 2 + f * 2 * Math.PI;
+  g.lineWidth = 1;
+  for (const [rr, col, al] of [[.94, V.orange, .45], [1, V.red, .85], [1.06, V.orange, .45]]) { glow(g, col, 5); g.globalAlpha = al; g.beginPath(); for (let i = 0; i <= 140; i++) { const [x, y] = P(i / 140 * 2 * Math.PI, R * rr, 0); i ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke(); }
+  g.globalAlpha = .3; glow(g, V.red, 3);
+  for (let i = 0; i < 60; i++) { const a = A(i / 60 + now / TAPE); const [x1, y1] = P(a, R * .94, 0), [x2, y2] = P(a, R * 1.06, 0); g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); }
+  g.globalAlpha = 1;
+  for (let k = 0; k < 3; k++) { const rr = R * (.5 - k * .07) * (1 - duckAmt * .4); glow(g, V.teal, 10); g.lineWidth = 1.4; g.globalAlpha = E.duck > 0 ? .25 + .75 * duckAmt : .12; g.beginPath(); g.ellipse(cx, cy, rr, rr * .38, 0, 0, 7); g.stroke(); }
+  g.globalAlpha = 1;
+  // the wall of sound on the tape: one wire per bin, height = level, colour = measured brightness
+  const zOf = lvl => { const db = 20 * Math.log10(Math.max(lvl, 1e-5)); return Math.max(0, (db + 54) / 54) * H * .37; };
+  const live = tape.map(b => ({ age: now - b.t, b })).filter(p => p.age >= 0 && p.age < TAPE * .985);
+  const depth = [...live].sort((p, q) => Math.sin(A(p.age / TAPE)) - Math.sin(A(q.age / TAPE)));
+  // ribbon: translucent panels between neighbouring bins (glass wall), then every 3rd wire
+  const byAge = [...live].sort((p, q) => p.age - q.age);
+  g.shadowBlur = 0;
+  for (let i = 1; i < byAge.length; i++) {
+    const a0 = byAge[i - 1], a1 = byAge[i]; if (a1.age - a0.age > TAPE / NB * 3) continue;
+    const z0 = zOf(a0.b.lvl), z1 = zOf(a1.b.lvl); if (z0 < 1.5 && z1 < 1.5) continue;
+    const [x0, y0] = P(A(a0.age / TAPE), R, 0), [x1, y1] = P(A(a1.age / TAPE), R, 0), c = heat(a1.b.h + (a1.age > T ? 0.12 : 0));
+    g.fillStyle = rgba(c, a1.age > T ? .07 : .16); g.beginPath(); g.moveTo(x0, y0); g.lineTo(x0, y0 - z0); g.lineTo(x1, y1 - z1); g.lineTo(x1, y1); g.closePath(); g.fill();
+  }
+  g.lineWidth = 1.2;
+  depth.forEach(({ age, b }, i) => {
+    const z = zOf(b.lvl); if (z < 1.5 || (Math.round(b.t * 100) % 3)) return;
+    const [x, y] = P(A(age / TAPE), R, 0), c = heat(b.h + (age > T ? 0.12 : 0));
+    glow(g, rgba(c, age > T ? .45 : .95), 9); g.beginPath(); g.moveTo(x, y); g.lineTo(x, y - z); g.stroke();
+  });
+  live.sort((p, q) => p.age - q.age);
+  glow(g, "rgba(255,214,120,.95)", 10); g.lineWidth = 1.4; g.beginPath(); let open = false;
+  for (const { age, b } of live) { const z = zOf(b.lvl), [x, y] = P(A(age / TAPE), R, z); if (z < 1.5) { open = false; continue; } open ? g.lineTo(x, y) : g.moveTo(x, y); open = true; }
+  g.stroke();
+  const block = (a, col, label) => { const [x, y] = P(a, R * 1.17, 0), w = 13, h = 9, d = 7; glow(g, col, 10); g.lineWidth = 1.3; g.strokeRect(x - w / 2, y - h, w, h);
+    g.beginPath(); g.moveTo(x - w / 2, y - h); g.lineTo(x - w / 2 + d, y - h - d * .6); g.lineTo(x + w / 2 + d, y - h - d * .6); g.lineTo(x + w / 2, y - h); g.moveTo(x + w / 2 + d, y - h - d * .6); g.lineTo(x + w / 2 + d, y - d * .6); g.lineTo(x + w / 2, y); g.stroke(); text(g, label, x, y + 14, col, 10, "center"); };
+  block(A(0), V.amber, "REC"); block(A(T / TAPE), V.teal, "PLAY");
+  g.setLineDash([3, 6]); glow(g, V.teal, 6); g.lineWidth = 1; g.beginPath(); for (let i = 0; i <= 60; i++) { const [x, y] = P(A(i / 60 * T / TAPE), R * 1.17, 0); i ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke(); g.setLineDash([]);
+  { const [x, y] = P(A(T / TAPE), R, 0), z = zOf(levels.wet * 1.4); glow(g, V.teal, 16); g.lineWidth = 3; g.globalAlpha = .9; g.beginPath(); g.moveTo(x, y); g.lineTo(x, y - z); g.stroke(); g.globalAlpha = 1; }
+  text(g, "DUCK " + (E.duck > 0 ? duckDb.toFixed(1) + " dB" : "OFF"), 24, 32, V.teal, 13);
+  glow(g, V.teal, 6); g.lineWidth = 1; g.strokeRect(24, 39, 120, 7); g.fillRect(24, 39, 120 * duckAmt, 7); g.shadowBlur = 0;
+  text(g, E.fb >= 100 ? "!! SELF-OSCILLATION" : "", W - 24, 32, V.red, 12, "right");
+  if (!srcNode) text(g, "SOURCE: PRESS DEMO, DROP A FILE, OR MIC", cx, 74, V.amber, 12, "center");
+}
+function drawLadder() {
+  const [g, W, H] = fit($("#ladder")), st = STYLES[E.style];
+  const gain = (E.fb / 100), lp = Math.min(st.lp, E.hi), keep = Math.pow(Math.min(1, lp / 21000), .55);
+  vframe(g, W, H, V.red, "REPEATS", (20 * Math.log10(Math.max(gain, 1e-6))).toFixed(1) + " dB/REP");
+  const bands = []; for (let k = 1; k <= 24; k++) { const amp = Math.pow(gain, k - 1), db = 20 * Math.log10(Math.max(amp, 1e-6)), th = Math.max(0, (db + 48) / 48); if (th < .04) break; bands.push([k, th]); }
+  const cx = W / 2, cy = H - 16, r0 = 10, room = Math.min(W / 2 - 22, H - 34) - r0, gap = 2.2;
+  const unit = (room - gap * bands.length) / Math.max(1, bands.reduce((a, [, t]) => a + t, 0));
+  let r = r0;
+  for (const [k, th] of bands) { const w = Math.max(1, th * unit), c = heat((1 - Math.pow(keep, k - 1)) * .95);
+    glow(g, rgba(c, 1), 7); g.lineWidth = w; g.beginPath(); g.arc(cx, cy, r + w / 2, Math.PI, 2 * Math.PI); g.stroke(); r += w + gap; }
+  text(g, bands.length + " REPEATS ABOVE −48 dB", 24, 30, V.amber, 10);
+  g.shadowBlur = 0;
+}
+const hist = [];
+function drawDuck() { // input envelope (orange) vs gain reduction (teal), scrolling
+  const [g, W, H] = fit($("#duckScope"));
+  vframe(g, W, H, V.teal, "DUCKER", "REL " + ms(E.rel));
+  hist.push([levels.eIn, (E.duck / 100) * duckEnv]); if (hist.length > 180) hist.shift();
+  const x0 = 18, w = W - 36, y0 = H - 16, h = H - 34;
+  g.lineWidth = 1; glow(g, "rgba(47,214,168,.18)", 0); for (let x = x0; x <= x0 + w; x += 20) { g.beginPath(); g.moveTo(x, 16); g.lineTo(x, y0); g.stroke(); }
+  glow(g, V.orange, 6); g.beginPath(); hist.forEach(([l], i) => { const x = x0 + i / 180 * w, y = y0 - Math.min(1, Math.max(0, (20 * Math.log10(Math.max(l, 1e-5)) + 48) / 48)) * h; i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.stroke();
+  glow(g, V.teal, 8); g.lineWidth = 1.6; g.beginPath(); hist.forEach(([, d], i) => { const x = x0 + i / 180 * w, y = 18 + d * h; i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.stroke();
+  g.shadowBlur = 0; text(g, "IN", W - 22, H - 22, V.orange, 9, "right"); text(g, "GR", W - 22, 30, V.teal, 9, "right");
+}
+const dpre = new Float32Array(2048), dpost = new Float32Array(2048); let phos = [], scopeHold = null;
+function drawDrive(now, pm) {
+  const s = DSTY[D.style], P0 = D.punish, lc = P0 ? V.red : V.orange;
+  let [g, W, H] = fit($("#curve"));
+  vframe(g, W, H, lc, "TRANSFER · X/Y · " + s.n, "DRIVE " + D.drive.toFixed(1) + (P0 ? " +18" : ""));
+  const cx = W / 2, cy = H * .54, sx = W * .38, sy = H * .32, Q = (x, y) => [cx + x * sx + y * sx * .16, cy - y * sy + x * sy * .1];
+  g.lineWidth = 1; glow(g, "rgba(255,138,31,.28)", 0);
+  for (let i = -4; i <= 4; i++) { let [a, b] = Q(i / 4, -1.25), [c, d] = Q(i / 4, 1.25); g.beginPath(); g.moveTo(a, b); g.lineTo(c, d); g.stroke(); [a, b] = Q(-1, i * .31); [c, d] = Q(1, i * .31); g.beginPath(); g.moveTo(a, b); g.lineTo(c, d); g.stroke(); }
+  glow(g, V.teal, 5); g.setLineDash([3, 5]); { const [a, b] = Q(-1, -1), [c, d] = Q(1, 1); g.beginPath(); g.moveTo(a, b); g.lineTo(c, d); g.stroke(); } g.setLineDash([]);
+  for (const [w, al] of [[4, .15], [1.2, .5]]) { glow(g, lc, 10); g.globalAlpha = al; g.lineWidth = w; g.beginPath(); for (let i = 0; i <= 160; i++) { const x = -1 + i / 80, [px, py] = Q(x, shape(x)); i ? g.lineTo(px, py) : g.moveTo(px, py); } g.stroke(); }
+  g.globalAlpha = 1;
+  // the REAL signal: input sample vs shaper output sample, as phosphor dots
+  anDPre.getFloatTimeDomainData(dpre); anDPost.getFloatTimeDomainData(dpost);
+  if (rms(dpre) > 1e-3) {
+    const lag = 0;
+    const pts = new Float32Array(1024 * 2); for (let j = 0, i = 0; j < 1024 && i < 2048 - lag; j++, i += 2) { pts[2 * j] = dpre[i]; pts[2 * j + 1] = dpost[i + lag]; }
+    phos.push({ pts, t: now }); scopeHold = { pre: dpre.slice(), post: dpost.slice(), lag };
+  }
+  phos = phos.filter(f => now - f.t < .35);
+  if (phos.length) { glow(g, "#fff1c9", 6); for (const f of phos) { g.globalAlpha = .6 * (1 - (now - f.t) / .35); for (let j = 0; j < f.pts.length; j += 2) { const [px, py] = Q(Math.max(-1.1, Math.min(1.1, f.pts[j])), f.pts[j + 1]); g.fillRect(px - 1, py - 1, 2, 2); } } g.globalAlpha = 1; }
+  else text(g, "NO SIGNAL · PRESS DEMO", cx, 44, V.amber, 12, "center");
+  glow(g, V.amber, 9); g.lineWidth = 1.2; for (const x of [-.75, -.4, 0, .4, .75]) { const [px, py] = Q(x, shape(x)); g.beginPath(); g.arc(px, py, 5, 0, 7); g.stroke(); }
+  g.shadowBlur = 0;
+  if (P0) { glow(g, V.red, 12); g.lineWidth = 1.5; g.strokeRect(24, 26, 210, 38); g.globalAlpha = .16 + .12 * Math.sin(now * 8); g.fillRect(24, 26, 210, 38); g.globalAlpha = 1; text(g, "SYSTEM PUNISH", 34, 44, V.red, 16); text(g, "+18 dB INTO THE CLIPPER", 34, 58, V.orange, 10); }
+  if (D.pump > 0) { text(g, "PUMP " + ["1/2", "1/4", "1/8"][D.rate], W - 24, 32, V.teal, 12, "right"); glow(g, V.teal, 8); g.strokeRect(W - 124, 39, 100, 6); g.fillRect(W - 124, 39, 100 * pm.pumpVal, 6); g.shadowBlur = 0; }
+  const NN = 256, re = new Float32Array(9), im = new Float32Array(9);
+  for (let i = 0; i < NN; i++) { const y = shape(.5 * Math.sin(2 * Math.PI * i / NN)); for (let h = 1; h <= 8; h++) { re[h] += y * Math.cos(2 * Math.PI * h * i / NN); im[h] += y * Math.sin(2 * Math.PI * h * i / NN); } }
+  const mag = h => Math.hypot(re[h], im[h]) / (NN / 2), f = mag(1) || 1; let thd = 0; for (let h = 2; h <= 8; h++) thd += mag(h) ** 2; thd = Math.sqrt(thd) / f;
+  [g, W, H] = fit($("#harm")); vframe(g, W, H, V.red, "HARMONICS · SINE TEST", "THD " + (thd * 100).toFixed(1) + "%");
+  const bw = (W - 50) / 8;
+  for (let h = 1; h <= 8; h++) { const db = 20 * Math.log10(Math.max(mag(h) / f, 1e-5)), hh = Math.max(2, (db + 70) / 70 * (H - 46)), x = 22 + (h - 1) * bw, y = H - 20, w = bw - 10, d = 5, col = h === 1 ? V.teal : h % 2 ? lc : V.amber;
+    glow(g, col, 7); g.lineWidth = 1.1; g.strokeRect(x, y - hh, w, hh); g.beginPath(); g.moveTo(x, y - hh); g.lineTo(x + d, y - hh - d); g.lineTo(x + w + d, y - hh - d); g.lineTo(x + w, y - hh); g.moveTo(x + w + d, y - hh - d); g.lineTo(x + w + d, y - d); g.lineTo(x + w, y); g.stroke(); }
+  [g, W, H] = fit($("#scope")); vframe(g, W, H, V.teal, "SCOPE · BEFORE / AFTER");
+  g.lineWidth = 1; glow(g, "rgba(47,214,168,.16)", 0); for (let x = 18; x < W - 14; x += 18) { g.beginPath(); g.moveTo(x, 14); g.lineTo(x, H - 12); g.stroke(); } for (let y = 14; y < H - 10; y += 13) { g.beginPath(); g.moveTo(14, y); g.lineTo(W - 14, y); g.stroke(); }
+  const sp = scopeHold ? scopeHold.pre : dpre, so = scopeHold ? scopeHold.post.subarray(scopeHold.lag) : dpost; // hold the last loud frame
+  let start = 0; for (let i = 1; i < 1024; i++) if (sp[i - 1] < 0 && sp[i] >= 0) { start = i; break; }
+  const wave = (arr, col, w, dash) => { glow(g, col, 7); g.lineWidth = w; g.setLineDash(dash || []); g.beginPath(); for (let i = 0; i < 900; i += 2) { const x = 18 + i / 900 * (W - 36), v = Math.max(-1.3, Math.min(1.3, arr[start + i] || 0)); i ? g.lineTo(x, H / 2 - v * H * .32) : g.moveTo(x, H / 2 - v * H * .32); } g.stroke(); g.setLineDash([]); };
+  wave(sp, "rgba(47,214,168,.6)", 1, [2, 3]); wave(so, lc, 1.6); g.shadowBlur = 0;
+  $("#ledHeat").classList.toggle("on", thd > .08); $("#ledPun").classList.toggle("on", P0); $("#ledPump").classList.toggle("on", D.pump > 0 && pm.ph < .12);
+  let pk = 0; const gain = Math.pow(10, (D.drive * 3.3 + (P0 ? 18 : 0) - 3) / 20); for (let i = 0; i < 2048; i += 4) pk = Math.max(pk, Math.abs(dpre[i] * gain)); $("#ledClip").classList.toggle("on", pk > 1);
+}
 
 // ===================================================================== loop
-let last = performance.now() / 1000;
-function frame() {
-  const now = performance.now() / 1000, dt = now - last; last = now;
-  echoTick(now, dt);
-  drawRing(now); drawLadder(); drawVU("vuIn", inLevel); drawVU("vuOut", outLevel * E.mix / 50);
-  drawDrive(now);
-  requestAnimationFrame(frame);
+function tick() {
+  const now = ctx.state === "running" ? ctx.currentTime : performance.now() / 1000, dt = Math.min(.1, Math.max(.001, now - lastT)); lastT = now;
+  const pm = measure(now, dt);
+  if ($("#echo").classList.contains("show")) { drawRing(now); drawLadder(); drawDuck(); vu("vuIn", levels.eIn); vu("vuOut", levels.wet); }
+  else { drawDrive(now, pm); vu("vuDIn", levels.dIn); vu("vuDOut", levels.dOut); }
+  $("#ledRec").classList.toggle("on", levels.eIn > .02); $("#ledPlay").classList.toggle("on", levels.wet > .02);
+  $("#ledSat").classList.toggle("on", E.sat > 8 && levels.wet > .1); $("#ledDuck").classList.toggle("on", E.duck > 0 && duckEnv > .3);
+  requestAnimationFrame(tick);
 }
-hit(1);
-requestAnimationFrame(frame);
+requestAnimationFrame(tick);
 </script>
 </body>
 </html>
