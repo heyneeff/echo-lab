@@ -10,7 +10,7 @@ BEGIN_FACTORY_DEF(stringCompanyName, stringCompanyWeb, stringCompanyEmail)
 DEF_CLASS2(INLINE_UID(0x6E0B2A4C, 0x91D34F7A, 0xB5E21C88, 0x3F7D9A10),
            PClassInfo::kManyInstances,
            kVstAudioEffectClass,
-           "Echo Lab",
+           "Oread Echo",
            0,  // single component effect
            PlugType::kFxDelay,
            FULL_VERSION_STR,

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lab Faces</title>
+<title>Oread & Prometheus</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
@@ -101,7 +101,7 @@ body.dragging .drop { display: grid; }
   <span>CHAIN</span>
   <div class="grp"><button id="useDrive" class="on">DRIVE</button><span>→</span><button id="useEcho" class="on">ECHO</button></div>
   <span class="sp"></span>
-  <div class="grp"><button id="showEcho" class="on">ECHO LAB</button><button id="showDrive">DRIVE LAB</button></div>
+  <div class="grp"><button id="showEcho" class="on">OREAD ECHO</button><button id="showDrive">PROMETHEUS DRIVE</button></div>
 </div>
 <div id="stage"><div id="units">
 
@@ -109,7 +109,7 @@ body.dragging .drop { display: grid; }
   <section class="unit show" id="echo"><div class="chassis">
     <div class="hero" id="echoHero">
       <canvas id="ring"></canvas>
-      <div class="logo">ECH<span class="o" style="border-color:var(--teal);box-shadow:0 0 10px #2fd6a8aa, inset 0 0 6px #ffc93c88"></span> LAB<small>TAPE LOOP · DELAY</small></div>
+      <div class="logo"><span class="o" style="border-color:var(--teal);box-shadow:0 0 10px #2fd6a8aa, inset 0 0 6px #ffc93c88"></span>READ<small>ECHO · TAPE LOOP · DELAY</small></div>
       <div class="brk tr"></div><div class="brk bl"></div>
       <div class="axis y" style="color:var(--amber)">FEEDBACK<b id="axFb"></b></div>
       <div class="axis x" style="color:var(--teal)">TIME<b id="axTime"></b></div>
@@ -120,7 +120,7 @@ body.dragging .drop { display: grid; }
       <div class="minis"><div class="mini"><canvas id="ladder"></canvas></div><div class="mini"><canvas id="duckScope"></canvas></div></div>
       <div class="grid4" id="eSmall"></div>
       <div class="mix" id="eMix"><span>DRY</span><div class="trk"><canvas></canvas><div class="hd"></div></div><span>WET</span></div>
-      <div class="foot"><div><div class="seg" id="eModes"></div></div><div class="wm">ECHO LAB<small>ΗΧΩ</small></div><div class="meters"><canvas id="mE"></canvas></div></div>
+      <div class="foot"><div><div class="seg" id="eModes"></div></div><div class="wm">OREAD<small>ECHO · ΗΧΩ</small></div><div class="meters"><canvas id="mE"></canvas></div></div>
     </div>
   </div></section>
 
@@ -128,7 +128,7 @@ body.dragging .drop { display: grid; }
   <section class="unit" id="drive"><div class="chassis">
     <div class="hero" id="driveHero">
       <canvas id="curve"></canvas>
-      <div class="logo">DRIVE LAB<small>SATURATION · PUNISHMENT</small></div>
+      <div class="logo">PROMETHEUS<small>DRIVE · SATURATION · PUNISHMENT</small></div>
       <div class="brk tr"></div><div class="brk bl"></div>
       <div class="axis y" style="color:var(--amber)">TONE<b id="axTone"></b></div>
       <div class="axis x" style="color:var(--red)">DRIVE<b id="axDrive"></b></div>
@@ -139,7 +139,7 @@ body.dragging .drop { display: grid; }
       <div class="minis"><div class="mini"><canvas id="harm"></canvas></div><div class="mini"><canvas id="scope"></canvas></div></div>
       <div class="grid4" id="dSmall"></div>
       <div class="mix" id="dMix"><span>DRY</span><div class="trk"><canvas></canvas><div class="hd"></div></div><span>WET</span></div>
-      <div class="foot"><div style="display:grid;gap:6px"><div class="seg" id="dRates"></div><div class="seg" id="dAuto"></div></div><div class="wm">DRIVE LAB<small>ΦΑΕΘΩΝ</small></div><div class="meters"><canvas id="mD"></canvas></div></div>
+      <div class="foot"><div style="display:grid;gap:6px"><div class="seg" id="dRates"></div><div class="seg" id="dAuto"></div></div><div class="wm">PROMETHEUS<small>DRIVE · ΠΡΟΜΗΘΕΥΣ</small></div><div class="meters"><canvas id="mD"></canvas></div></div>
     </div>
   </div></section>
 </div></div>
