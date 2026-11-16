@@ -5,109 +5,88 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lab Faces</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
 :root {
-  --room: #0f0c0a;
-  --chassis: #ddd3bd; --chassis-hi: #f1ead9; --chassis-lo: #b3a68a;
-  --screen: #0d0a09; --ink: #2b241b; --engrave: #5d523f;
-  --amber: #ffb000; --amber-glow: rgba(255,176,0,.55);
-  --led-red: #ff4a2b; --led-off: #4d2a22;
-  --brass: #b8924a; --brass-hi: #ecd29a;
-  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --body: #0b0b0d; --panel: #111114; --rail: #1c1c20; --rail-hi: #26262b; --line: #2e2e34;
+  --txt: #e9e6e1; --dim: #6c6a70; --faint: #3a393f;
+  --amber: #ffc93c; --orange: #ff8a1f; --red: #ff4a2b; --teal: #2fd6a8; --violet: #a98bff;
+  --sans: Montserrat, "Helvetica Neue", Arial, sans-serif;
   --vec: "Share Tech Mono", ui-monospace, monospace;
 }
 * { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; background: radial-gradient(1200px 700px at 50% 0%, #241c15, var(--room)); color: var(--ink); font-family: var(--mono); overflow: hidden; }
-
-/* ------------------------------------------------------------ top bar (not part of the unit) */
-.bar { height: 46px; display: flex; align-items: center; gap: 10px; padding: 0 16px; font: 12px var(--vec); color: #c9b48f; letter-spacing: .12em; }
+html, body { margin: 0; height: 100%; background: radial-gradient(1200px 800px at 50% 10%, #1a1a1f, #050506); color: var(--txt); font-family: var(--sans); overflow: hidden; }
+.bar { height: 46px; display: flex; align-items: center; gap: 10px; padding: 0 16px; font: 11px var(--vec); color: #9a968f; letter-spacing: .14em; }
 .bar .grp { display: flex; gap: 6px; align-items: center; }
-.bar button, .bar label.btn { font: 12px var(--vec); letter-spacing: .12em; color: #ffb36b; background: #1a1411; border: 1px solid #ff8a1f55; padding: 6px 10px; cursor: pointer; clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px); }
-.bar button.on { color: #120d0b; background: #ffb000; border-color: #ffb000; }
-.bar .sp { flex: 1; }
-.bar .hint { color: #7d6f59; font-size: 11px; }
+.bar button, .bar label.btn { font: 11px var(--vec); letter-spacing: .14em; color: #d9d4cc; background: #141417; border: 1px solid #2c2c32; border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+.bar button.on { color: #0b0b0d; background: var(--amber); border-color: var(--amber); }
+.bar .sp { flex: 1; } .bar .hint { color: #5d5a60; }
 #stage { position: absolute; left: 0; right: 0; top: 46px; bottom: 0; display: grid; place-items: center; }
 #units { width: 1060px; height: 640px; transform-origin: 50% 50%; position: relative; }
-.unit { position: absolute; inset: 0; display: none; }
-.unit.show { display: block; }
-.drop { position: fixed; inset: 0; background: #0009; display: none; place-items: center; font: 22px var(--vec); color: #ffb000; letter-spacing: .2em; z-index: 9; }
+.unit { position: absolute; inset: 0; display: none; } .unit.show { display: block; }
+.drop { position: fixed; inset: 0; background: #000a; display: none; place-items: center; font: 20px var(--vec); color: var(--amber); letter-spacing: .2em; z-index: 9; }
 body.dragging .drop { display: grid; }
 
-/* ------------------------------------------------------------ chassis */
-.chassis { position: absolute; inset: 0; border-radius: 14px; padding: 12px 28px 14px; background: linear-gradient(180deg, var(--chassis-hi), var(--chassis) 30%, var(--chassis-lo));
-  box-shadow: 0 1px 0 #fff8 inset, 0 -2px 0 #0003 inset, 0 30px 60px -20px #000c, 0 4px 0 #000a;
-  display: grid; grid-template-rows: 30px 360px 1fr; gap: 12px; }
-.lav { --chassis: #c9c2d6; --chassis-hi: #e9e4f2; --chassis-lo: #9a91b0; --engrave: #4a4260; }
-.chassis::before, .chassis::after { content: ""; position: absolute; top: 14px; bottom: 14px; width: 12px; border-radius: 6px;
-  background: repeating-linear-gradient(90deg, #0000 0 2px, #0002 2px 3px, #fff6 3px 4px, #0000 4px 6px); opacity: .8; }
-.chassis::before { left: 8px; } .chassis::after { right: 8px; }
-.head { display: flex; align-items: center; gap: 14px; border-bottom: 1px solid #0002; box-shadow: 0 1px 0 #fff6; padding-bottom: 6px; }
-.head h1 { font: 700 21px/1 Cinzel, serif; letter-spacing: .3em; margin: 0; color: var(--ink); text-shadow: 0 1px 0 #fff7; }
-.head .model { font-size: 10px; letter-spacing: .26em; color: var(--engrave); }
-.head .meander { flex: 1; height: 10px; opacity: .5; background-repeat: repeat-x; background-size: 20px 10px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='10'%3E%3Cpath d='M0 9H18V1H5V7H13V4H9' fill='none' stroke='%235d523f' stroke-width='1.3'/%3E%3C/svg%3E"); }
-.head .epithet { font: 500 10.5px Cinzel, serif; letter-spacing: .26em; color: var(--engrave); }
-.emblem { width: 28px; height: 28px; border-radius: 50%; border: 1.5px dashed var(--engrave); display: grid; place-items: center; font-size: 6.5px; color: var(--engrave); opacity: .7; }
-.leds { display: flex; gap: 12px; }
-.led { display: flex; align-items: center; gap: 5px; font-size: 8.5px; letter-spacing: .14em; color: var(--engrave); }
-.led i { width: 9px; height: 9px; border-radius: 50%; background: var(--led-off); box-shadow: inset 0 1px 2px #0008; }
-.led i.on { background: var(--led-red); box-shadow: 0 0 9px var(--led-red); }
-.led i.amb.on { background: var(--amber); box-shadow: 0 0 9px var(--amber); }
+/* ---------------------------------------------------------------- body */
+.chassis { position: absolute; inset: 0; border-radius: 22px; background: var(--body); padding: 12px; display: grid; grid-template-columns: 616px 1fr; gap: 12px;
+  box-shadow: 0 40px 80px -20px #000, 0 0 0 1px #ffffff0d inset; }
+.hero { position: relative; border-radius: 16px; background: var(--panel); overflow: hidden; box-shadow: 0 0 0 1px #ffffff08 inset; cursor: crosshair; touch-action: none; }
+.hero canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.logo { position: absolute; left: 40px; top: 30px; font: 800 30px/1 var(--sans); letter-spacing: .2em; pointer-events: none; }
+.logo .o { display: inline-block; width: .78em; height: .78em; border-radius: 50%; border: .12em solid; vertical-align: -.02em; margin: 0 .03em; }
+.logo small { display: block; font: 600 9px var(--sans); letter-spacing: .42em; color: var(--dim); margin-top: 8px; }
+.axis { position: absolute; font: 700 10px var(--sans); letter-spacing: .32em; pointer-events: none; }
+.axis.y { left: 34px; bottom: 120px; transform: rotate(-90deg); transform-origin: left bottom; }
+.axis.x { left: 112px; bottom: 34px; }
+.axis b { font: 11px var(--vec); letter-spacing: .08em; color: var(--txt); margin-left: 8px; }
+.brk { position: absolute; border-color: #e9e6e1aa; border-style: solid; pointer-events: none; }
+.brk.bl { left: 40px; bottom: 40px; width: 60px; height: 70px; border-width: 0 0 2px 2px; border-radius: 0 0 0 6px; }
+.brk.tr { right: 40px; top: 40px; width: 60px; height: 70px; border-width: 2px 2px 0 0; border-radius: 0 6px 0 0; }
 
-.main { display: grid; grid-template-columns: 640px 1fr; gap: 14px; min-height: 0; }
-.col { display: grid; gap: 10px; min-height: 0; }
-.glass { position: relative; background: var(--screen); border-radius: 9px; overflow: hidden; min-height: 0;
-  box-shadow: 0 0 0 5px #2a241c, 0 0 0 6px #0006, inset 0 0 40px #000, inset 0 2px 8px #000; }
-.lav .glass { box-shadow: 0 0 0 5px #2a2438, 0 0 0 6px #0006, inset 0 0 40px #000, inset 0 2px 8px #000; }
-.glass canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.glass::after { content: ""; position: absolute; inset: 0; pointer-events: none;
-  background: repeating-linear-gradient(0deg, #0000 0 2px, #0000001f 2px 3px), radial-gradient(120% 90% at 50% 40%, #0000 60%, #0008); }
-.vus { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; height: 74px; }
-.vu { position: relative; background: linear-gradient(#f7f1e3, #e6dbc2); border-radius: 6px; box-shadow: inset 0 2px 5px #0004, 0 0 0 3px #b3a68b, 0 0 0 4px #0003; overflow: hidden; }
-.lav .vu { background: linear-gradient(#f6f3fb, #e2dcec); box-shadow: inset 0 2px 5px #0004, 0 0 0 3px #a49bb8, 0 0 0 4px #0003; }
-.vu canvas { width: 100%; height: 100%; display: block; }
-.vu span { position: absolute; left: 7px; bottom: 4px; font-size: 8.5px; letter-spacing: .2em; color: #6f6450; }
+/* ---------------------------------------------------------------- rail */
+.rail { border-radius: 16px; background: linear-gradient(180deg, var(--rail-hi), var(--rail)); box-shadow: 0 0 0 1px #ffffff0a inset; display: grid; grid-template-rows: 38px auto 1fr auto auto auto; gap: 10px; padding: 0 0 12px; overflow: hidden; }
+.preset { display: flex; align-items: center; gap: 8px; padding: 0 10px 0 16px; background: #0f0f12; border-bottom: 1px solid #ffffff0a; }
+.preset .nm { flex: 1; font: 700 11px var(--sans); letter-spacing: .26em; }
+.pbtn { width: 26px; height: 26px; border-radius: 6px; background: #1d1d22; border: 1px solid #ffffff12; color: var(--txt); display: grid; place-items: center; cursor: pointer; font-size: 11px; }
+.seg { display: flex; background: #0f0f12; border-radius: 7px; padding: 2px; border: 1px solid #ffffff0d; }
+.seg button { font: 700 8.5px var(--sans); letter-spacing: .18em; color: var(--dim); background: transparent; border: 0; padding: 6px 8px; border-radius: 5px; cursor: pointer; }
+.seg button.on { background: #2a2a31; color: var(--txt); box-shadow: 0 0 0 1px #ffffff14 inset; }
+.row { display: flex; justify-content: space-around; align-items: flex-start; padding: 0 12px; }
+.grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px 4px; padding: 0 10px; }
+.mini { position: relative; min-height: 84px; margin: 0 12px; border-radius: 10px; background: #0d0d10; box-shadow: 0 0 0 1px #ffffff0a inset; overflow: hidden; }
+.mini canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 
-/* ------------------------------------------------------------ controls */
-.deck { display: grid; gap: 10px 14px; align-items: center; min-height: 0; border-top: 1px solid #0002; box-shadow: 0 1px 0 #fff6 inset; padding-top: 10px; }
-.knob { display: grid; justify-items: center; gap: 4px; user-select: none; -webkit-user-select: none; touch-action: none; }
-.knob .dial { position: relative; width: 50px; height: 50px; cursor: ns-resize; }
-.knob.big .dial { width: 76px; height: 76px; }
-.knob svg { position: absolute; inset: -9px; width: calc(100% + 18px); height: calc(100% + 18px); overflow: visible; pointer-events: none; }
-.knob .cap { position: absolute; inset: 5px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fffaf0, #e8dcc2 45%, #b9aa8b 100%);
-  box-shadow: 0 5px 8px -2px #0008, 0 0 0 3px #3b3226, 0 0 0 4px #0007, inset 0 -3px 4px #0003; }
-.knob .cap::before { content: ""; position: absolute; inset: -3px; border-radius: 50%; z-index: -1; background: repeating-conic-gradient(#2a231a 0 4deg, #4a3f30 4deg 8deg); }
-.lav .knob .cap { background: radial-gradient(circle at 35% 30%, #fbf9ff, #ddd6ea 45%, #9e94b5 100%); box-shadow: 0 5px 8px -2px #0008, 0 0 0 3px #2a2438, 0 0 0 4px #0007, inset 0 -3px 4px #0003; }
-.knob .ptr { position: absolute; left: 50%; top: 9%; width: 3px; height: 34%; margin-left: -1.5px; border-radius: 2px; background: linear-gradient(var(--brass-hi), var(--brass)); transform-origin: 50% 120%; }
-.knob .name { font-size: 8.5px; letter-spacing: .18em; color: var(--ink); white-space: nowrap; }
-.knob .val { font: 10px var(--vec); color: var(--amber); background: var(--screen); border-radius: 3px; padding: 1px 5px; min-width: 52px; text-align: center; text-shadow: 0 0 6px var(--amber-glow); box-shadow: inset 0 1px 3px #000; }
-.keys { display: grid; gap: 6px; }
-.key { font: 600 9.5px var(--mono); letter-spacing: .16em; color: var(--ink); padding: 8px 10px 7px; border-radius: 5px; border: 0; cursor: pointer; white-space: nowrap;
-  background: linear-gradient(#f6efde, #ddd2ba); box-shadow: 0 3px 0 #9d9077, 0 4px 6px #0005, inset 0 1px 0 #fff; }
-.key:active, .key.on { transform: translateY(2px); box-shadow: 0 1px 0 #9d9077, 0 1px 3px #0005, inset 0 1px 3px #0003; }
-.key.on { color: #8a1d0e; } .key.on::before { content: "● "; color: var(--led-red); text-shadow: 0 0 6px var(--led-red); }
-.lav .key { background: linear-gradient(#f3f0f8, #d5cee3); box-shadow: 0 3px 0 #8a819e, 0 4px 6px #0005, inset 0 1px 0 #fff; }
-.lav .key.on, .lav .key:active { box-shadow: 0 1px 0 #8a819e, 0 1px 3px #0005, inset 0 1px 3px #0003; }
-.cap-l { font-size: 8.5px; letter-spacing: .22em; color: var(--engrave); margin-bottom: 2px; }
-.vsep { width: 1px; align-self: stretch; background: #0002; box-shadow: 1px 0 0 #fff6; }
+/* knobs: Portal-style dark cap inside a glowing arc */
+.knob { display: grid; justify-items: center; gap: 3px; user-select: none; -webkit-user-select: none; touch-action: none; }
+.knob .dial { position: relative; cursor: ns-resize; }
+.knob svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.knob .cap { position: absolute; inset: 24%; border-radius: 50%; background: radial-gradient(circle at 40% 30%, #6b6b72, #36363c 55%, #1d1d21);
+  box-shadow: 0 6px 12px -2px #000c, 0 0 0 3px #141417, 0 0 0 4px #ffffff0d; }
+.knob .ptr { position: absolute; left: 50%; top: 10%; width: 2px; height: 34%; margin-left: -1px; background: #f4f1ea; border-radius: 1px; transform-origin: 50% 118%; }
+.knob .name { font: 700 9px var(--sans); letter-spacing: .26em; white-space: nowrap; }
+.knob.big .name { font-size: 11px; letter-spacing: .3em; }
+.knob .val { font: 10px var(--vec); color: var(--dim); }
 
-#echo .deck { grid-template-columns: auto 1px auto 1px 1fr; }
-.trio { display: flex; gap: 18px; }
-.quad { display: grid; grid-template-columns: repeat(4, 66px); gap: 6px 8px; }
-.styles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-.styles .key { padding: 7px 4px 6px; font-size: 8.5px; letter-spacing: .1em; }
-.modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 10px; }
+/* mix slider */
+.mix { display: grid; grid-template-columns: 22px 1fr 22px; align-items: center; gap: 8px; padding: 0 14px; }
+.mix span { font: 700 8px var(--sans); letter-spacing: .2em; color: var(--dim); writing-mode: vertical-rl; transform: rotate(180deg); justify-self: center; }
+.mix .trk { position: relative; height: 40px; border-radius: 8px; background: #0b0b0e; box-shadow: inset 0 2px 6px #000, 0 0 0 1px #ffffff0a; cursor: ew-resize; overflow: hidden; touch-action: none; }
+.mix canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.mix .hd { position: absolute; top: 3px; bottom: 3px; width: 14px; margin-left: -7px; border-radius: 4px; background: linear-gradient(90deg, #3d3d44, #6e6e76, #3d3d44); box-shadow: 0 2px 6px #000; }
+.foot { display: flex; align-items: flex-end; gap: 12px; padding: 0 14px; }
+.foot .wm { flex: 1; font: 800 15px var(--sans); letter-spacing: .24em; color: #3a3a41; line-height: 1.1; }
+.foot .wm small { display: block; font: 600 8px var(--sans); letter-spacing: .34em; color: #333339; }
+.meters { width: 78px; height: 74px; position: relative; }
+.meters canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 
-#drive .deck { grid-template-columns: auto 1px auto 1px auto 1px 1fr; }
-.dstyles { grid-template-columns: repeat(3, 76px); }
+/* punish: guarded switch, black edition */
 .guard { display: grid; justify-items: center; gap: 4px; }
-.guard .box { position: relative; width: 62px; height: 82px; border-radius: 7px; background: #2b2420; box-shadow: inset 0 2px 6px #000, 0 0 0 3px #1b1612; perspective: 300px; cursor: pointer; }
-.guard .sw { position: absolute; left: 22px; top: 22px; width: 18px; height: 38px; border-radius: 9px; background: linear-gradient(90deg, #888, #eee, #999); box-shadow: 0 4px 6px #000a; transition: transform .12s; transform-origin: 50% 100%; transform: rotateX(-35deg); }
+.guard .box { position: relative; width: 56px; height: 76px; border-radius: 8px; background: #08080a; box-shadow: inset 0 2px 6px #000, 0 0 0 1px #ffffff12; perspective: 300px; cursor: pointer; }
+.guard .sw { position: absolute; left: 19px; top: 20px; width: 18px; height: 36px; border-radius: 9px; background: linear-gradient(90deg, #666, #ddd, #777); box-shadow: 0 4px 6px #000a; transition: transform .12s; transform-origin: 50% 100%; transform: rotateX(-35deg); }
 .guard.armed .sw.on { transform: rotateX(35deg); }
-.guard .cover { position: absolute; inset: 4px; border-radius: 5px; background: repeating-linear-gradient(-45deg, #c8261a 0 8px, #9b1b12 8px 16px); opacity: .93; transform-origin: 50% 0; transition: transform .25s; box-shadow: 0 6px 10px #000a; }
+.guard .cover { position: absolute; inset: 4px; border-radius: 6px; background: repeating-linear-gradient(-45deg, #d42a1c 0 7px, #8e170f 7px 14px); opacity: .95; transform-origin: 50% 0; transition: transform .25s; box-shadow: 0 6px 10px #000a; }
 .guard.armed .cover { transform: rotateX(78deg); }
-.guard .name { font-size: 9px; letter-spacing: .24em; color: #8a1d0e; font-weight: 700; }
+.guard .name { font: 800 9px var(--sans); letter-spacing: .3em; color: var(--red); text-shadow: 0 0 8px #ff4a2b88; }
 </style>
 </head>
 <body>
@@ -123,72 +102,71 @@ body.dragging .drop { display: grid; }
 </div>
 <div id="stage"><div id="units">
 
-  <!-- =========================================================== ECHO LAB -->
+  <!-- ============================================================ ECHO LAB -->
   <section class="unit show" id="echo"><div class="chassis">
-    <div class="head"><h1>ECHO LAB</h1><span class="model">EL-8 · TAPE LOOP</span><div class="meander"></div>
-      <div class="leds"><div class="led"><i id="ledRec"></i>REC</div><div class="led"><i id="ledPlay" class="amb"></i>PLAY</div><div class="led"><i id="ledSat"></i>SAT</div><div class="led"><i id="ledDuck" class="amb"></i>DUCK</div></div>
-      <span class="epithet">ΗΧΩ · SHE WHO ANSWERS</span><div class="emblem">EMBLEM</div></div>
-    <div class="main">
-      <div class="glass"><canvas id="ring"></canvas></div>
-      <div class="col" style="grid-template-rows: 74px 1fr 1fr">
-        <div class="vus"><div class="vu"><canvas id="vuIn"></canvas><span>INPUT</span></div><div class="vu"><canvas id="vuOut"></canvas><span>ECHO</span></div></div>
-        <div class="glass"><canvas id="ladder"></canvas></div>
-        <div class="glass"><canvas id="duckScope"></canvas></div>
-      </div>
+    <div class="hero" id="echoHero">
+      <canvas id="ring"></canvas>
+      <div class="logo">ECH<span class="o" style="border-color:var(--teal);box-shadow:0 0 10px #2fd6a8aa, inset 0 0 6px #ffc93c88"></span> LAB<small>TAPE LOOP · DELAY</small></div>
+      <div class="brk tr"></div><div class="brk bl"></div>
+      <div class="axis y" style="color:var(--amber)">FEEDBACK<b id="axFb"></b></div>
+      <div class="axis x" style="color:var(--teal)">TIME<b id="axTime"></b></div>
     </div>
-    <div class="deck">
-      <div class="trio" id="eBig"></div>
-      <div class="vsep"></div>
-      <div class="quad" id="eSmall"></div>
-      <div class="vsep"></div>
-      <div><div class="cap-l">STYLE</div><div class="styles" id="eStyles"></div><div class="modes" id="eModes"></div></div>
+    <div class="rail">
+      <div class="preset"><span class="nm" id="eStyleName"></span><div class="pbtn" id="ePrev">◁</div><div class="pbtn" id="eNext">▷</div></div>
+      <div class="row" id="eBig"></div>
+      <div class="mini"><canvas id="duckScope"></canvas></div>
+      <div class="grid4" id="eSmall"></div>
+      <div class="mix" id="eMix"><span>DRY</span><div class="trk"><canvas></canvas><div class="hd"></div></div><span>WET</span></div>
+      <div class="foot"><div><div class="seg" id="eModes"></div></div><div class="wm">ECHO LAB<small>ΗΧΩ</small></div><div class="meters"><canvas id="mE"></canvas></div></div>
     </div>
   </div></section>
 
-  <!-- =========================================================== DRIVE LAB -->
-  <section class="unit lav" id="drive"><div class="chassis">
-    <div class="head"><h1>DRIVE LAB</h1><span class="model">DL-6 · SATURATOR</span><div class="meander" style="filter:hue-rotate(220deg)"></div>
-      <div class="leds"><div class="led"><i id="ledHeat"></i>HEAT</div><div class="led"><i id="ledPump" class="amb"></i>PUMP</div><div class="led"><i id="ledPun"></i>PUNISH</div><div class="led"><i id="ledClip"></i>CLIP</div></div>
-      <span class="epithet">ΦΑΕΘΩΝ · WHO DROVE THE SUN</span><div class="emblem">EMBLEM</div></div>
-    <div class="main">
-      <div class="glass"><canvas id="curve"></canvas></div>
-      <div class="col" style="grid-template-rows: 74px 1fr 1fr">
-        <div class="vus"><div class="vu"><canvas id="vuDIn"></canvas><span>INPUT</span></div><div class="vu"><canvas id="vuDOut"></canvas><span>OUTPUT</span></div></div>
-        <div class="glass"><canvas id="harm"></canvas></div>
-        <div class="glass"><canvas id="scope"></canvas></div>
-      </div>
+  <!-- ============================================================ DRIVE LAB -->
+  <section class="unit" id="drive"><div class="chassis">
+    <div class="hero" id="driveHero">
+      <canvas id="curve"></canvas>
+      <div class="logo">DRIVE LAB<small>SATURATION · PUNISHMENT</small></div>
+      <div class="brk tr"></div><div class="brk bl"></div>
+      <div class="axis y" style="color:var(--amber)">TONE<b id="axTone"></b></div>
+      <div class="axis x" style="color:var(--red)">DRIVE<b id="axDrive"></b></div>
     </div>
-    <div class="deck">
-      <div id="dBig"></div>
-      <div class="vsep"></div>
-      <div><div class="cap-l">STYLE</div><div class="keys dstyles" id="dStyles"></div></div>
-      <div class="vsep"></div>
-      <div class="guard" id="punish"><div class="box"><div class="sw" id="punSw"></div><div class="cover"></div></div><div class="name">PUNISH</div></div>
-      <div class="vsep"></div>
-      <div style="display:grid;gap:8px"><div class="quad" id="dSmall" style="grid-template-columns:repeat(6,64px)"></div><div style="display:flex;gap:10px;align-items:center"><span class="cap-l" style="margin:0">PUMP RATE</span><div class="keys" id="dRates" style="grid-template-columns:repeat(3,auto)"></div><span class="cap-l" style="margin:0 0 0 10px">AUTO GAIN</span><div class="keys" id="dAuto"></div></div></div>
+    <div class="rail">
+      <div class="preset"><span class="nm" id="dStyleName"></span><div class="pbtn" id="dPrev">◁</div><div class="pbtn" id="dNext">▷</div></div>
+      <div class="row" id="dBig"></div>
+      <div class="mini"><canvas id="harm"></canvas></div>
+      <div class="grid4" id="dSmall"></div>
+      <div class="mix" id="dMix"><span>DRY</span><div class="trk"><canvas></canvas><div class="hd"></div></div><span>WET</span></div>
+      <div class="foot"><div style="display:grid;gap:6px"><div class="seg" id="dRates"></div><div class="seg" id="dAuto"></div></div><div class="wm">DRIVE LAB<small>ΦΑΕΘΩΝ</small></div><div class="meters"><canvas id="mD"></canvas></div></div>
     </div>
   </div></section>
 </div></div>
 <div class="drop">DROP AUDIO TO RUN IT THROUGH</div>
-
 <script>
 // ===================================================================== helpers
 const $ = s => document.querySelector(s);
 const ms = v => v >= 1000 ? (v / 1000).toFixed(2) + " s" : v.toFixed(0) + " ms";
 const dB = v => (v > 0 ? "+" : "") + v.toFixed(1) + " dB";
 const hz = v => v < 1000 ? v.toFixed(0) + " Hz" : (v / 1000).toFixed(1) + " kHz";
-function knob(parent, { name, min, max, value, fmt, big, log, onchange }) {
-  const el = document.createElement("div"); el.className = "knob" + (big ? " big" : "");
-  el.innerHTML = `<div class="dial"><svg viewBox="-60 -60 120 120"></svg><div class="cap"><div class="ptr"></div></div></div><div class="name">${name}</div><div class="val"></div>`;
+const COL = { amber: "#ffc93c", orange: "#ff8a1f", red: "#ff4a2b", teal: "#2fd6a8", violet: "#a98bff", white: "#e9e6e1" };
+// Portal-style knob: dark cap, dotted scale, glowing value arc in the knob's colour
+function knob(parent, { name, min, max, value, fmt, size = 52, log, color = COL.amber, onchange }) {
+  const el = document.createElement("div"); el.className = "knob" + (size > 70 ? " big" : "");
+  el.innerHTML = `<div class="dial" style="width:${size}px;height:${size}px"><svg viewBox="0 0 100 100"></svg><div class="cap"><div class="ptr"></div></div></div><div class="name" style="color:${color};text-shadow:0 0 10px ${color}55">${name}</div><div class="val"></div>`;
   parent.appendChild(el);
   const svg = el.querySelector("svg"), ptr = el.querySelector(".ptr"), val = el.querySelector(".val");
-  let t = ""; for (let i = 0; i <= 10; i++) { const a = (-135 + 27 * i) * Math.PI / 180, r1 = 54, r2 = i % 5 ? 49 : 45;
-    t += `<line x1="${Math.sin(a) * r1}" y1="${-Math.cos(a) * r1}" x2="${Math.sin(a) * r2}" y2="${-Math.cos(a) * r2}" stroke="#5d523f" stroke-width="${i % 5 ? 1.2 : 2}"/>`; }
-  svg.innerHTML = t;
+  const P = (deg, r) => [50 + Math.sin(deg * Math.PI / 180) * r, 50 - Math.cos(deg * Math.PI / 180) * r];
+  const arc = (a0, a1, r) => { const [x0, y0] = P(a0, r), [x1, y1] = P(a1, r); return `M${x0} ${y0} A${r} ${r} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${x1} ${y1}`; };
   const toN = v => log ? Math.log(v / min) / Math.log(max / min) : (v - min) / (max - min);
   const fromN = n => log ? min * Math.pow(max / min, n) : min + n * (max - min);
   let n = toN(value), drag = null;
-  const paint = () => { ptr.style.transform = `rotate(${-135 + 270 * n}deg)`; const v = fromN(n); val.textContent = fmt ? fmt(v) : v.toFixed(0); onchange && onchange(v); };
+  const paint = (silent) => {
+    const a = -135 + 270 * n;
+    let dots = ""; for (let i = 0; i <= 8; i++) { const d = -135 + 270 * i / 8, [x, y] = P(d, 49); dots += `<circle cx="${x}" cy="${y}" r="1.6" fill="${d <= a + .1 ? color : "#4a4950"}"/>`; }
+    svg.innerHTML = `<path d="${arc(-135, 135, 39)}" stroke="#2c2c32" stroke-width="5" fill="none" stroke-linecap="round"/>` +
+      (n > .002 ? `<path d="${arc(-135, a, 39)}" stroke="${color}" stroke-width="5" fill="none" stroke-linecap="round" style="filter:drop-shadow(0 0 4px ${color})"/>` : "") + dots;
+    ptr.style.transform = `rotate(${a}deg)`;
+    const v = fromN(n); val.textContent = fmt ? fmt(v) : v.toFixed(0); if (!silent && onchange) onchange(v);
+  };
   const dial = el.querySelector(".dial");
   dial.addEventListener("pointerdown", e => { drag = { y: e.clientY, n }; dial.setPointerCapture(e.pointerId); });
   dial.addEventListener("pointermove", e => { if (!drag) return; n = Math.min(1, Math.max(0, drag.n + (drag.y - e.clientY) / (e.shiftKey ? 700 : 200))); paint(); });
@@ -196,43 +174,44 @@ function knob(parent, { name, min, max, value, fmt, big, log, onchange }) {
   dial.addEventListener("dblclick", () => { n = toN(value); paint(); });
   dial.addEventListener("wheel", e => { e.preventDefault(); n = Math.min(1, Math.max(0, n - e.deltaY / 900)); paint(); }, { passive: false });
   paint();
+  return { set(v) { n = Math.min(1, Math.max(0, toN(v))); paint(); }, norm: () => n };
 }
-function keys(parent, names, cur, onpick) {
-  parent.innerHTML = names.map((nm, i) => `<button class="key ${i === cur ? "on" : ""}" data-i="${i}">${nm}</button>`).join("");
-  parent.addEventListener("click", e => { const b = e.target.closest("[data-i]"); if (!b) return; parent.querySelectorAll(".key").forEach(k => k.classList.toggle("on", k === b)); onpick(+b.dataset.i); });
+function seg(parent, names, cur, onpick) {
+  parent.innerHTML = names.map((nm, i) => `<button class="${i === cur ? "on" : ""}" data-i="${i}">${nm}</button>`).join("");
+  parent.addEventListener("click", e => { const b = e.target.closest("[data-i]"); if (!b) return; parent.querySelectorAll("button").forEach(k => k.classList.toggle("on", k === b)); onpick(+b.dataset.i); });
 }
-function toggleKey(parent, label, on, onflip) { parent.innerHTML = `<button class="key ${on ? "on" : ""}">${label}</button>`; const b = parent.firstChild; b.onclick = () => { on = !on; b.classList.toggle("on", on); onflip(on); }; }
+// Portal-style dry/wet slider with a little particle field
+function mixSlider(root, value, color, onchange) {
+  const trk = root.querySelector(".trk"), hd = root.querySelector(".hd"), cv = root.querySelector("canvas"); let v = value / 100;
+  const paint = () => { hd.style.left = (8 + v * (trk.clientWidth - 16)) + "px"; onchange(v * 100); };
+  let drag = false;
+  const at = e => { const r = trk.getBoundingClientRect(), sc = r.width / trk.clientWidth; v = Math.min(1, Math.max(0, ((e.clientX - r.left) / sc - 8) / (trk.clientWidth - 16))); paint(); };
+  trk.addEventListener("pointerdown", e => { drag = true; trk.setPointerCapture(e.pointerId); at(e); });
+  trk.addEventListener("pointermove", e => drag && at(e)); trk.addEventListener("pointerup", () => drag = false);
+  requestAnimationFrame(paint);
+  const dots = Array.from({ length: 70 }, () => [Math.random(), Math.random(), Math.random()]);
+  return { draw(now, energy) { const [g, W, H] = fit(cv); const x1 = 8 + v * (W - 16);
+    for (const [x, y, s] of dots) { const px = 4 + ((x + now * .03 * (s + .3)) % 1) * (W - 8); if (px > x1) continue; g.fillStyle = color; g.globalAlpha = .25 + .6 * s * Math.min(1, .3 + energy * 4); g.fillRect(px, 6 + y * (H - 12), 1.6, 1.6); }
+    g.globalAlpha = 1; } };
+}
 function fit(c) { const d = devicePixelRatio || 1, W = c.clientWidth, H = c.clientHeight; if (c.width !== Math.round(W * d) || c.height !== Math.round(H * d)) { c.width = Math.round(W * d); c.height = Math.round(H * d); } const g = c.getContext("2d"); g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, W, H); return [g, W, H]; }
 function scaleUnits() { const s = Math.min(innerWidth / 1090, (innerHeight - 52) / 660, 1.35); $("#units").style.transform = `scale(${s})`; }
 addEventListener("resize", scaleUnits); scaleUnits();
-
-// ===================================================================== vector display kit
-const V = { red: "#ff4a2b", orange: "#ff8a1f", amber: "#ffc93c", teal: "#2fd6a8", font: "'Share Tech Mono', ui-monospace, monospace" };
+const VF = "'Share Tech Mono', ui-monospace, monospace";
 function glow(g, col, blur = 10) { g.strokeStyle = col; g.fillStyle = col; g.shadowColor = col; g.shadowBlur = blur; }
-function chamfer(g, x, y, w, h, c) { g.beginPath(); g.moveTo(x + c, y); g.lineTo(x + w - c, y); g.lineTo(x + w, y + c); g.lineTo(x + w, y + h - c); g.lineTo(x + w - c, y + h); g.lineTo(x + c, y + h); g.lineTo(x, y + h - c); g.lineTo(x, y + c); g.closePath(); }
-function text(g, s, x, y, col, size = 12, align = "left") { g.font = size + "px " + V.font; g.textAlign = align; glow(g, col, 8); g.fillText(s, x, y); g.shadowBlur = 0; g.textAlign = "left"; }
-function vframe(g, W, H, col, title, right) {
-  g.lineWidth = 1.2; glow(g, col, 6); chamfer(g, 5, 5, W - 10, H - 10, 11); g.stroke();
-  g.globalAlpha = .4; chamfer(g, 9, 9, W - 18, H - 18, 8); g.stroke(); g.globalAlpha = 1;
-  g.lineWidth = 2; glow(g, V.amber, 8);
-  for (const [x, y, sx, sy] of [[15, 15, 1, 1], [W - 15, 15, -1, 1], [15, H - 15, 1, -1], [W - 15, H - 15, -1, -1]]) { g.beginPath(); g.moveTo(x, y + 9 * sy); g.lineTo(x, y); g.lineTo(x + 9 * sx, y); g.stroke(); }
-  g.shadowBlur = 0;
-  const tag = (s, x, y, c) => { g.font = "11px " + V.font; const tw = g.measureText(s).width; g.fillStyle = "#0d0a09"; g.fillRect(x - 6, y - 10, tw + 12, 12); text(g, s, x, y, c, 11); };
-  if (title) tag(title, 30, 9, col);
-  if (right) { g.font = "11px " + V.font; const tw = g.measureText(right).width; tag(right, W - tw - 30, H - 1, V.amber); }
-}
-const heat = h => { const s = [[255, 236, 190], [255, 201, 60], [255, 138, 31], [255, 74, 43], [140, 30, 18]]; const x = Math.min(3.999, Math.max(0, h) * 4), i = Math.floor(x), f = x - i; return s[i].map((v, k) => Math.round(v + (s[i + 1][k] - v) * f)); };
+function text(g, s, x, y, col, size = 11, align = "left") { g.font = size + "px " + VF; g.textAlign = align; glow(g, col, 8); g.fillText(s, x, y); g.shadowBlur = 0; g.textAlign = "left"; }
+const heat = h => { const s = [[255, 236, 190], [255, 201, 60], [255, 138, 31], [255, 74, 43], [120, 26, 16]]; const x = Math.min(3.999, Math.max(0, h) * 4), i = Math.floor(x), f = x - i; return s[i].map((v, k) => Math.round(v + (s[i + 1][k] - v) * f)); };
 const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
-function vu(id, lvl) {
-  const [g, W, H] = fit(document.getElementById(id)), cx = W / 2, cy = H * 1.22, R = H * 1.02;
-  g.strokeStyle = "#6f6450"; g.lineWidth = 1; g.beginPath(); g.arc(cx, cy, R, -Math.PI * .76, -Math.PI * .24); g.stroke();
-  for (let i = 0; i <= 10; i++) { const a = -Math.PI * .76 + i * Math.PI * .052; const r2 = R - (i % 5 ? 4 : 8); g.beginPath(); g.moveTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R); g.lineTo(cx + Math.cos(a) * r2, cy + Math.sin(a) * r2); g.stroke(); }
-  g.strokeStyle = "#c8261a"; g.lineWidth = 2.5; g.beginPath(); g.arc(cx, cy, R - 2, -Math.PI * .34, -Math.PI * .24); g.stroke();
-  const db = 20 * Math.log10(Math.max(lvl, 1e-5)), n = Math.min(1.04, Math.max(0, (db + 30) / 33));
-  const a = -Math.PI * .76 + n * Math.PI * .52;
-  g.strokeStyle = "#1b1712"; g.lineWidth = 1.5; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(a) * (R + 3), cy + Math.sin(a) * (R + 3)); g.stroke();
+// slim vector meters (IN / OUT), segmented, with dB readouts
+function meters(id, a, b, la, lb) {
+  const [g, W, H] = fit(document.getElementById(id)); const seg = 16;
+  [[a, la, 12], [b, lb, W / 2 + 6]].forEach(([lvl, label, x]) => {
+    const db = 20 * Math.log10(Math.max(lvl, 1e-5)), lit = Math.max(0, Math.min(1, (db + 48) / 48)) * seg, bw = 8, top = 4, hh = H - 22;
+    for (let i = 0; i < seg; i++) { const y = top + hh - (i + 1) * hh / seg + 1, on = i < lit, c = i > 13 ? COL.red : i > 10 ? COL.amber : COL.teal;
+      g.fillStyle = on ? c : "#26252b"; g.shadowColor = c; g.shadowBlur = on ? 6 : 0; g.fillRect(x, y, bw, hh / seg - 2); }
+    g.shadowBlur = 0; text(g, label, x + bw + 4, top + 8, "#6c6a70", 8); text(g, (db < -60 ? "-∞" : db.toFixed(1)), x - 2, H - 4, "#9a968f", 9);
+  });
 }
-
 // ===================================================================== AUDIO ENGINE
 const ctx = new (window.AudioContext || window.webkitAudioContext)();
 const N = (type, opts) => new (window[type])(ctx, opts);
@@ -352,35 +331,44 @@ const show = which => { $("#echo").classList.toggle("show", which === "echo"); $
 $("#showEcho").onclick = () => show("echo"); $("#showDrive").onclick = () => show("drive");
 
 // ===================================================================== CONTROLS
-const eB = $("#eBig"), eS = $("#eSmall");
-knob(eB, { name: "TIME", min: 10, max: 2000, value: E.time, log: true, big: true, fmt: ms, onchange: v => { E.time = v; updateEcho(); } });
-knob(eB, { name: "FEEDBACK", min: 0, max: 110, value: E.fb, big: true, fmt: v => v.toFixed(0) + " %", onchange: v => { E.fb = v; updateEcho(); } });
-knob(eB, { name: "DUCK", min: 0, max: 100, value: E.duck, big: true, fmt: v => v.toFixed(0) + " %", onchange: v => E.duck = v });
-knob(eS, { name: "SATURATION", min: -12, max: 24, value: E.sat, fmt: dB, onchange: v => { E.sat = v; updateEcho(); } });
-knob(eS, { name: "MIX", min: 0, max: 100, value: E.mix, fmt: v => v.toFixed(0) + " %", onchange: v => { E.mix = v; updateEcho(); } });
-knob(eS, { name: "WOBBLE", min: 0, max: 200, value: E.wob, fmt: v => v.toFixed(0) + " %", onchange: v => { E.wob = v; updateEcho(); } });
-knob(eS, { name: "DUCK REL", min: 20, max: 2000, value: E.rel, log: true, fmt: ms, onchange: v => E.rel = v });
-knob(eS, { name: "LOW CUT", min: 20, max: 1000, value: 20, log: true, fmt: v => v < 21 ? "OFF" : hz(v), onchange: v => { E.lo = v; updateEcho(); } });
-knob(eS, { name: "HIGH CUT", min: 1000, max: 20000, value: 20000, log: true, fmt: v => v > 19900 ? "OFF" : hz(v), onchange: v => { E.hi = v; updateEcho(); } });
-knob(eS, { name: "WIDTH", min: 0, max: 100, value: 100, fmt: v => v.toFixed(0) + " %", onchange: v => { E.width = v; updateEcho(); } });
-knob(eS, { name: "OUTPUT", min: -24, max: 12, value: 0, fmt: dB, onchange: v => { E.out = v; updateEcho(); } });
-keys($("#eStyles"), STYLES.map(s => s.n), E.style, i => { E.style = i; updateEcho(); });
-keys($("#eModes"), ["SINGLE", "DUAL", "PING-PONG"], 0, i => { E.mode = i; updateEcho(); });
-knob($("#dBig"), { name: "DRIVE", min: 0, max: 10, value: D.drive, big: true, fmt: v => v.toFixed(1), onchange: v => { D.drive = v; updateDrive(); } });
+const K = {};
+K.time = knob($("#eBig"), { name: "TIME", min: 10, max: 2000, value: E.time, log: true, size: 84, color: COL.teal, fmt: ms, onchange: v => { E.time = v; updateEcho(); } });
+K.fb = knob($("#eBig"), { name: "FEEDBACK", min: 0, max: 110, value: E.fb, size: 84, color: COL.amber, fmt: v => v.toFixed(0) + " %", onchange: v => { E.fb = v; updateEcho(); } });
+K.duck = knob($("#eBig"), { name: "DUCK", min: 0, max: 100, value: E.duck, size: 84, color: COL.violet, fmt: v => v.toFixed(0) + " %", onchange: v => E.duck = v });
+const eS = $("#eSmall");
+knob(eS, { name: "SATURATE", min: -12, max: 24, value: E.sat, color: COL.orange, fmt: dB, onchange: v => { E.sat = v; updateEcho(); } });
+knob(eS, { name: "WOBBLE", min: 0, max: 200, value: E.wob, color: COL.orange, fmt: v => v.toFixed(0) + " %", onchange: v => { E.wob = v; updateEcho(); } });
+knob(eS, { name: "DUCK REL", min: 20, max: 2000, value: E.rel, log: true, color: COL.violet, fmt: ms, onchange: v => E.rel = v });
+knob(eS, { name: "WIDTH", min: 0, max: 100, value: 100, color: COL.white, fmt: v => v.toFixed(0) + " %", onchange: v => { E.width = v; updateEcho(); } });
+knob(eS, { name: "LOW CUT", min: 20, max: 1000, value: 20, log: true, color: COL.white, fmt: v => v < 21 ? "OFF" : hz(v), onchange: v => { E.lo = v; updateEcho(); } });
+knob(eS, { name: "HIGH CUT", min: 1000, max: 20000, value: 20000, log: true, color: COL.white, fmt: v => v > 19900 ? "OFF" : hz(v), onchange: v => { E.hi = v; updateEcho(); } });
+knob(eS, { name: "OUTPUT", min: -24, max: 12, value: 0, color: COL.white, fmt: dB, onchange: v => { E.out = v; updateEcho(); } });
+const eMix = mixSlider($("#eMix"), E.mix, COL.teal, v => { E.mix = v; updateEcho(); });
+const setEStyle = i => { E.style = (i + STYLES.length) % STYLES.length; $("#eStyleName").textContent = STYLES[E.style].n; updateEcho(); };
+$("#ePrev").onclick = () => setEStyle(E.style - 1); $("#eNext").onclick = () => setEStyle(E.style + 1); setEStyle(E.style);
+seg($("#eModes"), ["SINGLE", "DUAL", "PING"], 0, i => { E.mode = i; updateEcho(); });
+
+K.drive = knob($("#dBig"), { name: "DRIVE", min: 0, max: 10, value: D.drive, size: 84, color: COL.red, fmt: v => v.toFixed(1), onchange: v => { D.drive = v; updateDrive(); } });
+K.pump = knob($("#dBig"), { name: "PUMP", min: 0, max: 100, value: 0, size: 84, color: COL.teal, fmt: v => v.toFixed(0) + " %", onchange: v => D.pump = v });
+$("#dBig").insertAdjacentHTML("beforeend", `<div class="guard" id="punish" style="margin-top:6px"><div class="box"><div class="sw" id="punSw"></div><div class="cover"></div></div><div class="name">PUNISH</div></div>`);
 const dS = $("#dSmall");
-knob(dS, { name: "TONE", min: -12, max: 12, value: 0, fmt: dB, onchange: v => { D.tone = v; updateDrive(); } });
-knob(dS, { name: "MIX", min: 0, max: 100, value: 100, fmt: v => v.toFixed(0) + " %", onchange: v => { D.mix = v; updateDrive(); } });
-knob(dS, { name: "PUMP", min: 0, max: 100, value: 0, fmt: v => v.toFixed(0) + " %", onchange: v => D.pump = v });
-knob(dS, { name: "FILTER", min: 80, max: 20000, value: 20000, log: true, fmt: v => v > 19900 ? "OFF" : hz(v), onchange: v => { D.filter = v > 19900 ? 20000 : v; updateDrive(); } });
-knob(dS, { name: "RESONANCE", min: 0, max: 100, value: 20, fmt: v => v.toFixed(0) + " %", onchange: v => { D.res = v; updateDrive(); } });
-knob(dS, { name: "OUTPUT", min: -24, max: 12, value: 0, fmt: dB, onchange: v => { D.out = v; updateDrive(); } });
-keys($("#dStyles"), DSTY.map(s => s.n), D.style, i => { D.style = i; updateDrive(); });
-keys($("#dRates"), ["1/2", "1/4", "1/8"], 1, i => D.rate = i);
-toggleKey($("#dAuto"), "ON", true, on => { D.auto = on; updateDrive(); });
+K.tone = knob(dS, { name: "TONE", min: -12, max: 12, value: 0, color: COL.amber, fmt: dB, onchange: v => { D.tone = v; updateDrive(); } });
+knob(dS, { name: "FILTER", min: 80, max: 20000, value: 20000, log: true, color: COL.orange, fmt: v => v > 19900 ? "OFF" : hz(v), onchange: v => { D.filter = v > 19900 ? 20000 : v; updateDrive(); } });
+knob(dS, { name: "RESO", min: 0, max: 100, value: 20, color: COL.orange, fmt: v => v.toFixed(0) + " %", onchange: v => { D.res = v; updateDrive(); } });
+knob(dS, { name: "OUTPUT", min: -24, max: 12, value: 0, color: COL.white, fmt: dB, onchange: v => { D.out = v; updateDrive(); } });
+const dMix = mixSlider($("#dMix"), D.mix, COL.red, v => { D.mix = v; updateDrive(); });
+const setDStyle = i => { D.style = (i + DSTY.length) % DSTY.length; $("#dStyleName").textContent = DSTY[D.style].n; updateDrive(); };
+$("#dPrev").onclick = () => setDStyle(D.style - 1); $("#dNext").onclick = () => setDStyle(D.style + 1); setDStyle(D.style);
+seg($("#dRates"), ["1/2", "1/4", "1/8"], 1, i => D.rate = i);
+seg($("#dAuto"), ["AUTO GAIN", "OFF"], 0, i => { D.auto = i === 0; updateDrive(); });
 (function () { const P = $("#punish"), sw = $("#punSw");
   P.onclick = () => { if (!P.classList.contains("armed")) { P.classList.add("armed"); return; } D.punish = !D.punish; sw.classList.toggle("on", D.punish); updateDrive(); if (!D.punish) setTimeout(() => P.classList.remove("armed"), 400); }; })();
+// the hero displays are X/Y pads, like Portal / Thermal
+function xyPad(el, onxy) { let on = false; const at = e => { const r = el.getBoundingClientRect(); onxy(Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), Math.min(1, Math.max(0, 1 - (e.clientY - r.top) / r.height))); };
+  el.addEventListener("pointerdown", e => { on = true; el.setPointerCapture(e.pointerId); at(e); }); el.addEventListener("pointermove", e => on && at(e)); el.addEventListener("pointerup", () => on = false); }
+xyPad($("#echoHero"), (x, y) => { K.time.set(10 * Math.pow(200, x)); K.fb.set(y * 110); });
+xyPad($("#driveHero"), (x, y) => { K.drive.set(x * 10); K.tone.set(-12 + y * 24); });
 updateDrive(); updateEcho();
-
 // ===================================================================== MEASURE (what the displays read)
 const bufs = new Map(); const td = an => { let b = bufs.get(an); if (!b) bufs.set(an, b = new Float32Array(an.fftSize)); an.getFloatTimeDomainData(b); return b; };
 const rms = a => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * a[i]; return Math.sqrt(s / a.length); };
@@ -407,130 +395,124 @@ function measure(now, dt) {
 }
 
 // ===================================================================== DISPLAYS
-function drawRing(now) {
-  const [g, W, H] = fit($("#ring")), st = STYLES[E.style], T = Math.min(E.time / 1000, TAPE * .98);
-  const duckAmt = (E.duck / 100) * duckEnv, duckDb = 20 * Math.log10(1 - duckAmt * .94);
-  vframe(g, W, H, V.red, "TAPE LOOP · " + st.n + " · " + ["SINGLE", "DUAL", "PING-PONG"][E.mode], ms(E.time) + " · FB " + E.fb.toFixed(0) + "%");
-  const cx = W * .5, cy = H * .61, R = Math.min(W * .4, H * .7);
-  const P = (a, r, z) => [cx + Math.cos(a) * r, cy + Math.sin(a) * r * .38 - z];
-  const A = f => Math.PI / 2 + f * 2 * Math.PI;
-  g.lineWidth = 1;
-  for (const [rr, col, al] of [[.94, V.orange, .45], [1, V.red, .85], [1.06, V.orange, .45]]) { glow(g, col, 5); g.globalAlpha = al; g.beginPath(); for (let i = 0; i <= 140; i++) { const [x, y] = P(i / 140 * 2 * Math.PI, R * rr, 0); i ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke(); }
-  g.globalAlpha = .3; glow(g, V.red, 3);
-  for (let i = 0; i < 60; i++) { const a = A(i / 60 + now / TAPE); const [x1, y1] = P(a, R * .94, 0), [x2, y2] = P(a, R * 1.06, 0); g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); }
+function dotGrid(g, W, H) { g.fillStyle = "rgba(255,255,255,.06)"; for (let x = 12; x < W; x += 18) for (let y = 12; y < H; y += 18) g.fillRect(x, y, 1.3, 1.3); }
+function topo(g, cx, cy, r0, r1, col, now, n = 14, seed = 0) { // Thermal-style topographic contour lines
+  g.lineWidth = 1; g.strokeStyle = col;
+  for (let k = 0; k < n; k++) { const r = r0 + (r1 - r0) * k / (n - 1); g.globalAlpha = .1 * (1 - k / n) + .03; g.beginPath();
+    for (let i = 0; i <= 120; i++) { const t = i / 120 * 2 * Math.PI, rr = r * (1 + .05 * Math.sin(3 * t + k * .7 + seed) + .03 * Math.sin(7 * t - k * 1.3 + now * .05) + .02 * Math.sin(2 * t + k)); const x = cx + Math.cos(t) * rr, y = cy + Math.sin(t) * rr; i ? g.lineTo(x, y) : g.moveTo(x, y); }
+    g.stroke(); }
   g.globalAlpha = 1;
-  for (let k = 0; k < 3; k++) { const rr = R * (.5 - k * .07) * (1 - duckAmt * .4); glow(g, V.teal, 10); g.lineWidth = 1.4; g.globalAlpha = E.duck > 0 ? .25 + .75 * duckAmt : .12; g.beginPath(); g.ellipse(cx, cy, rr, rr * .38, 0, 0, 7); g.stroke(); }
-  g.globalAlpha = 1;
-  // the wall of sound on the tape: one wire per bin, height = level, colour = measured brightness
-  const zOf = lvl => { const db = 20 * Math.log10(Math.max(lvl, 1e-5)); return Math.max(0, (db + 54) / 54) * H * .37; };
-  const live = tape.map(b => ({ age: now - b.t, b })).filter(p => p.age >= 0 && p.age < TAPE * .985);
-  const depth = [...live].sort((p, q) => Math.sin(A(p.age / TAPE)) - Math.sin(A(q.age / TAPE)));
-  // ribbon: translucent panels between neighbouring bins (glass wall), then every 3rd wire
-  const byAge = [...live].sort((p, q) => p.age - q.age);
-  g.shadowBlur = 0;
-  for (let i = 1; i < byAge.length; i++) {
-    const a0 = byAge[i - 1], a1 = byAge[i]; if (a1.age - a0.age > TAPE / NB * 3) continue;
-    const z0 = zOf(a0.b.lvl), z1 = zOf(a1.b.lvl); if (z0 < 1.5 && z1 < 1.5) continue;
-    const [x0, y0] = P(A(a0.age / TAPE), R, 0), [x1, y1] = P(A(a1.age / TAPE), R, 0), c = heat(a1.b.h + (a1.age > T ? 0.12 : 0));
-    g.fillStyle = rgba(c, a1.age > T ? .07 : .16); g.beginPath(); g.moveTo(x0, y0); g.lineTo(x0, y0 - z0); g.lineTo(x1, y1 - z1); g.lineTo(x1, y1); g.closePath(); g.fill();
-  }
-  g.lineWidth = 1.2;
-  depth.forEach(({ age, b }, i) => {
-    const z = zOf(b.lvl); if (z < 1.5 || (Math.round(b.t * 100) % 3)) return;
-    const [x, y] = P(A(age / TAPE), R, 0), c = heat(b.h + (age > T ? 0.12 : 0));
-    glow(g, rgba(c, age > T ? .45 : .95), 9); g.beginPath(); g.moveTo(x, y); g.lineTo(x, y - z); g.stroke();
-  });
-  live.sort((p, q) => p.age - q.age);
-  glow(g, "rgba(255,214,120,.95)", 10); g.lineWidth = 1.4; g.beginPath(); let open = false;
-  for (const { age, b } of live) { const z = zOf(b.lvl), [x, y] = P(A(age / TAPE), R, z); if (z < 1.5) { open = false; continue; } open ? g.lineTo(x, y) : g.moveTo(x, y); open = true; }
-  g.stroke();
-  const block = (a, col, label) => { const [x, y] = P(a, R * 1.17, 0), w = 13, h = 9, d = 7; glow(g, col, 10); g.lineWidth = 1.3; g.strokeRect(x - w / 2, y - h, w, h);
-    g.beginPath(); g.moveTo(x - w / 2, y - h); g.lineTo(x - w / 2 + d, y - h - d * .6); g.lineTo(x + w / 2 + d, y - h - d * .6); g.lineTo(x + w / 2, y - h); g.moveTo(x + w / 2 + d, y - h - d * .6); g.lineTo(x + w / 2 + d, y - d * .6); g.lineTo(x + w / 2, y); g.stroke(); text(g, label, x, y + 14, col, 10, "center"); };
-  block(A(0), V.amber, "REC"); block(A(T / TAPE), V.teal, "PLAY");
-  g.setLineDash([3, 6]); glow(g, V.teal, 6); g.lineWidth = 1; g.beginPath(); for (let i = 0; i <= 60; i++) { const [x, y] = P(A(i / 60 * T / TAPE), R * 1.17, 0); i ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke(); g.setLineDash([]);
-  { const [x, y] = P(A(T / TAPE), R, 0), z = zOf(levels.wet * 1.4); glow(g, V.teal, 16); g.lineWidth = 3; g.globalAlpha = .9; g.beginPath(); g.moveTo(x, y); g.lineTo(x, y - z); g.stroke(); g.globalAlpha = 1; }
-  text(g, "DUCK " + (E.duck > 0 ? duckDb.toFixed(1) + " dB" : "OFF"), 24, 32, V.teal, 13);
-  glow(g, V.teal, 6); g.lineWidth = 1; g.strokeRect(24, 39, 120, 7); g.fillRect(24, 39, 120 * duckAmt, 7); g.shadowBlur = 0;
-  text(g, E.fb >= 100 ? "!! SELF-OSCILLATION" : "", W - 24, 32, V.red, 12, "right");
-  if (!srcNode) text(g, "SOURCE: PRESS DEMO, DROP A FILE, OR MIC", cx, 74, V.amber, 12, "center");
 }
-function drawLadder() {
-  const [g, W, H] = fit($("#ladder")), st = STYLES[E.style];
-  const gain = (E.fb / 100), lp = Math.min(st.lp, E.hi), keep = Math.pow(Math.min(1, lp / 21000), .55);
-  vframe(g, W, H, V.red, "REPEATS", (20 * Math.log10(Math.max(gain, 1e-6))).toFixed(1) + " dB/REP");
-  const bands = []; for (let k = 1; k <= 24; k++) { const amp = Math.pow(gain, k - 1), db = 20 * Math.log10(Math.max(amp, 1e-6)), th = Math.max(0, (db + 48) / 48); if (th < .04) break; bands.push([k, th]); }
-  const cx = W / 2, cy = H - 16, r0 = 10, room = Math.min(W / 2 - 22, H - 34) - r0, gap = 2.2;
-  const unit = (room - gap * bands.length) / Math.max(1, bands.reduce((a, [, t]) => a + t, 0));
-  let r = r0;
-  for (const [k, th] of bands) { const w = Math.max(1, th * unit), c = heat((1 - Math.pow(keep, k - 1)) * .95);
-    glow(g, rgba(c, 1), 7); g.lineWidth = w; g.beginPath(); g.arc(cx, cy, r + w / 2, Math.PI, 2 * Math.PI); g.stroke(); r += w + gap; }
-  text(g, bands.length + " REPEATS ABOVE −48 dB", 24, 30, V.amber, 10);
-  g.shadowBlur = 0;
+function blob(g, cx, cy, r, now, k, wob) { g.beginPath(); for (let i = 0; i <= 96; i++) { const t = i / 96 * 2 * Math.PI, rr = r * (1 + wob * Math.sin(3 * t + now * .6 + k * 1.7) + wob * .6 * Math.sin(5 * t - now * .9 + k) + wob * .3 * Math.sin(9 * t + now * .4)); const x = cx + Math.cos(t) * rr, y = cy + Math.sin(t) * rr; i ? g.lineTo(x, y) : g.moveTo(x, y); } g.closePath(); }
+
+function drawEcho(now) {
+  const [g, W, H] = fit($("#ring")), st = STYLES[E.style], T = Math.min(E.time / 1000, TAPE * .98);
+  dotGrid(g, W, H);
+  const cx = W * .53, cy = H * .53, R = Math.min(W, H) * .3;
+  const duckAmt = (E.duck / 100) * duckEnv, wet = Math.min(1, levels.wet * 5);
+  topo(g, cx, cy, R * 1.55, R * 2.2, "#ffc93c", now, 8, 1);
+  // repeats as Thermal heat bands: first repeat the bright outer band, later repeats darker toward the black core
+  const gain = E.fb / 100, keep = Math.pow(Math.min(1, Math.min(st.lp, E.hi) / 21000), .55);
+  const bands = []; for (let k = 1; k <= 24; k++) { const db = 20 * Math.log10(Math.max(Math.pow(gain, k - 1), 1e-6)), th = (db + 48) / 48; if (th < .05) break; bands.push([k, th]); }
+  const inner = R * .2, outer = R * .9, sum = bands.reduce((a, [, t]) => a + t, 0) || 1, wob = ((st.wob + 3) * E.wob / 100) * .0028 + .006;
+  let r = outer; const f = .5 + .5 * wet;
+  for (const [k, th] of bands) { const c = heat((1 - Math.pow(keep, k - 1)) * .9 + .05).map(v => Math.round(v * f));
+    g.fillStyle = rgba(c, 1); g.shadowColor = rgba(c, .6); g.shadowBlur = k === 1 ? 24 * wet : 0; blob(g, cx, cy, r, now, k, wob); g.fill(); r -= th / sum * (outer - inner); }
+  g.shadowBlur = 0; g.fillStyle = "#0a0a0c"; blob(g, cx, cy, Math.max(inner, r), now, 99, wob * 1.4); g.fill();
+  // ducker: a violet ring around the core that tightens and brightens as the ducker bites
+  { const rr = inner * (1.75 - .6 * duckAmt); glow(g, `rgba(169,139,255,${E.duck > 0 ? .25 + .75 * duckAmt : .1})`, 14); g.lineWidth = 1.5 + 2 * duckAmt; blob(g, cx, cy, rr, now, 7, .01); g.stroke(); g.shadowBlur = 0; }
+  // the tape loop: gradient ring
+  const cg = g.createConicGradient(-Math.PI / 2, cx, cy); cg.addColorStop(0, COL.amber); cg.addColorStop(.5, COL.teal); cg.addColorStop(1, COL.amber);
+  g.strokeStyle = cg; g.lineWidth = 3; g.shadowColor = "#2fd6a8"; g.shadowBlur = 12; g.beginPath(); g.arc(cx, cy, R, 0, 7); g.stroke(); g.shadowBlur = 0;
+  // the tape content: Portal-style spikes and dots bursting outward, travelling REC -> PLAY -> erase
+  const zOf = lvl => Math.max(0, (20 * Math.log10(Math.max(lvl, 1e-5)) + 54) / 54) * R * .78;
+  for (const b of tape) { const age = now - b.t; if (age < 0 || age > TAPE * .985) continue; const z = zOf(b.lvl); if (z < 2) continue;
+    const a = -Math.PI / 2 + age / TAPE * 2 * Math.PI, c = heat(b.h * .9), al = age > T ? .35 : .9;
+    const x0 = cx + Math.cos(a) * (R + 6), y0 = cy + Math.sin(a) * (R + 6), x1 = cx + Math.cos(a) * (R + 6 + z), y1 = cy + Math.sin(a) * (R + 6 + z);
+    g.strokeStyle = rgba(c, al * .55); g.lineWidth = 1; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+    glow(g, rgba(c, al), 6); g.beginPath(); g.arc(x1, y1, 1.8, 0, 7); g.fill(); g.shadowBlur = 0; }
+  // heads: REC at the top, PLAY where the delay puts it; the arc between them is the delay
+  const aP = -Math.PI / 2 + T / TAPE * 2 * Math.PI;
+  g.setLineDash([2, 5]); glow(g, "rgba(47,214,168,.7)", 4); g.lineWidth = 1.2; g.beginPath(); g.arc(cx, cy, R - 12, -Math.PI / 2, aP); g.stroke(); g.setLineDash([]);
+  const head = (a, col, label) => { const x = cx + Math.cos(a) * R, y = cy + Math.sin(a) * R; glow(g, col, 14); g.lineWidth = 2; g.fillStyle = "#0a0a0c"; g.beginPath(); g.arc(x, y, 7, 0, 7); g.fill(); g.stroke(); g.beginPath(); g.arc(x, y, 2.5, 0, 7); g.fillStyle = col; g.fill(); g.shadowBlur = 0;
+    const lx = cx + Math.cos(a) * (R - 28), ly = cy + Math.sin(a) * (R - 28); g.fillStyle = "rgba(10,10,12,.85)"; g.beginPath(); g.roundRect(lx - 21, ly - 9, 42, 17, 8); g.fill();
+    text(g, label, lx, ly + 4, col, 10, "center"); };
+  head(-Math.PI / 2, COL.amber, "REC"); head(aP, COL.teal, "PLAY");
+  // what you hear: a beam out of the play head, pressed by the ducker
+  { const z = zOf(levels.wet * 1.4); glow(g, COL.teal, 16); g.lineWidth = 3; g.beginPath(); g.moveTo(cx + Math.cos(aP) * (R + 8), cy + Math.sin(aP) * (R + 8)); g.lineTo(cx + Math.cos(aP) * (R + 8 + z), cy + Math.sin(aP) * (R + 8 + z)); g.stroke(); g.shadowBlur = 0; }
+  // X/Y puck: time across, feedback up
+  { const x = 40 + K.time.norm() * (W - 80), y = H - 40 - (E.fb / 110) * (H - 80); glow(g, "#e9e6e1", 10); g.lineWidth = 1.5; g.beginPath(); g.arc(x, y, 7, 0, 7); g.stroke(); g.beginPath(); g.arc(x, y, 2, 0, 7); g.fill(); g.shadowBlur = 0; }
+  // read-outs
+  text(g, "DUCK " + (E.duck > 0 ? (20 * Math.log10(1 - duckAmt * .94)).toFixed(1) + " dB" : "OFF"), W - 40, H - 58, COL.violet, 12, "right");
+  text(g, bands.length + " REPEATS · " + (20 * Math.log10(Math.max(gain, 1e-6))).toFixed(1) + " dB EACH", W - 40, H - 40, COL.amber, 10, "right");
+  if (E.fb >= 100) text(g, "SELF-OSCILLATION", W - 40, 126, COL.red, 11, "right");
+  if (!srcNode) text(g, "PRESS DEMO · DROP A FILE · MIC", cx, H - 18, "#9a968f", 10, "center");
+  $("#axTime").textContent = ms(E.time); $("#axFb").textContent = E.fb.toFixed(0) + "%";
 }
 const hist = [];
-function drawDuck() { // input envelope (orange) vs gain reduction (teal), scrolling
+function drawDuck() { // input envelope (orange) vs gain reduction (violet), scrolling
   const [g, W, H] = fit($("#duckScope"));
-  vframe(g, W, H, V.teal, "DUCKER", "REL " + ms(E.rel));
-  hist.push([levels.eIn, (E.duck / 100) * duckEnv]); if (hist.length > 180) hist.shift();
-  const x0 = 18, w = W - 36, y0 = H - 16, h = H - 34;
-  g.lineWidth = 1; glow(g, "rgba(47,214,168,.18)", 0); for (let x = x0; x <= x0 + w; x += 20) { g.beginPath(); g.moveTo(x, 16); g.lineTo(x, y0); g.stroke(); }
-  glow(g, V.orange, 6); g.beginPath(); hist.forEach(([l], i) => { const x = x0 + i / 180 * w, y = y0 - Math.min(1, Math.max(0, (20 * Math.log10(Math.max(l, 1e-5)) + 48) / 48)) * h; i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.stroke();
-  glow(g, V.teal, 8); g.lineWidth = 1.6; g.beginPath(); hist.forEach(([, d], i) => { const x = x0 + i / 180 * w, y = 18 + d * h; i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.stroke();
-  g.shadowBlur = 0; text(g, "IN", W - 22, H - 22, V.orange, 9, "right"); text(g, "GR", W - 22, 30, V.teal, 9, "right");
+  hist.push([levels.eIn, (E.duck / 100) * duckEnv]); if (hist.length > 200) hist.shift();
+  const x0 = 12, w = W - 24, y0 = H - 10, h = H - 26;
+  g.fillStyle = "rgba(255,255,255,.05)"; for (let x = x0; x <= x0 + w; x += 16) for (let y = 14; y < y0; y += 12) g.fillRect(x, y, 1, 1);
+  glow(g, COL.orange, 5); g.lineWidth = 1.2; g.beginPath(); hist.forEach(([l], i) => { const x = x0 + i / 200 * w, y = y0 - Math.min(1, Math.max(0, (20 * Math.log10(Math.max(l, 1e-5)) + 48) / 48)) * h; i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.stroke();
+  glow(g, COL.violet, 8); g.lineWidth = 1.8; g.beginPath(); hist.forEach(([, d], i) => { const x = x0 + i / 200 * w, y = 16 + d * h; i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.stroke(); g.shadowBlur = 0;
+  text(g, "DUCKER", 12, 12, "#9a968f", 9); text(g, "IN", W - 12, H - 6, COL.orange, 8, "right"); text(g, "GAIN REDUCTION · REL " + ms(E.rel), W - 12, 12, COL.violet, 8, "right");
 }
-const dpre = new Float32Array(2048), dpost = new Float32Array(2048); let phos = [], scopeHold = null;
+
+const dpre = new Float32Array(2048); let trail = [];
 function drawDrive(now, pm) {
-  const s = DSTY[D.style], P0 = D.punish, lc = P0 ? V.red : V.orange;
-  let [g, W, H] = fit($("#curve"));
-  vframe(g, W, H, lc, "TRANSFER · X/Y · " + s.n, "DRIVE " + D.drive.toFixed(1) + (P0 ? " +18" : ""));
-  const cx = W / 2, cy = H * .54, sx = W * .38, sy = H * .32, Q = (x, y) => [cx + x * sx + y * sx * .16, cy - y * sy + x * sy * .1];
-  g.lineWidth = 1; glow(g, "rgba(255,138,31,.28)", 0);
-  for (let i = -4; i <= 4; i++) { let [a, b] = Q(i / 4, -1.25), [c, d] = Q(i / 4, 1.25); g.beginPath(); g.moveTo(a, b); g.lineTo(c, d); g.stroke(); [a, b] = Q(-1, i * .31); [c, d] = Q(1, i * .31); g.beginPath(); g.moveTo(a, b); g.lineTo(c, d); g.stroke(); }
-  glow(g, V.teal, 5); g.setLineDash([3, 5]); { const [a, b] = Q(-1, -1), [c, d] = Q(1, 1); g.beginPath(); g.moveTo(a, b); g.lineTo(c, d); g.stroke(); } g.setLineDash([]);
-  for (const [w, al] of [[4, .15], [1.2, .5]]) { glow(g, lc, 10); g.globalAlpha = al; g.lineWidth = w; g.beginPath(); for (let i = 0; i <= 160; i++) { const x = -1 + i / 80, [px, py] = Q(x, shape(x)); i ? g.lineTo(px, py) : g.moveTo(px, py); } g.stroke(); }
-  g.globalAlpha = 1;
-  // the REAL signal: input sample vs shaper output sample, as phosphor dots
-  anDPre.getFloatTimeDomainData(dpre); anDPost.getFloatTimeDomainData(dpost);
-  if (rms(dpre) > 1e-3) {
-    const lag = 0;
-    const pts = new Float32Array(1024 * 2); for (let j = 0, i = 0; j < 1024 && i < 2048 - lag; j++, i += 2) { pts[2 * j] = dpre[i]; pts[2 * j + 1] = dpost[i + lag]; }
-    phos.push({ pts, t: now }); scopeHold = { pre: dpre.slice(), post: dpost.slice(), lag };
-  }
-  phos = phos.filter(f => now - f.t < .35);
-  if (phos.length) { glow(g, "#fff1c9", 6); for (const f of phos) { g.globalAlpha = .6 * (1 - (now - f.t) / .35); for (let j = 0; j < f.pts.length; j += 2) { const [px, py] = Q(Math.max(-1.1, Math.min(1.1, f.pts[j])), f.pts[j + 1]); g.fillRect(px - 1, py - 1, 2, 2); } } g.globalAlpha = 1; }
-  else text(g, "NO SIGNAL · PRESS DEMO", cx, 44, V.amber, 12, "center");
-  glow(g, V.amber, 9); g.lineWidth = 1.2; for (const x of [-.75, -.4, 0, .4, .75]) { const [px, py] = Q(x, shape(x)); g.beginPath(); g.arc(px, py, 5, 0, 7); g.stroke(); }
+  const s = DSTY[D.style], P0 = D.punish;
+  const [g, W, H] = fit($("#curve"));
+  dotGrid(g, W, H);
+  topo(g, W * .58, H * .55, 60, Math.max(W, H) * .75, P0 ? "#ff4a2b" : "#ff8a1f", now, 16, D.style);
+  // the plot: input across, output up
+  const S = Math.min(W, H) * .62, ox = W * .55 - S / 2, oy = H * .55 - S / 2;
+  const X = x => ox + (x + 1) / 2 * S, Y = y => oy + S / 2 - y / 1.25 * S / 2;
+  g.strokeStyle = "rgba(255,255,255,.07)"; g.lineWidth = 1;
+  for (let i = 0; i <= 8; i++) { g.beginPath(); g.moveTo(ox + i * S / 8, oy); g.lineTo(ox + i * S / 8, oy + S); g.stroke(); g.beginPath(); g.moveTo(ox, oy + i * S / 8); g.lineTo(ox + S, oy + i * S / 8); g.stroke(); }
+  g.setLineDash([3, 5]); glow(g, "rgba(47,214,168,.6)", 4); g.beginPath(); g.moveTo(X(-1), Y(-1)); g.lineTo(X(1), Y(1)); g.stroke(); g.setLineDash([]);
+  // the curve: one clean glowing line, amber to red
+  const lg = g.createLinearGradient(X(-1), 0, X(1), 0); lg.addColorStop(0, P0 ? COL.red : COL.amber); lg.addColorStop(.5, COL.orange); lg.addColorStop(1, COL.red);
+  for (const [w, al, bl] of [[9, .18, 24], [3, 1, 14]]) { g.strokeStyle = lg; g.globalAlpha = al; g.lineWidth = w; g.shadowColor = COL.orange; g.shadowBlur = bl; g.lineCap = "round"; g.beginPath();
+    for (let i = 0; i <= 200; i++) { const x = -1 + i / 100; i ? g.lineTo(X(x), Y(shape(x))) : g.moveTo(X(x), Y(shape(x))); } g.stroke(); }
+  g.globalAlpha = 1; g.shadowBlur = 0;
+  // the real signal: the latest input sample, riding the line, with a short trail
+  anDPre.getFloatTimeDomainData(dpre);
+  let pk = 0; for (let i = 0; i < 2048; i += 8) if (Math.abs(dpre[i]) > Math.abs(pk)) pk = dpre[i];
+  if (Math.abs(pk) > 1e-3) trail.push([Math.max(-1, Math.min(1, dpre[2047])), now], [Math.max(-1, Math.min(1, pk)), now]);
+  trail = trail.filter(p => now - p[1] < .5);
+  for (const [x, t] of trail) { const a = 1 - (now - t) / .5; glow(g, `rgba(255,241,201,${a * .8})`, 10); g.beginPath(); g.arc(X(x), Y(shape(x)), 2 + 2 * a, 0, 7); g.fill(); }
+  if (trail.length) { const [x] = trail[trail.length - 1]; glow(g, "#fff3d6", 22); g.beginPath(); g.arc(X(x), Y(shape(x)), 5, 0, 7); g.fill(); g.lineWidth = 1.5; g.beginPath(); g.arc(X(x), Y(shape(x)), 11, 0, 7); g.stroke(); }
   g.shadowBlur = 0;
-  if (P0) { glow(g, V.red, 12); g.lineWidth = 1.5; g.strokeRect(24, 26, 210, 38); g.globalAlpha = .16 + .12 * Math.sin(now * 8); g.fillRect(24, 26, 210, 38); g.globalAlpha = 1; text(g, "SYSTEM PUNISH", 34, 44, V.red, 16); text(g, "+18 dB INTO THE CLIPPER", 34, 58, V.orange, 10); }
-  if (D.pump > 0) { text(g, "PUMP " + ["1/2", "1/4", "1/8"][D.rate], W - 24, 32, V.teal, 12, "right"); glow(g, V.teal, 8); g.strokeRect(W - 124, 39, 100, 6); g.fillRect(W - 124, 39, 100 * pm.pumpVal, 6); g.shadowBlur = 0; }
+  text(g, s.n, ox + S, oy - 10, COL.amber, 12, "right"); text(g, "IN", ox + S, oy + S + 16, "#6c6a70", 9, "right"); text(g, "OUT", ox - 8, oy + 8, "#6c6a70", 9, "right");
+  if (P0) { glow(g, COL.red, 14); g.lineWidth = 1.5; g.strokeRect(40, 96, 210, 40); g.globalAlpha = .14 + .12 * Math.sin(now * 8); g.fillRect(40, 96, 210, 40); g.globalAlpha = 1; g.shadowBlur = 0;
+    text(g, "SYSTEM PUNISH", 50, 115, COL.red, 16); text(g, "+18 dB INTO THE CLIPPER", 50, 129, COL.orange, 9); }
+  if (D.pump > 0) { text(g, "PUMP " + ["1/2", "1/4", "1/8"][D.rate], W - 40, H - 58, COL.teal, 11, "right"); glow(g, COL.teal, 8); g.fillRect(W - 140, H - 50, 100 * pm.pumpVal, 4); g.shadowBlur = 0; }
+  // X/Y puck: drive across, tone up
+  { const x = 40 + D.drive / 10 * (W - 80), y = H - 40 - (D.tone + 12) / 24 * (H - 80); glow(g, "#e9e6e1", 10); g.lineWidth = 1.5; g.beginPath(); g.arc(x, y, 7, 0, 7); g.stroke(); g.beginPath(); g.arc(x, y, 2, 0, 7); g.fill(); g.shadowBlur = 0; }
+  if (!srcNode) text(g, "PRESS DEMO · DROP A FILE · MIC", W / 2, H - 18, "#9a968f", 10, "center");
+  $("#axDrive").textContent = D.drive.toFixed(1) + (P0 ? " +18" : ""); $("#axTone").textContent = dB(D.tone);
+}
+function drawHarm() {
   const NN = 256, re = new Float32Array(9), im = new Float32Array(9);
   for (let i = 0; i < NN; i++) { const y = shape(.5 * Math.sin(2 * Math.PI * i / NN)); for (let h = 1; h <= 8; h++) { re[h] += y * Math.cos(2 * Math.PI * h * i / NN); im[h] += y * Math.sin(2 * Math.PI * h * i / NN); } }
   const mag = h => Math.hypot(re[h], im[h]) / (NN / 2), f = mag(1) || 1; let thd = 0; for (let h = 2; h <= 8; h++) thd += mag(h) ** 2; thd = Math.sqrt(thd) / f;
-  [g, W, H] = fit($("#harm")); vframe(g, W, H, V.red, "HARMONICS · SINE TEST", "THD " + (thd * 100).toFixed(1) + "%");
-  const bw = (W - 50) / 8;
-  for (let h = 1; h <= 8; h++) { const db = 20 * Math.log10(Math.max(mag(h) / f, 1e-5)), hh = Math.max(2, (db + 70) / 70 * (H - 46)), x = 22 + (h - 1) * bw, y = H - 20, w = bw - 10, d = 5, col = h === 1 ? V.teal : h % 2 ? lc : V.amber;
-    glow(g, col, 7); g.lineWidth = 1.1; g.strokeRect(x, y - hh, w, hh); g.beginPath(); g.moveTo(x, y - hh); g.lineTo(x + d, y - hh - d); g.lineTo(x + w + d, y - hh - d); g.lineTo(x + w, y - hh); g.moveTo(x + w + d, y - hh - d); g.lineTo(x + w + d, y - d); g.lineTo(x + w, y); g.stroke(); }
-  [g, W, H] = fit($("#scope")); vframe(g, W, H, V.teal, "SCOPE · BEFORE / AFTER");
-  g.lineWidth = 1; glow(g, "rgba(47,214,168,.16)", 0); for (let x = 18; x < W - 14; x += 18) { g.beginPath(); g.moveTo(x, 14); g.lineTo(x, H - 12); g.stroke(); } for (let y = 14; y < H - 10; y += 13) { g.beginPath(); g.moveTo(14, y); g.lineTo(W - 14, y); g.stroke(); }
-  const sp = scopeHold ? scopeHold.pre : dpre, so = scopeHold ? scopeHold.post.subarray(scopeHold.lag) : dpost; // hold the last loud frame
-  let start = 0; for (let i = 1; i < 1024; i++) if (sp[i - 1] < 0 && sp[i] >= 0) { start = i; break; }
-  const wave = (arr, col, w, dash) => { glow(g, col, 7); g.lineWidth = w; g.setLineDash(dash || []); g.beginPath(); for (let i = 0; i < 900; i += 2) { const x = 18 + i / 900 * (W - 36), v = Math.max(-1.3, Math.min(1.3, arr[start + i] || 0)); i ? g.lineTo(x, H / 2 - v * H * .32) : g.moveTo(x, H / 2 - v * H * .32); } g.stroke(); g.setLineDash([]); };
-  wave(sp, "rgba(47,214,168,.6)", 1, [2, 3]); wave(so, lc, 1.6); g.shadowBlur = 0;
-  $("#ledHeat").classList.toggle("on", thd > .08); $("#ledPun").classList.toggle("on", P0); $("#ledPump").classList.toggle("on", D.pump > 0 && pm.ph < .12);
-  let pk = 0; const gain = Math.pow(10, (D.drive * 3.3 + (P0 ? 18 : 0) - 3) / 20); for (let i = 0; i < 2048; i += 4) pk = Math.max(pk, Math.abs(dpre[i] * gain)); $("#ledClip").classList.toggle("on", pk > 1);
+  const [g, W, H] = fit($("#harm")), bw = (W - 30) / 8;
+  for (let h = 1; h <= 8; h++) { const db = 20 * Math.log10(Math.max(mag(h) / f, 1e-5)), hh = Math.max(2, (db + 70) / 70 * (H - 34)), x = 15 + (h - 1) * bw, col = h === 1 ? COL.teal : h % 2 ? (D.punish ? COL.red : COL.orange) : COL.amber;
+    glow(g, col, 8); g.lineWidth = 1.4; g.strokeRect(x + 4, H - 14 - hh, bw - 10, hh); g.globalAlpha = .18; g.fillRect(x + 4, H - 14 - hh, bw - 10, hh); g.globalAlpha = 1; }
+  g.shadowBlur = 0; text(g, "HARMONICS", 12, 12, "#9a968f", 9); text(g, "THD " + (thd * 100).toFixed(1) + "%", W - 12, 12, D.punish ? COL.red : COL.amber, 9, "right");
+  $("#ledHeat") && 0;
 }
 
 // ===================================================================== loop
 function tick() {
   const now = ctx.state === "running" ? ctx.currentTime : performance.now() / 1000, dt = Math.min(.1, Math.max(.001, now - lastT)); lastT = now;
   const pm = measure(now, dt);
-  if ($("#echo").classList.contains("show")) { drawRing(now); drawLadder(); drawDuck(); vu("vuIn", levels.eIn); vu("vuOut", levels.wet); }
-  else { drawDrive(now, pm); vu("vuDIn", levels.dIn); vu("vuDOut", levels.dOut); }
-  $("#ledRec").classList.toggle("on", levels.eIn > .02); $("#ledPlay").classList.toggle("on", levels.wet > .02);
-  $("#ledSat").classList.toggle("on", E.sat > 8 && levels.wet > .1); $("#ledDuck").classList.toggle("on", E.duck > 0 && duckEnv > .3);
+  if ($("#echo").classList.contains("show")) { drawEcho(now); drawDuck(); meters("mE", levels.eIn, levels.wet, "IN", "ECHO"); eMix.draw(now, levels.wet); }
+  else { drawDrive(now, pm); drawHarm(); meters("mD", levels.dIn, levels.dOut, "IN", "OUT"); dMix.draw(now, levels.dOut); }
   requestAnimationFrame(tick);
 }
 requestAnimationFrame(tick);
 </script>
-</body>
-</html>
+</body></html>
