@@ -427,6 +427,7 @@ const flip = (id, fn) => $(id).onclick = e => { e.target.classList.toggle("on");
 flip("#useDrive", on => { D.on = on; updateDrive(); }); flip("#useEcho", on => { E.on = on; updateEcho(); }); flip("#useVerb", on => { RV.on = on; updateVerb(); });
 const show = which => { $("#echo").classList.toggle("show", which === "echo"); $("#drive").classList.toggle("show", which === "drive"); $("#verb").classList.toggle("show", which === "verb"); $("#showVerb").classList.toggle("on", which === "verb"); $("#showEcho").classList.toggle("on", which === "echo"); $("#showDrive").classList.toggle("on", which === "drive"); };
 $("#showEcho").onclick = () => show("echo"); $("#showDrive").onclick = () => show("drive"); $("#showVerb").onclick = () => show("verb");
+if (!HOST) { const hv = { "#lethe": "verb", "#reverb": "verb", "#drive": "drive", "#prometheus": "drive", "#echo": "echo" }[location.hash]; if (hv) setTimeout(() => show(hv), 0); }
 
 // ===================================================================== CONTROLS
 const K = {};
