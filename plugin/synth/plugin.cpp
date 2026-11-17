@@ -557,13 +557,37 @@ void SynthPlugin::onEditorMessage(const std::string& type, const std::string& na
 }
 
 void SynthPlugin::growTable(std::vector<float> audio, double sr, std::string name) {
+    // options from the GROW panel ride in front of the file name: "grow:<mode>:<smooth>:<file>"
+    wt::GrowOptions opt;
+    if (name.rfind("grow:", 0) == 0) {
+        const auto a = name.find(':', 5), b = a == std::string::npos ? a : name.find(':', a + 1);
+        if (b != std::string::npos) {
+            opt.mode = std::clamp(std::atoi(name.substr(5, a - 5).c_str()), 0, wt::kNumGrowModes - 1);
+            opt.smooth = std::clamp(std::atof(name.substr(a + 1, b - a - 1).c_str()), 0.0, 1.0);
+            name = name.substr(b + 1);
+        }
+    }
     wt::ResynthInfo info;
-    auto spectra = wt::resynthesize(audio.data(), (int)audio.size(), sr, info);
+    auto spectra = wt::resynthesize(audio.data(), (int)audio.size(), sr, info, opt);
     char buf[64];
-    if (info.pitched) std::snprintf(buf, sizeof buf, "PITCHED %.0f HZ", info.f0);
+    static const char* modeNames[] = {"", "PITCHED", "RAW", "SPECTRAL", "FORMANT"};
+    if (opt.mode == wt::kGrowSpectral || opt.mode == wt::kGrowFormant) std::snprintf(buf, sizeof buf, "%s", modeNames[opt.mode]);
+    else if (info.pitched) std::snprintf(buf, sizeof buf, "PITCHED %.0f HZ", info.f0);
     else std::snprintf(buf, sizeof buf, "RAW CYCLES");
     const auto dot = name.find_last_of('.');
-    installTable(std::move(spectra), upper(dot == std::string::npos ? name : name.substr(0, dot)).substr(0, 28), buf, info.seconds);
+    std::string nm = upper(dot == std::string::npos ? name : name.substr(0, dot)).substr(0, 28);
+    installTable(spectra, nm, buf, info.seconds);
+    // keep every grown table: it lands in Your Tables (~/Music/Morpheus/Tables), so growing the next one loses nothing
+    for (auto& c : nm) if (!std::isalnum((unsigned char)c) && c != ' ' && c != '-') c = '_';
+    const char* home = std::getenv("HOME");
+    const std::string dir = std::string(home ? home : "/tmp") + "/Music/Morpheus/Tables";
+    std::error_code ec;
+    std::filesystem::create_directories(dir, ec);
+    std::string path = dir + "/GROWN " + nm + ".wav";
+    for (int k = 2; std::filesystem::exists(path, ec) && k < 100; ++k) path = dir + "/GROWN " + nm + " " + std::to_string(k) + ".wav";
+    wt::Wavetable t;
+    t.build(spectra);
+    if (!ec) wt::writeWavetableWav(path, wt::tableToCycles(t));
 }
 
 void SynthPlugin::installTable(std::vector<wt::Spectrum> spectra, std::string name, std::string info, double seconds) {

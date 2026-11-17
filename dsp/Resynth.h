@@ -48,7 +48,30 @@ inline double yinPeriod(const float* x, int W, int tmin, int tmax, double& clari
     return best + (std::abs(den) > 1e-12 ? std::clamp(0.5 * (a - e) / den, -0.5, 0.5) : 0.0);
 }
 
-inline std::vector<Spectrum> resynthesize(const float* x, int n, double sr, ResynthInfo& info) {
+// How to grow: AUTO picks pitched or raw by itself; SPECTRAL keeps only the smoothed tone colour of each moment
+// (glassy, blurred: pads); FORMANT lays each moment's vowel/body envelope over a bright saw (voices, talkboxes).
+// smooth 0..1: how much the tone is evened out from frame to frame (0 = every detail, 1 = slow morphs).
+enum GrowMode { kGrowAuto = 0, kGrowPitched, kGrowRaw, kGrowSpectral, kGrowFormant, kNumGrowModes };
+struct GrowOptions { int mode = kGrowAuto; double smooth = 0.2; };
+
+// one moment's magnitude spectrum (Hann-windowed 4096-point frames averaged over [c0, c1)), bins 0..2048
+inline std::vector<double> momentSpectrum(const float* x, int n, int c0, int c1) {
+    constexpr int N = 4096;
+    std::vector<double> mag(N / 2 + 1, 0.0);
+    std::vector<std::complex<double>> buf(N);
+    int count = 0;
+    for (int c = c0; c < std::max(c0 + 1, c1); c += N / 2) {
+        for (int j = 0; j < N; ++j) { const int i = c + j; const double w = 0.5 - 0.5 * std::cos(2 * kPi * (j + 0.5) / N); buf[j] = (i >= 0 && i < n) ? x[i] * w : 0.0; }
+        fft(buf);
+        for (int b = 0; b <= N / 2; ++b) mag[b] += std::abs(buf[b]);
+        ++count;
+        if (count >= 8) break;
+    }
+    for (auto& m : mag) m /= std::max(1, count) * (N / 4.0);
+    return mag;
+}
+
+inline std::vector<Spectrum> resynthesize(const float* x, int n, double sr, ResynthInfo& info, GrowOptions opt = {}) {
     std::vector<Spectrum> out(kFrames);
     for (auto& s : out) s.fill(0.0);
     info = {};
@@ -82,13 +105,36 @@ inline std::vector<Spectrum> resynthesize(const float* x, int n, double sr, Resy
             if (cl > 0.8) periods.push_back(p);
         }
     }
-    if ((int)periods.size() >= 8) {
+    if ((int)periods.size() >= (opt.mode == kGrowPitched ? 3 : 8)) {
         std::nth_element(periods.begin(), periods.begin() + periods.size() / 2, periods.end());
         info.pitched = true;
         info.f0 = sr / periods[periods.size() / 2];
     }
+    if (opt.mode == kGrowRaw) info.pitched = false;
 
-    if (info.pitched) {
+    if (opt.mode == kGrowSpectral || opt.mode == kGrowFormant) {
+        // each frame: the averaged magnitude spectrum of its stretch of the sound
+        const double binHz = sr / 4096;
+        const double spacing = (double)len / kFrames;
+        for (int k = 0; k < kFrames; ++k) {
+            const int c0 = start + (int)(spacing * k) - 2048, c1 = start + (int)(spacing * (k + 1)) - 2048;
+            const auto mag = momentSpectrum(x, n, c0, c1);
+            if (opt.mode == kGrowSpectral) {
+                // bins become harmonics directly (the sound's own spectrum, as one cycle): the smeared colour of that moment
+                for (int h = 1; h <= std::min(kMaxHarm, 2047); ++h) out[k][h] = std::complex<double>(0, -mag[h * 2 < 2048 ? h * 2 : 2048]);
+            } else {
+                // the envelope (smoothed over ~1/3 octave), laid over a bright saw at 110 Hz
+                auto env = [&](double hz) {
+                    const double b = hz / binHz; if (b >= 2047) return 0.0;
+                    const double w = std::max(1.0, b * 0.12); double s = 0, ws = 0;
+                    for (int j = std::max(1, (int)(b - 2 * w)); j <= std::min(2047, (int)(b + 2 * w)); ++j) { const double g = std::exp(-0.5 * std::pow((j - b) / w, 2)); s += g * mag[j]; ws += g; }
+                    return ws > 0 ? s / ws : 0.0;
+                };
+                for (int h = 1; h <= kMaxHarm; ++h) { const double hz = h * 110.0; if (hz > 0.45 * sr) break; out[k][h] = std::complex<double>(0, -env(hz) / std::sqrt((double)h)); }
+            }
+        }
+        info.pitched = false;
+    } else if (info.pitched) {
         const double P = sr / info.f0;
         // analysis window: at least four periods, and long enough to cover the stretch between
         // neighbouring frames (averages out breath and noise), capped so glides stay sharp
@@ -154,11 +200,17 @@ inline std::vector<Spectrum> resynthesize(const float* x, int n, double sr, Resy
     for (int k = 0; k < kFrames; ++k) for (int h = 0; h <= kMaxHarm; ++h) mag[k][h] = std::abs(out[k][h]);
     std::array<std::complex<double>, kMaxHarm + 1> unit;
     for (int h = 0; h <= kMaxHarm; ++h) unit[h] = std::abs(out[ref][h]) > 1e-15 ? out[ref][h] / std::abs(out[ref][h]) : std::complex<double>(0, -1);
-    for (int k = 0; k < kFrames; ++k) {
-        const int i0 = std::max(0, k - 2), i1 = std::max(0, k - 1), i3 = std::min(kFrames - 1, k + 1), i4 = std::min(kFrames - 1, k + 2);
-        for (int h = 1; h <= kMaxHarm; ++h)
-            out[k][h] = unit[h] * ((mag[i0][h] + 4 * mag[i1][h] + 6 * mag[k][h] + 4 * mag[i3][h] + mag[i4][h]) / 16);
+    // smoothness: 0 = no smoothing, 0.2 = the classic light 5-tap pass, 1 = six passes (slow, glassy morphs)
+    const int passes = (int)std::lround(std::clamp(opt.smooth, 0.0, 1.0) * 6);
+    for (int pass = 0; pass < passes; ++pass) {
+        auto src = mag;
+        for (int k = 0; k < kFrames; ++k) {
+            const int i0 = std::max(0, k - 2), i1 = std::max(0, k - 1), i3 = std::min(kFrames - 1, k + 1), i4 = std::min(kFrames - 1, k + 2);
+            for (int h = 1; h <= kMaxHarm; ++h) mag[k][h] = (src[i0][h] + 4 * src[i1][h] + 6 * src[k][h] + 4 * src[i3][h] + src[i4][h]) / 16;
+        }
     }
+    for (int k = 0; k < kFrames; ++k)
+        for (int h = 1; h <= kMaxHarm; ++h) out[k][h] = unit[h] * mag[k][h];
     return out;
 }
 

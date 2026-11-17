@@ -299,6 +299,21 @@ html.host body { background: #080606; }
   background-image: linear-gradient(#3fd0b40a 1px, transparent 1px), linear-gradient(90deg, #3fd0b40a 1px, transparent 1px); background-size: 14px 14px; }
 .voicerow .lbl, #subNoise .unirow .lbl { font-family: var(--cond); font-weight: 600; font-size: 14px; letter-spacing: .14em; }
 #panic { font-family: var(--cond); font-size: 16px; border-radius: 4px; }
+/* the GROW panel, over the dreamscape */
+.growpanel { position: absolute; inset: 22px; z-index: 6; display: none; grid-template-rows: auto 1fr auto auto auto auto auto; gap: 10px; padding: 16px 18px;
+  background: #0b0807f2; border: 1px solid #5a3a26; border-radius: 6px; box-shadow: 0 20px 50px #000c; cursor: default; }
+.growpanel.on { display: grid; }
+.growpanel .gh { display: flex; align-items: baseline; gap: 10px; font: 600 15px var(--cond); letter-spacing: .14em; color: var(--rust); }
+.growpanel .gh b { font: 12px var(--vec); color: #ffd27a; letter-spacing: .08em; font-weight: 400; } .growpanel .gh .sp { flex: 1; }
+.growpanel #growLen, .growpanel .gdesc { font: 10px var(--vec); color: var(--dim); letter-spacing: .06em; }
+.growpanel .gwave { position: relative; min-height: 0; }
+.growpanel canvas { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 3px; box-shadow: 0 0 0 1px #3a2a20 inset; cursor: ew-resize; touch-action: none; }
+.growpanel .grow2 { display: flex; align-items: center; gap: 10px; }
+.growpanel .gl { font: 600 12px var(--cond); letter-spacing: .14em; color: #6ff0d6; }
+.growpanel input[type=range] { width: 200px; accent-color: #ffa53a; }
+.growpanel .gbtns { justify-content: flex-end; }
+.growpanel .gbtn { font: 600 13px var(--cond); letter-spacing: .14em; color: #b9a896; background: #0d0a09; border: 1px solid #4a3324; border-radius: 3px; padding: 8px 16px; cursor: pointer; }
+.growpanel .gbtn.go { color: #1a0d07; background: #ffa53a; border-color: #ffa53a; box-shadow: 0 0 14px #ffa53a66; }
 /* the wheels: two recessed drums, like the left end of a keyboard */
 .card.wheels { grid-template-rows: 1fr; padding: 10px 8px; display: flex; gap: 8px; justify-content: center; }
 .wheel { display: grid; grid-template-rows: 1fr auto; justify-items: center; gap: 5px; min-height: 0; }
@@ -385,6 +400,13 @@ html.host body { background: #080606; }
           <div class="hud" id="hud"></div>
           <div class="tbtns"><label class="tbtn load" for="loadIn" title="Grow a wavetable from a sound, or open a wavetable .wav">⇪ LOAD SOUND…</label><input id="loadIn" type="file" accept="audio/*,.wav,.aif,.aiff,.mp3,.m4a,.flac" hidden>
             <div class="tbtn tab" id="exportBtn" title="Save OSC A's table as a wavetable .wav">⇩ SAVE TABLE</div></div>
+          <div class="growpanel" id="growPanel"><div class="gh">GROW A TABLE<b id="growName"></b><span class="sp"></span><span id="growLen"></span></div>
+            <div class="gwave"><canvas id="growWave" title="drag the teal handles: the part of the sound to grow from"></canvas></div>
+            <div class="grow2"><span class="gl">MODE</span><div class="seg" id="growMode"></div></div><div class="gdesc" id="growDesc"></div>
+            <div class="grow2"><span class="gl">SMOOTH</span><input type="range" id="growSmooth" min="0" max="100"><span class="gdesc" id="growSmoothV"></span>
+              <span class="gl" style="margin-left:auto">INTO</span><div class="seg" id="growTarget"><button data-o="A">OSC A</button><button data-o="B">OSC B</button></div></div>
+            <div class="grow2 gbtns"><button class="gbtn" id="growCancel">CANCEL</button><button class="gbtn go" id="growGo">GROW ▸</button></div>
+            <div class="gdesc">every grown table is also saved to Music / Morpheus / Tables (your tables)</div></div>
           <div class="dropzone" id="dropzone"><div>DROP AUDIO TO GROW A WAVETABLE<small>a sound becomes a table · a wavetable .wav loads as is</small></div></div>
         </div>
         <div class="panel voicerow"><span class="lbl">SCAN</span><div class="seg" id="scanSeg"></div><div id="scanK"></div><span class="vsep"></span><div class="morphbox mb1"></div></div>
@@ -1211,7 +1233,7 @@ function drawMorph(g, W, H) {  // the corners and the puck, as an instrument ove
 const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const noteName = n => NOTES[n % 12] + (Math.floor(n / 12) - 1);
 // drag the dreamscape: across = position, up/down = cutoff
-$("#hero").addEventListener("pointerdown", e => { if (e.target.closest(".tbtns")) return;  // buttons on the Dreamscape are buttons, not the pad
+$("#hero").addEventListener("pointerdown", e => { if (e.target.closest(".tbtns, .growpanel")) return;  // buttons on the Dreamscape are buttons, not the pad
   e.preventDefault(); padDrag = { x: e.clientX, y: e.clientY, p: K[PAD.x].norm(), c: K[PAD.y].norm(), morph: PADMODE === "morph" || (PADMODE !== "space" && morphOn()), space: PADMODE === "space" };
   if (padDrag.morph && !morphOn()) { putP("Morph On", 1); renderMorph(); }
   if (padDrag.space && !spaceOn()) { putP("Space On", 1); renderPadMode(); }
@@ -1484,9 +1506,60 @@ if (!HOST) setTimeout(() => applyPreset(0), 0);  // the browser preview opens on
 // The page decodes the file (any format the system knows), mixes to mono at 48 kHz, and hands the
 // samples to the plugin, which analyses them (dsp/Resynth.h) off the audio thread.
 let TN = "ORPHEO", TI = "FACTORY", pending = null;
-const MAX_SECONDS = 12;
+const MAX_SECONDS = 30;
+// ===================================================================== the GROW panel: see the sound, pick the part and how to grow it
+const GROW_MODES = [["AUTO", "pitched or raw, decided by the sound"], ["PITCHED", "follows the pitch: clean harmonics, voices, synths"], ["RAW", "the sound's own cycles: grit and texture"],
+  ["SPECTRAL", "each moment's smeared colour: glassy pads"], ["FORMANT", "the vowel / body of the sound over a bright saw"]];
+let GROW = null;
+function openGrow(mono, name) {
+  GROW = { mono, name, s: 0, e: 1, mode: GROW ? GROW.mode : 0, smooth: GROW ? GROW.smooth : .2, osc: GROW ? GROW.osc : "A", drag: null };
+  $("#growName").textContent = name.replace(/\.[^.]+$/, "").toUpperCase();
+  $("#growMode").innerHTML = GROW_MODES.map(([n], i) => `<button data-i="${i}">${n}</button>`).join("");
+  $("#growPanel").classList.add("on"); renderGrow();
+}
+function renderGrow() {
+  if (!GROW) return;
+  $("#growMode").querySelectorAll("button").forEach((b, i) => b.classList.toggle("on", i === GROW.mode));
+  $("#growTarget").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.o === GROW.osc));
+  $("#growDesc").textContent = GROW_MODES[GROW.mode][1];
+  $("#growSmooth").value = GROW.smooth * 100; $("#growSmoothV").textContent = GROW.smooth < .1 ? "DETAILED" : GROW.smooth > .6 ? "SLOW MORPHS" : "BALANCED";
+  const c = $("#growWave"), [g, W, H] = fit(c), m = GROW.mono, n = m.length, x0 = GROW.s * W, x1 = GROW.e * W;
+  g.fillStyle = "#0a0807"; g.fillRect(0, 0, W, H);
+  g.fillStyle = rgba(COL.amber, .08); g.fillRect(x0, 0, x1 - x0, H);
+  for (let px = 0; px < W; px++) {  // peak per pixel
+    const a = Math.floor(px / W * n), b = Math.max(a + 1, Math.floor((px + 1) / W * n)); let lo = 0, hi = 0;
+    for (let i = a; i < b; i += Math.max(1, (b - a) >> 6)) { lo = Math.min(lo, m[i]); hi = Math.max(hi, m[i]); }
+    g.fillStyle = px >= x0 && px <= x1 ? COL.amber : "#5a3a26"; g.fillRect(px, H / 2 - hi * H * .45, 1, Math.max(1, (hi - lo) * H * .45));
+  }
+  for (const x of [x0, x1]) { glow(g, "#6ff0d6", 6); g.fillRect(x - 1, 0, 2, H); g.beginPath(); g.moveTo(x - 6, 0); g.lineTo(x + 6, 0); g.lineTo(x, 8); g.fill(); g.shadowBlur = 0; }
+  const sec = (GROW.e - GROW.s) * n / 48000;
+  $("#growLen").textContent = `${sec.toFixed(2)} s of ${(n / 48000).toFixed(1)} s`;
+}
+function doGrow() {
+  if (!GROW) return;
+  const a = Math.floor(GROW.s * GROW.mono.length), b = Math.max(a + 4800, Math.floor(GROW.e * GROW.mono.length)), part = GROW.mono.slice(a, Math.min(b, GROW.mono.length));
+  const par = GROW.osc === "A" ? "Table" : "Table B";
+  $("#growPanel").classList.remove("on");
+  if (!HOST) { tell("GROWING HAPPENS INSIDE THE PLUGIN"); return; }
+  setGrowing(true, `GROWING A TABLE FROM<small>${GROW.name.replace(/[<>&]/g, "")} · ${GROW_MODES[GROW.mode][0]}</small>`);
+  const bytes = new Uint8Array(part.buffer); let bin = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  pending = { t: performance.now(), seen: false };
+  window.webkit.messageHandlers.lab.postMessage({ type: "audio", name: `grow:${GROW.mode}:${GROW.smooth.toFixed(2)}:${GROW.name}`, data: btoa(bin), value: 48000 });
+  setParam(par, 5); P[par] = 5; syncScan();
+}
 function setGrowing(on, label) { $("#hero").classList.toggle("growing", on); if (label) $("#dropzone").firstElementChild.innerHTML = label; }
 const DROP_LABEL = $("#dropzone").firstElementChild.innerHTML;
+$("#growMode").addEventListener("click", e => { const b = e.target.closest("[data-i]"); if (b && GROW) { GROW.mode = +b.dataset.i; renderGrow(); } });
+$("#growTarget").addEventListener("click", e => { const b = e.target.closest("[data-o]"); if (b && GROW) { GROW.osc = b.dataset.o; renderGrow(); } });
+$("#growSmooth").addEventListener("input", e => { if (GROW) { GROW.smooth = e.target.value / 100; renderGrow(); } });
+$("#growCancel").onclick = () => $("#growPanel").classList.remove("on");
+$("#growGo").onclick = doGrow;
+$("#growWave").addEventListener("pointerdown", e => { if (!GROW) return; e.preventDefault(); e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(), f = (e.clientX - r.left) / r.width;
+  GROW.drag = Math.abs(f - GROW.s) < Math.abs(f - GROW.e) ? "s" : "e"; e.currentTarget.setPointerCapture(e.pointerId); });
+$("#growWave").addEventListener("pointermove", e => { if (!GROW || !GROW.drag) return; const r = e.currentTarget.getBoundingClientRect(), f = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+  if (GROW.drag === "s") GROW.s = Math.min(f, GROW.e - .02); else GROW.e = Math.max(f, GROW.s + .02); renderGrow(); });
+$("#growWave").addEventListener("pointerup", () => { if (GROW) GROW.drag = null; });
 // a wavetable .wav: a "clm " chunk ("<!>2048 ..."), or a name that says so and a length in whole 2048 cycles
 function wavetableInfo(buf, name) {
   const dv = new DataView(buf); if (buf.byteLength < 44) return null;
@@ -1521,11 +1594,8 @@ async function growFrom(file) {
     const oc = new OfflineAudioContext(1, 1, 48000), ab = await oc.decodeAudioData(buf);
     const n = Math.min(ab.length, MAX_SECONDS * 48000), mono = new Float32Array(n);
     for (let c = 0; c < ab.numberOfChannels; c++) { const d = ab.getChannelData(c); for (let i = 0; i < n; i++) mono[i] += d[i] / ab.numberOfChannels; }
-    if (!HOST) { setGrowing(true, `${file.name.replace(/[<>&]/g, "")}<small>decoded ${(n / 48000).toFixed(1)} s · growing happens inside the plugin</small>`); setTimeout(() => setGrowing(false, DROP_LABEL), 2500); return; }
-    const bytes = new Uint8Array(mono.buffer); let bin = "";
-    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
-    pending = { t: performance.now(), seen: false };
-    window.webkit.messageHandlers.lab.postMessage({ type: "audio", name: file.name, data: btoa(bin), value: 48000 });
+    setGrowing(false, DROP_LABEL);
+    openGrow(mono, file.name);  // look at it first: pick the part, the mode, the smoothness, the oscillator
   } catch (e) {
     log("grow: " + e.message);
     setGrowing(true, `COULDN'T READ THAT FILE<small>${String(e.message || e).slice(0, 60)}</small>`); setTimeout(() => setGrowing(false, DROP_LABEL), 3000);

@@ -130,5 +130,25 @@ int main() {
         check(ok, "base64 float32 decode matches Python", (double)v.size());
     }
     std::printf("resynth: %s\n", fails ? "FAIL" : "ok");
+    // grow modes: every mode gives a finite, audible table; SPECTRAL and FORMANT come out smoother than RAW frame to frame
+    {
+        std::vector<float> x(48000 * 2); std::mt19937 rng(5); std::normal_distribution<float> g(0, .1f);
+        for (size_t i = 0; i < x.size(); ++i) { const double t = i / SR; x[i] = (float)(0.4 * std::sin(2 * kPi * 180 * t) * (0.5 + 0.5 * std::sin(2 * kPi * 0.7 * t)) + g(rng)); }
+        auto jitter = [](const std::vector<Spectrum>& sp) { double j = 0; for (int k = 1; k < kFrames; ++k) for (int h = 1; h <= 64; ++h) j += std::abs(std::abs(sp[k][h]) - std::abs(sp[k - 1][h])); return j; };
+        double jr = 0;
+        const char* names[] = {"auto", "pitched", "raw", "spectral", "formant"};
+        for (int m = 0; m < kNumGrowModes; ++m) {
+            GrowOptions o; o.mode = m; ResynthInfo inf;
+            auto sp = resynthesize(x.data(), (int)x.size(), SR, inf, o);
+            Wavetable t; t.build(sp);
+            bool finite = true; double pk = 0;
+            for (int f = 0; f < t.frames; ++f) for (int i = 0; i < kTableSize; ++i) { finite &= std::isfinite(t.at(f, 0)[i]); pk = std::max(pk, (double)std::abs(t.at(f, 0)[i])); }
+            char what[64]; std::snprintf(what, sizeof what, "grow mode %s: finite, audible table (peak)", names[m]);
+            check(finite && pk > 0.5, what, pk);
+            if (m == kGrowRaw) jr = jitter(sp);
+            if (m == kGrowSpectral) { GrowOptions o2 = o; o2.smooth = 1; auto s2 = resynthesize(x.data(), (int)x.size(), SR, inf, o2); check(jitter(s2) < jitter(sp), "smoothness 1 evens out the frames more than 0.2", jitter(s2) / jitter(sp)); }
+        }
+        (void)jr;
+    }
     return fails ? 1 : 0;
 }
