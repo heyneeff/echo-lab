@@ -283,6 +283,17 @@ html.host body { background: #080606; }
   background-image: linear-gradient(#3fd0b40a 1px, transparent 1px), linear-gradient(90deg, #3fd0b40a 1px, transparent 1px); background-size: 14px 14px; }
 .voicerow .lbl, #subNoise .unirow .lbl { font-family: var(--cond); font-weight: 600; font-size: 14px; letter-spacing: .14em; }
 #panic { font-family: var(--cond); font-size: 16px; border-radius: 4px; }
+/* Dreamscape as a CRT: tight phosphor lines, scanlines, an aperture mask, a curved-glass vignette and a slow rolling band (all CSS, composited) */
+#hero .bloom { filter: blur(1.2px) brightness(1.35) saturate(1.2); opacity: .5; }
+#hero::after { z-index: 2; border-radius: inherit;
+  background: repeating-linear-gradient(0deg, #0000 0 2px, #00000052 2px 3px),
+    repeating-linear-gradient(90deg, #ff30200a 0 1px, #30ff600a 1px 2px, #3060ff0a 2px 3px),
+    radial-gradient(115% 100% at 50% 50%, #0000 55%, #000a 100%); }
+#hero::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 22%; z-index: 2; pointer-events: none;
+  background: linear-gradient(180deg, #0000, #ffb46a0a 45%, #ffffff10 50%, #ffb46a0a 55%, #0000); animation: crtroll 7s linear infinite; }
+@keyframes crtroll { from { transform: translateY(-100%); } to { transform: translateY(460%); } }
+#hero canvas#land { animation: crtflick 4s steps(1) infinite; }
+@keyframes crtflick { 0%, 100% { opacity: 1; } 47% { opacity: .96; } 48% { opacity: 1; } 83% { opacity: .975; } 84% { opacity: 1; } }
 :root { --amber: #ffa53a; --orange: #ff7a1f; }
 #subNoise { gap: 2px; padding-bottom: 6px; } #subNoise .unirow { padding-top: 2px; } #subNoise .krow .knob { gap: 1px; }
 </style>
@@ -786,10 +797,12 @@ const PAD = { x: "Position", y: "Cutoff" };
 try { const v = JSON.parse(localStorage.getItem("morpheus.pad") || "null"); if (v && v.x && v.y) Object.assign(PAD, v); } catch (e) {}
 function drawLand(now) {
   const c = $("#land"), [g, W, H] = fit(c);
-  const span = 63 / Math.max(1, NF - 1), ox = W * .12, oy = H - 74, ww = W * .55, amp_ = 30, dx = W * .24 / 63 * span, dy = H * .42 / 63 * span;   // frame f sits at (ox + f*dx, oy - f*dy)
+  // centred in the window, with more depth between frames so each ridge reads as its own line
+  const DX = W * .27, DY = H * .5, ww = W * .48, amp_ = 28, span = 63 / Math.max(1, NF - 1);
+  const ox = (W - ww - DX) / 2, oy = H / 2 + (DY - 6) / 2 + 4, dx = DX / 63 * span, dy = DY / 63 * span;   // frame f sits at (ox + f*dx, oy - f*dy)
   // OSC B: a cooler landscape behind A (when it's on)
   if (P["Osc B Level"] > .5 && WTB.length > 1) {
-    const nb = WTB.length, bdx = W * .24 / (nb - 1), bdy = H * .42 / (nb - 1), bx = ox + W * .08, by = oy - H * .07, bamp = amp_ * .8, PB = P["Position B"] / 100;
+    const nb = WTB.length, bdx = DX / (nb - 1), bdy = DY / (nb - 1), bx = ox + W * .07, by = oy - H * .06, bamp = amp_ * .8, PB = P["Position B"] / 100;
     const ridgeB = (w, f) => { const x0 = bx + f * bdx, y0 = by - f * bdy; g.beginPath(); for (let k = 0; k <= NP; k++) { const x = x0 + ww * k / NP, y = y0 - w[k % NP] * bamp; k ? g.lineTo(x, y) : g.moveTo(x, y); } };
     for (let f = nb - 1; f >= 0; f -= Math.max(1, Math.round(nb / 24))) { ridgeB(WTB[f], f); g.strokeStyle = rgba("#5ecbff", .14 + .1 * (1 - f / nb)); g.lineWidth = 1; g.stroke(); }
     ridgeB(frameAtOf(WTB, PB), PB * (nb - 1)); glow(g, rgba("#5ecbff", .9), 10); g.lineWidth = 1.6; g.stroke(); g.shadowBlur = 0;
@@ -808,17 +821,17 @@ function drawLand(now) {
     g.fillStyle = "#0d0a09"; g.fill();
     ridge(WT[f], f);
     const a = near < 1 ? .95 - near * .4 : Math.max(.12, .5 - f / NF * .35 - near * .006);
-    g.strokeStyle = near < 1 ? rgba(COL.amber, a) : rgba("#ffb46a", a * .55); g.lineWidth = near < 1 ? 1.6 : 1; g.stroke();
+    g.strokeStyle = near < 1 ? rgba(COL.amber, a) : rgba("#ff9a4a", Math.min(1, a * .8)); g.lineWidth = near < 1 ? 1.5 : .8; g.stroke();
   }
   // the base position: bright ridge
   const fp = P0 * (NF - 1);
-  ridge(frameAt(P0), fp); glow(g, COL.amber, 14); g.lineWidth = 2.2; g.stroke(); g.shadowBlur = 0;
+  ridge(frameAt(P0), fp); glow(g, COL.amber, 5); g.lineWidth = 1.8; g.stroke(); g.shadowBlur = 0;
   // every playing voice rides its own ridge (its mod envelope moves it through the table)
   let vi = 0;
   for (const v of voices) {
     if (v.amp < .01) continue;
     const f = v.pos * (NF - 1);
-    ridge(frameAt(v.pos), f); glow(g, rgba(COL.teal, Math.min(1, .25 + v.amp)), 12); g.lineWidth = 1.2 + v.amp * 1.4; g.stroke(); g.shadowBlur = 0;
+    ridge(frameAt(v.pos), f); glow(g, rgba(COL.teal, Math.min(1, .25 + v.amp)), 5); g.lineWidth = 1 + v.amp; g.stroke(); g.shadowBlur = 0;
     const x = ox + f * dx - 10, y = oy - f * dy; glow(g, COL.teal, 8); g.beginPath(); g.arc(x, y, 2.5 + v.amp * 2, 0, 7); g.fill(); g.shadowBlur = 0;
     text(g, noteName(v.note), W - 30, 104 + 13 * vi++, rgba(COL.teal, .5 + v.amp * .5), 10, "right");
   }
