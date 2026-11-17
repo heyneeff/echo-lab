@@ -66,7 +66,7 @@ private:
     std::atomic<bool> morphActive{false};
     void computeEffective();
     bool blendInto(const double* base, double* out) const;  // the morph blend of base (normalized); false = morph not active
-    static bool morphExcluded(int id) { return id == kMorphOn || id == kMorphX || id == kMorphY || id == kModWheel || id == kPitchBend || id == kAftertouch; }  // STAGE's panic button: every voice and FX tail stops at the next block
+    static bool morphExcluded(int id) { return id == kMorphOn || id == kMorphX || id == kMorphY || id == kModWheel || id == kPitchBend || id == kAftertouch || id == kSustainPedal; }  // STAGE's panic button: every voice and FX tail stops at the next block
     std::string feedJson();
     // grown wavetables: analysed on a worker thread, swapped in atomically, saved in the state
     void onEditorMessage(const std::string& type, const std::string& name, const std::string& data, double value);

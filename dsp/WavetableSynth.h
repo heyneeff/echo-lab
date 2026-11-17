@@ -328,6 +328,8 @@ public:
         for (auto& v : voices) v = Voice{};
         wireCombs();
         held.fill(false);
+        sustained.fill(false);
+        pedal = false;
         depth = 0;
         lastPitch = -1;
         for (int k = 0; k < kLfos; ++k) lfoG[k].start(97 + k);
@@ -338,6 +340,7 @@ public:
     }
 
     void noteOn(int note, double velocity) {
+        sustained[note & 127] = false;
         const bool wasHeld = depth > 0;
         push(note);
         if (p.voiceMode != kPoly) {  // one voice; the others let go
@@ -367,7 +370,17 @@ public:
         retrigger(*v);
         lastPitch = note;
     }
+    // sustain pedal: while it is down, released keys keep sounding until it comes up
+    void setPedal(bool on) {
+        if (pedal && !on)
+            for (int n = 0; n < 128; ++n) if (sustained[n]) { sustained[n] = false; releaseNote(n); }
+        pedal = on;
+    }
     void noteOff(int note) {
+        if (pedal) { sustained[note & 127] = true; return; }
+        releaseNote(note);
+    }
+    void releaseNote(int note) {
         remove(note);
         if (p.voiceMode != kPoly) {
             Voice& v = voices[0];
@@ -383,7 +396,7 @@ public:
             if (v.note == note && v.active() && v.amp.stage != Env::Release) gateAll(v, false);
     }
     void polyPressure(int note, double value) { for (auto& v : voices) if (v.note == note && v.active()) v.pressure = value; }
-    void allOff() { for (auto& v : voices) gateAll(v, false); depth = 0; }
+    void allOff() { for (auto& v : voices) gateAll(v, false); depth = 0; sustained.fill(false); }
     void setSidechain(double env) { scTarget = env; }
     void setTransport(double bpm, double beatPos, bool isPlaying) { if (bpm > 20) tempo = bpm; beat = beatPos; playing = isPlaying; }
 
@@ -794,6 +807,8 @@ private:
     double sr = 48000;
     std::array<Voice, kVoices> voices{};
     std::array<bool, 128> held{};
+    std::array<bool, 128> sustained{};  // released while the pedal was down
+    bool pedal = false;
     uint64_t clock = 0, seed = 0x9E3779B97F4A7C15ULL;
 };
 

@@ -215,6 +215,7 @@ void SynthPlugin::applyParams() {
     sp.z = plain(kSpaceZ) / 100;
     sp.mirror = plain(kSpaceMirror) > 0.5;
     sp.amount = plain(kSpaceAmount) / 50;
+    synth.setPedal(plain(kSustainPedal) >= 50);
     if (sp.orbit >= space::kNumOrbits) sp.orbit = space::kStill;
     sp.orbit = (int)plain(kSpaceOrbit);
     sp.rate = (int)plain(kSpaceRate);
@@ -401,9 +402,29 @@ tresult PLUGIN_API SynthPlugin::queryInterface(const TUID iid, void** obj) {
 tresult PLUGIN_API SynthPlugin::getMidiControllerAssignment(int32 busIndex, int16, CtrlNumber cc, ParamID& id) {
     if (busIndex != 0) return kResultFalse;
     switch (cc) {
+        // played: wheels, pressure, pedal
         case kCtrlModWheel: id = kModWheel; return kResultTrue;
         case kAfterTouch: id = kAftertouch; return kResultTrue;
         case kPitchBend: id = kPitchBend; return kResultTrue;
+        case kCtrlSustainOnOff: id = kSustainPedal; return kResultTrue;
+        // the MIDI standard's sound controllers: most keyboards send these from their "filter / envelope" knobs
+        case 71: id = kResonance; return kResultTrue;  // resonance / timbre (the SDK's names for 71 and 74 are swapped from common use)
+        case 72: id = kRelease; return kResultTrue;
+        case 73: id = kAttack; return kResultTrue;
+        case 74: id = kCutoff; return kResultTrue;  // brightness = cutoff
+        case 75: id = kDecay; return kResultTrue;
+        // general purpose 1-4 and 5-8: the eight ORPHEO macros
+        case kCtrlGPC1: id = kMacro1; return kResultTrue;  // CC 16
+        case kCtrlGPC2: id = kMacro2; return kResultTrue;
+        case kCtrlGPC3: id = kMacro3; return kResultTrue;
+        case kCtrlGPC4: id = kMacro4; return kResultTrue;  // CC 19
+        case kCtrlGPC5: id = kMacro5; return kResultTrue;  // CC 80
+        case kCtrlGPC6: id = kMacro6; return kResultTrue;
+        case kCtrlGPC7: id = kMacro7; return kResultTrue;
+        case kCtrlGPC8: id = kMacro8; return kResultTrue;  // CC 83
+        // effect controls 1-2: the morph pad
+        case kCtrlEffect1: id = kMorphX; return kResultTrue;  // CC 12
+        case kCtrlEffect2: id = kMorphY; return kResultTrue;  // CC 13
     }
     return kResultFalse;
 }

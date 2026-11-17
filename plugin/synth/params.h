@@ -47,6 +47,7 @@ enum ParamId : int {
     kMorphOn, kMorphX, kMorphY,
     // v0.9: SPACE (the whole sound around, above, below, near, far)
     kSpaceOn, kSpaceX, kSpaceY, kSpaceZ, kSpaceOrbit, kSpaceRate, kSpaceSize, kSpaceRoom, kSpaceHeadphones, kSpaceMirror, kSpaceAmount,
+    kSustainPedal,
     kNumParams
 };
 constexpr int kModBase = kMod1Src;  // slot s (0-based): source kModBase + 3s, destination +1, amount +2
@@ -234,6 +235,7 @@ inline const ParamDef kParams[kNumParams] = {
     {kSpaceHeadphones, "Space Listen", "", 0, 1, 0, Map::List},
     {kSpaceMirror, "Space Mirror", "", 0, 1, 0, Map::List},
     {kSpaceAmount, "Space Amount", "%", 0, 100, 75, Map::Linear},   // 50 = natural, 100 = extreme
+    {kSustainPedal, "Sustain Pedal", "%", 0, 100, 0, Map::Linear},  // CC 64; down from 50 %
 };
 inline const int kDisplayOrder[kNumParams] = {
     kTable, kPosition, kScan, kScanSpeed, kPosEnv, kUnison, kDetune, kSpread, kSub,
@@ -260,6 +262,7 @@ inline const int kDisplayOrder[kNumParams] = {
     kVerbOn, kVerbStyle, kVerbDecay, kVerbSize, kVerbMix, kPumpOn, kPumpMode, kPumpRate, kPumpDepth, kPumpMix, kFxOrder,
     kMorphOn, kMorphX, kMorphY,
     kSpaceOn, kSpaceX, kSpaceY, kSpaceZ, kSpaceOrbit, kSpaceRate, kSpaceSize, kSpaceRoom, kSpaceHeadphones, kSpaceMirror, kSpaceAmount,
+    kSustainPedal,
 };
 
 inline int stepCount(const ParamDef& p) { return p.map == Map::List ? (int)(p.max - p.min) : 0; }

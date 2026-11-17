@@ -121,5 +121,15 @@ int main() {
         check(fin && pk < 6, "fuzz: 40 random patches finite and bounded (peak)", pk);
     }
     std::printf("mod: %s\n", fails ? "FAIL" : "ok");
+    // sustain pedal: a released key keeps sounding while the pedal is down, and lets go when it comes up
+    {
+        Synth s; s.setTable(&factoryTable(0)); s.prepare(SR); Params p = sinePatch(); p.ampR = 0.05; s.update(p);
+        auto rms = [](const std::vector<float>& y) { double a = 0; for (size_t i = y.size() / 2; i < y.size(); ++i) a += y[i] * y[i]; return std::sqrt(a / (y.size() / 2)); };
+        s.setPedal(true); s.noteOn(60, 1); render(s, 4800); s.noteOff(60);
+        const double held = rms(render(s, 24000));
+        s.setPedal(false); render(s, 24000);
+        const double after = rms(render(s, 4800));
+        check(held > 0.1 && after < 1e-4, "sustain pedal: holds after key-up, releases on pedal-up", held);
+    }
     return fails ? 1 : 0;
 }
