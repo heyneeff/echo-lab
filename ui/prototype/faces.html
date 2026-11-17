@@ -25,7 +25,7 @@ html, body { margin: 0; height: 100%; background: radial-gradient(1200px 800px a
 .bar button.on { color: #0b0b0d; background: var(--amber); border-color: var(--amber); }
 .bar .sp { flex: 1; } .bar .hint { color: #5d5a60; }
 #stage { position: absolute; left: 0; right: 0; top: 46px; bottom: 0; display: grid; place-items: center; }
-#units { width: 1060px; height: 640px; transform-origin: 50% 50%; position: relative; }
+#units { width: 1060px; height: 640px; transform-origin: 50% 50%; position: absolute; left: 50%; top: 50%; }
 .unit { position: absolute; inset: 0; display: none; } .unit.show { display: block; }
 .drop { position: fixed; inset: 0; background: #000a; display: none; place-items: center; font: 20px var(--vec); color: var(--amber); letter-spacing: .2em; z-index: 9; }
 body.dragging .drop { display: grid; }
@@ -368,7 +368,7 @@ function mixSlider(root, value, color, onchange) {
   } };
 }
 function fit(c) { const d = Math.min(devicePixelRatio || 1, 1.5), W = c.clientWidth, H = c.clientHeight; if (c.width !== Math.round(W * d) || c.height !== Math.round(H * d)) { c.width = Math.round(W * d); c.height = Math.round(H * d); } const g = c.getContext("2d"); g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, W, H); return [g, W, H]; }
-function scaleUnits() { const s = HOST ? Math.min(innerWidth / 1060, innerHeight / 640) : Math.min(innerWidth / 1090, (innerHeight - 52) / 660, 1.35); $("#units").style.transform = `scale(${s})`; }
+function scaleUnits() { const s = HOST ? Math.min(innerWidth / 1060, innerHeight / 640) : Math.min(innerWidth / 1090, (innerHeight - 52) / 660, 1.35); $("#units").style.transform = `translate(-50%, -50%) scale(${s})`; }
 addEventListener("resize", scaleUnits); scaleUnits();
 const VF = "'Share Tech Mono', ui-monospace, monospace";
 function glow(g, col, blur = 10) { g.strokeStyle = col; g.fillStyle = col; g.shadowColor = col; g.shadowBlur = blur; }

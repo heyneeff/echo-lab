@@ -22,7 +22,7 @@ html, body { margin: 0; height: 100%; background: radial-gradient(1200px 800px a
 .bar { height: 46px; display: flex; align-items: center; gap: 10px; padding: 0 16px; font: 11px var(--vec); color: #9a968f; letter-spacing: .14em; }
 .bar .hint { color: #5d5a60; } .bar b { color: var(--amber); font-weight: 400; }
 #stage { position: absolute; left: 0; right: 0; top: 46px; bottom: 0; display: grid; place-items: center; }
-#units { width: 1280px; height: 800px; transform-origin: 50% 50%; position: relative; }
+#units { width: 1280px; height: 800px; transform-origin: 50% 50%; position: absolute; left: 50%; top: 50%; }
 html.host .bar { display: none; } html.host #stage { top: 0; } html.host body { background: #0b0b0d; }
 
 /* ---------------------------------------------------------------- body: dreamscape | rail, mod deck below */
@@ -1375,8 +1375,8 @@ function frame() {
   if (now * 1000 - flashT > 2500) $("#ampInfo").textContent = `${routes().length} / 16 ROUTES`;
 }
 function loop() { simulate(); frame(); requestAnimationFrame(loop); }
-const scaleNow = () => HOST ? Math.min(innerWidth / 1280, innerHeight / 800) : Math.min(innerWidth / 1310, (innerHeight - 52) / 830, 1.25);
-function scaleUnits() { $("#units").style.transform = `scale(${scaleNow()})`; }
+const scaleNow = () => HOST ? Math.min(innerWidth / 1280, innerHeight / 800) : Math.min((innerWidth - 24) / 1280, (innerHeight - 46 - 24) / 800, 1.25);
+function scaleUnits() { $("#units").style.transform = `translate(-50%, -50%) scale(${scaleNow()})`; }  // centred explicitly: Safari pins an oversized grid item to the top
 addEventListener("resize", scaleUnits); scaleUnits();
 if (!HOST) requestAnimationFrame(loop); else frame();
 </script>
