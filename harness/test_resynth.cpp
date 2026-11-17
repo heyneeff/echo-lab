@@ -78,7 +78,7 @@ int main() {
     // 5. round trip: grow a table from the saw and play it
     {
         auto x = saw(220, 1.0, [](double t) { return 3 + 20 * t; });
-        Wavetable t; t.build(resynthesize(x.data(), (int)x.size(), SR, info));
+        Wavetable t; t.build(resynthesize(x.data(), (int)x.size(), SR, info)); t.seconds = info.seconds;
         Synth s; s.prepare(SR); s.setTable(&t);
         Params p; p.position = 0.8; s.update(p);
         std::vector<float> L(48000), R(48000);

@@ -41,7 +41,7 @@ private:
     ParamDef def;
 };
 
-constexpr uint32 kStateVersion = 2;  // 2: + grown wavetable
+constexpr uint32 kStateVersion = 3;  // 2: + grown wavetable, 3: + its length in seconds (SCAN)
 constexpr int kSavedHarmonics = 512;   // per frame, complex, as floats
 
 std::string upper(std::string s) { for (auto& c : s) c = (char)std::toupper((unsigned char)c); return s; }
@@ -108,12 +108,21 @@ void SynthPlugin::applyParams() {
     p.modD = plain(kModDecay) / 1000;
     p.velocity = plain(kVelocity) / 100;
     p.outputDb = plain(kOutput);
+    p.scanMode = (int)plain(kScan);
+    p.scanSpeed = plain(kScanSpeed);
     synth.update(p);
+    synth.setTable(pickTable((int)plain(kTable)));
     DriveParams d;
     d.drive = plain(kDrive);
     d.autoGain = true;
     driveOn = d.drive > 0.005;
     drive.update(d);
+}
+
+// a built-in table, or the grown one (ORPHEO if nothing has been grown yet)
+const wt::Wavetable* SynthPlugin::pickTable(int ti) const {
+    const wt::Wavetable* grown = ti == kTableGrown ? customPtr.load(std::memory_order_acquire) : nullptr;
+    return grown ? grown : &wt::factoryTable(ti == kTableGrown ? 0 : ti);
 }
 
 void SynthPlugin::render(float* L, float* R, int from, int to) {
@@ -134,6 +143,7 @@ tresult PLUGIN_API SynthPlugin::process(ProcessData& data) {
             if (pts > 0 && id < (ParamID)kNumParams && q->getPoint(pts - 1, off, v) == kResultTrue) { norm[id] = v; changed = true; }
         }
     }
+    if (tableDirty.exchange(false)) changed = true;
     if (changed) applyParams();
     if (data.numOutputs == 0 || data.numSamples <= 0) return kResultOk;
 
@@ -200,33 +210,38 @@ void SynthPlugin::growTable(std::vector<float> audio, double sr, std::string nam
     if (info.pitched) std::snprintf(buf, sizeof buf, "PITCHED %.0f HZ", info.f0);
     else std::snprintf(buf, sizeof buf, "RAW CYCLES");
     const auto dot = name.find_last_of('.');
-    installTable(std::move(spectra), upper(dot == std::string::npos ? name : name.substr(0, dot)).substr(0, 28), buf);
+    installTable(std::move(spectra), upper(dot == std::string::npos ? name : name.substr(0, dot)).substr(0, 28), buf, info.seconds);
 }
 
-void SynthPlugin::installTable(std::vector<wt::Spectrum> spectra, std::string name, std::string info) {
+void SynthPlugin::installTable(std::vector<wt::Spectrum> spectra, std::string name, std::string info, double seconds) {
     for (std::string* t : {&name, &info})  // shown in the face as JSON text: keep it plain
         for (auto& c : *t) if (!std::isalnum((unsigned char)c) && c != ' ' && c != '-' && c != '.') c = ' ';
     for (auto& s : spectra) for (int h = kSavedHarmonics + 1; h <= wt::kMaxHarm; ++h) s[h] = 0;  // what the state can hold
     auto t = std::make_unique<wt::Wavetable>();
     t->build(spectra);
+    t->seconds = seconds;
     std::lock_guard<std::mutex> lock(tableMx);
     retired = std::move(custom);  // the audio thread may still be finishing a block with it
     custom = std::move(t);
-    synth.setTable(custom.get());
+    customPtr.store(custom.get(), std::memory_order_release);
     customSpectra = std::move(spectra);
+    customSeconds = seconds;
     tableName = std::move(name);
     tableInfo = std::move(info);
-    sendTable = true;
+    tableDirty = true;  // the audio thread re-picks the table at its next block
+    if ((int)toPlain(kParams[kTable], getParamNormalized(kTable)) == kTableGrown) synth.setTable(custom.get());
 }
 
 void SynthPlugin::useFactoryTable() {
     std::lock_guard<std::mutex> lock(tableMx);
-    synth.setTable(nullptr);
+    customPtr.store(nullptr, std::memory_order_release);
     retired = std::move(custom);
     customSpectra.clear();
+    customSeconds = 0;
     tableName = "ORPHEO";
     tableInfo = "FACTORY";
-    sendTable = true;
+    tableDirty = true;
+    synth.setTable(pickTable((int)toPlain(kParams[kTable], getParamNormalized(kTable))));
 }
 
 IPlugView* PLUGIN_API SynthPlugin::createView(FIDString name) {
@@ -246,6 +261,9 @@ void SynthPlugin::setFromEditor(const std::string& name, double plain) {
         if (name != kParams[id].name) continue;
         double nv = toNorm(kParams[id], plain);
         beginEdit(id); performEdit(id, nv); setParamNormalized(id, nv); endEdit(id);
+        // switching tables is an atomic pointer swap, safe from here: don't wait for the audio thread
+        // (a sleeping device in Live, or a host without audio, would otherwise never switch)
+        if (id == kTable) synth.setTable(pickTable((int)toPlain(kParams[kTable], nv)));
         return;
     }
 }
@@ -269,12 +287,19 @@ std::string SynthPlugin::feedJson() {
     }
     std::snprintf(buf, sizeof buf, "],\"out\":%.5g,\"busy\":%d", mOut.exchange(0), growing.load() ? 1 : 0);
     s += buf;
+    const wt::Wavetable* shown = &synth.wavetable();
     {
         std::lock_guard<std::mutex> lock(tableMx);
-        s += ",\"tn\":\"" + tableName + "\",\"ti\":\"" + tableInfo + "\"";
+        std::string tn = tableName, ti = tableInfo;
+        if (shown != customPtr.load()) {
+            for (int i = 0; i < wt::kFactoryTables; ++i)
+                if (shown == &wt::factoryTable(i)) { tn = wt::kFactoryNames[i]; std::snprintf(buf, sizeof buf, "BUILT-IN %d FRAMES", shown->frames); ti = buf; }
+        }
+        s += ",\"tn\":\"" + tn + "\",\"ti\":\"" + ti + "\",\"grown\":\"" + (custom ? tableName : std::string()) + "\"";
     }
-    if (sendTable.exchange(false)) {  // 64 frames x 128 points, from a smooth (64-harmonic) level
-        const auto& t = synth.wavetable();
+    if (sendTable.exchange(false) || shown != lastShown) {  // frames x 128 points, from a smooth (64-harmonic) level
+        lastShown = shown;
+        const auto& t = *shown;
         s += ",\"wt\":[";
         for (int f = 0; f < t.frames; ++f) {
             const float* d = t.at(f, 4);
@@ -313,7 +338,14 @@ tresult PLUGIN_API SynthPlugin::setState(IBStream* state) {
         std::string info;
         int32 infoLen = 0;
         if (s.readInt32(infoLen) && infoLen > 0 && infoLen < 256) { info.resize(infoLen); for (auto& c : info) { int8 ch; if (!s.readInt8(ch)) break; c = (char)ch; } }
-        installTable(std::move(spectra), name, info.empty() ? "GROWN" : info);
+        double seconds = 0;
+        if (version >= 3) s.readDouble(seconds);
+        installTable(std::move(spectra), name, info.empty() ? "GROWN" : info, seconds);
+        if (version == 2) {  // v2 had no Table parameter: a saved grown table was what played
+            norm[kTable] = toNorm(kParams[kTable], kTableGrown);
+            setParamNormalized(kTable, norm[kTable]);
+            applyParams();
+        }
     } else if (version >= 2) {
         useFactoryTable();
     }
@@ -336,6 +368,7 @@ tresult PLUGIN_API SynthPlugin::getState(IBStream* state) {
             for (int h = 1; h <= kSavedHarmonics; ++h) { s.writeFloat((float)sp[h].real()); s.writeFloat((float)sp[h].imag()); }
         s.writeInt32((int32)tableInfo.size());
         for (char c : tableInfo) s.writeInt8((int8)c);
+        s.writeDouble(customSeconds);
     }
     return kResultOk;
 }

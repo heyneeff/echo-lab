@@ -1,5 +1,6 @@
-// Wavetable synth engine (v0.1): band-limited morphing wavetables, unison, sub, SVF low-pass,
-// amp ADSR + mod envelope (filter + table position). Header-only, no allocation while playing.
+// Wavetable synth engine: band-limited morphing wavetables (five built-in, or grown from sound),
+// SCAN playheads, unison, sub, SVF low-pass, amp ADSR + mod envelope (filter + table position).
+// Header-only, no allocation while playing.
 #pragma once
 #include <algorithm>
 #include <array>
@@ -49,6 +50,7 @@ using Spectrum = std::array<std::complex<double>, kMaxHarm + 1>;
 
 struct Wavetable {
     int frames = 0;
+    double seconds = 0;       // length of the sound it was grown from (0 = a built-in table)
     std::vector<float> data;  // [frame][level][kStride]
     const float* at(int f, int level) const { return &data[((size_t)f * kLevels + level) * kStride]; }
 
@@ -106,7 +108,74 @@ inline std::vector<Spectrum> orpheoSpectra() {
     return out;
 }
 
+// Spectrum of any single-cycle shape given in time (t in [0,1)). Sampled 64x finer than the top
+// harmonic we keep, so even shapes with jumps (saw, pulse, sync) come out exact to ~-96 dB.
+template <class F>
+inline Spectrum spectrumOf(F wave) {
+    constexpr int N = 65536;
+    std::vector<std::complex<double>> a(N);
+    for (int i = 0; i < N; ++i) a[i] = wave((i + 0.5) / N);
+    fft(a);
+    Spectrum s;
+    s.fill(0.0);
+    for (int h = 1; h <= kMaxHarm; ++h) s[h] = std::conj(a[h]) * (2.0 / N);
+    return s;
+}
+
+namespace shape {
+inline double saw(double t) { return 1 - 2 * t; }
+inline double square(double t) { return t < 0.5 ? 1 : -1; }
+inline double pulse(double t, double duty) { return t < duty ? 1 : -1; }
+inline double tri(double t) { return 1 - 4 * std::abs(t - 0.5); }
+inline double shark(double t) { return t < 0.75 ? -1 + 2 * t / 0.75 : 1 - 2 * (t - 0.75) / 0.25; }  // Minimoog "triangle-saw"
+inline double sync(double t, double ratio) { const double x = t * ratio; return 1 - 2 * (x - std::floor(x)); }  // hard-synced saw
+}  // namespace shape
+
+// MOOG: the Minimoog's six waveforms, in panel order.
+inline std::vector<Spectrum> moogSpectra() {
+    return {spectrumOf(shape::tri), spectrumOf(shape::shark), spectrumOf(shape::saw), spectrumOf(shape::square),
+            spectrumOf([](double t) { return shape::pulse(t, 0.3); }), spectrumOf([](double t) { return shape::pulse(t, 0.1); })};
+}
+// PWM: pulse width 50% -> 5%, so Position is pulse-width modulation.
+inline std::vector<Spectrum> pwmSpectra() {
+    std::vector<Spectrum> out;
+    for (int k = 0; k < 32; ++k) { const double d = 0.5 - 0.45 * k / 31; out.push_back(spectrumOf([d](double t) { return shape::pulse(t, d); })); }
+    return out;
+}
+// SYNC: a saw hard-synced at ratio 1 -> 8, so Position is the Prophet sync sweep.
+inline std::vector<Spectrum> syncSpectra() {
+    std::vector<Spectrum> out;
+    for (int k = 0; k < 32; ++k) { const double r = 1 + 7.0 * k / 31; out.push_back(spectrumOf([r](double t) { return shape::sync(t, r); })); }
+    return out;
+}
+// JUNO: the DCO, saw blending into a pulse that narrows (Juno PWM).
+inline std::vector<Spectrum> junoSpectra() {
+    std::vector<Spectrum> out;
+    for (int k = 0; k < 16; ++k) {
+        const double u = k / 15.0, d = 0.5 - 0.4 * u;
+        out.push_back(spectrumOf([u, d](double t) { return (1 - 0.6 * u) * shape::saw(t) + (0.4 + 0.6 * u) * shape::pulse(t, d); }));
+    }
+    return out;
+}
+
+// The built-in tables, built once per process and shared by every Morpheus in the set.
+constexpr int kFactoryTables = 5;
+inline const char* const kFactoryNames[kFactoryTables] = {"ORPHEO", "MOOG", "PWM", "SYNC", "JUNO"};
+inline const Wavetable& factoryTable(int i) {
+    static const std::array<Wavetable, kFactoryTables> tables = [] {
+        std::array<Wavetable, kFactoryTables> t;
+        t[0].build(orpheoSpectra());
+        t[1].build(moogSpectra());
+        t[2].build(pwmSpectra());
+        t[3].build(syncSpectra());
+        t[4].build(junoSpectra());
+        return t;
+    }();
+    return tables[std::clamp(i, 0, kFactoryTables - 1)];
+}
+
 // ------------------------------------------------------------------ parameters
+enum ScanMode { kScanOff = 0, kScanOnce, kScanLoop, kScanPingPong };
 struct Params {
     double position = 0.4;        // 0..1 across the frames
     int unison = 1;               // 1..7
@@ -120,6 +189,10 @@ struct Params {
     double modA = 0.003, modD = 0.6;
     double velocity = 0.6;        // how much velocity changes the level, 0..1
     double outputDb = 0;
+    // SCAN: each note's playhead travels from Position to the end of the table at the speed of the
+    // sound the table was grown from (built-in tables: 2 s), times scanSpeed
+    int scanMode = kScanOff;
+    double scanSpeed = 1;
 };
 
 // ------------------------------------------------------------------ envelope
@@ -155,6 +228,8 @@ struct Voice {
     Env amp, mod;
     std::array<double, kMaxUnison> phase{};
     double subPhase = 0;
+    double scan = 0;            // SCAN playhead 0..1 (from Position to the end)
+    int scanDir = 1;
     double ic1[2]{}, ic2[2]{};  // SVF state per channel
     bool active() const { return amp.stage != Env::Idle; }
 };
@@ -163,11 +238,11 @@ class Synth {
 public:
     static constexpr int kVoices = 16;
 
-    Synth() { factory.build(orpheoSpectra()); }
+    Synth() { setTable(nullptr); }
 
-    // Play from another table (nullptr = the factory table). The caller keeps it alive until it
+    // Play from another table (nullptr = the ORPHEO table). The caller keeps it alive until it
     // has been replaced and at least one more block has run.
-    void setTable(const Wavetable* t) { current.store(t ? t : &factory, std::memory_order_release); }
+    void setTable(const Wavetable* t) { current.store(t ? t : &factoryTable(0), std::memory_order_release); }
 
     void prepare(double sampleRate) { sr = sampleRate; reset(); }
     void reset() {
@@ -195,6 +270,8 @@ public:
             v->subPhase = 0;
             for (int c = 0; c < 2; ++c) v->ic1[c] = v->ic2[c] = 0;
         }
+        v->scan = 0;
+        v->scanDir = 1;
         v->amp.gate(true);
         v->mod.gate(true);
         held[note & 127] = true;
@@ -251,12 +328,23 @@ private:
                 gr[u] = std::sin(pan * kPi / 2) * uniGain * 1.41421356;
             }
             const double subInc = f0 * 0.5 / sr;
+            const double scanInc = p.scanSpeed / ((table.seconds > 0 ? table.seconds : 2.0) * sr);
             const double velGain = 1 - p.velocity + p.velocity * v.vel;
             for (int i = 0; i < n; ++i) {
                 const double a = v.amp.next(), m = v.mod.next();
                 if (!v.active()) break;
                 // table position with the mod envelope, frames interpolated
-                const double pos = std::clamp(sPos[i] + p.posEnv * m, 0.0, 1.0) * (table.frames - 1);
+                double base = sPos[i];
+                if (p.scanMode != kScanOff) {
+                    base += (1 - base) * v.scan;
+                    v.scan += scanInc * v.scanDir;
+                    if (v.scan >= 1) {
+                        if (p.scanMode == kScanOnce) v.scan = 1;
+                        else if (p.scanMode == kScanLoop) v.scan -= 1;
+                        else { v.scan = 2 - v.scan; v.scanDir = -1; }
+                    } else if (v.scan <= 0 && v.scanDir < 0) { v.scan = -v.scan; v.scanDir = 1; }
+                }
+                const double pos = std::clamp(base + p.posEnv * m, 0.0, 1.0) * (table.frames - 1);
                 const int f0i = std::min((int)pos, table.frames - 2);
                 const double ff = pos - f0i;
                 double sl = 0, sr_ = 0;
@@ -342,8 +430,7 @@ private:
     }
     double rand01() { seed = seed * 6364136223846793005ULL + 1442695040888963407ULL; return (seed >> 11) * (1.0 / 9007199254740992.0); }
 
-    Wavetable factory;
-    std::atomic<const Wavetable*> current{&factory};
+    std::atomic<const Wavetable*> current{nullptr};
     Params p;
     double sr = 48000;
     std::array<Voice, kVoices> voices{};

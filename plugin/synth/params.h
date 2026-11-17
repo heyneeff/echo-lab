@@ -12,8 +12,13 @@ namespace wtsynth {
 
 enum ParamId : int {
     kPosition = 0, kUnison, kDetune, kSpread, kSub, kCutoff, kResonance, kFilterEnv, kPosEnv,
-    kAttack, kDecay, kSustain, kRelease, kModAttack, kModDecay, kVelocity, kDrive, kOutput, kNumParams
+    kAttack, kDecay, kSustain, kRelease, kModAttack, kModDecay, kVelocity, kDrive, kOutput,
+    kTable, kScan, kScanSpeed,  // v0.3
+    kNumParams
 };
+inline const char* const kTableNames[] = {"ORPHEO", "MOOG", "PWM", "SYNC", "JUNO", "GROWN"};
+constexpr int kTableGrown = 5;
+inline const char* const kScanNames[] = {"Off", "Once", "Loop", "Ping-Pong"};
 enum class Map { Linear, Log, LogOffLow, LogOffHigh, List };
 struct ParamDef { int id; const char* name; const char* units; double min, max, def; Map map; };
 
@@ -36,9 +41,12 @@ inline const ParamDef kParams[kNumParams] = {
     {kVelocity, "Velocity", "%", 0, 100, 60, Map::Linear},
     {kDrive, "Drive", "", 0, 10, 0, Map::Linear},
     {kOutput, "Output", "dB", -24, 12, 0, Map::Linear},
+    {kTable, "Table", "", 0, 5, 0, Map::List},
+    {kScan, "Scan", "", 0, 3, 0, Map::List},
+    {kScanSpeed, "Scan Speed", "x", 0.25, 4, 1, Map::Log},
 };
 inline const int kDisplayOrder[kNumParams] = {
-    kPosition, kPosEnv, kUnison, kDetune, kSpread, kSub, kCutoff, kResonance, kFilterEnv,
+    kTable, kPosition, kScan, kScanSpeed, kPosEnv, kUnison, kDetune, kSpread, kSub, kCutoff, kResonance, kFilterEnv,
     kAttack, kDecay, kSustain, kRelease, kModAttack, kModDecay, kVelocity, kDrive, kOutput,
 };
 
@@ -84,6 +92,9 @@ inline double hostNorm(const ParamDef& p, double v) {
 inline std::string toText(const ParamDef& p, double n) {
     double v = toPlain(p, n);
     char buf[64];
+    if (p.id == kTable) return kTableNames[std::clamp((int)v, 0, 5)];
+    if (p.id == kScan) return kScanNames[std::clamp((int)v, 0, 3)];
+    if (p.id == kScanSpeed) { std::snprintf(buf, sizeof buf, "%.2fx", v); return buf; }
     if (p.id == kUnison) { std::snprintf(buf, sizeof buf, v < 1.5 ? "%.0f voice" : "%.0f voices", v); return buf; }
     if ((p.map == Map::LogOffLow || p.map == Map::LogOffHigh) && v <= 0) return "Off";
     if (p.id == kDrive) { if (v < 0.005) return "Off"; std::snprintf(buf, sizeof buf, "%.1f", v); return buf; }

@@ -118,6 +118,50 @@ int main(int argc, char** argv) {
     for (int i = 0; i < (int)tail.size(); i += 256) s.process(&tail[i], &tr[i], 256);
     check(s.activeVoices() == 0, "voices left 2 s after release", s.activeVoices());
 
+    // built-in tables: right frame counts, exact shapes, alias-free at the top of the keyboard
+    {
+        const int want[wt::kFactoryTables] = {64, 6, 32, 32, 16};
+        bool counts = true; for (int i = 0; i < wt::kFactoryTables; ++i) counts &= wt::factoryTable(i).frames == want[i];
+        check(counts, "built-in tables: ORPHEO 64, MOOG 6, PWM 32, SYNC 32, JUNO 16", counts);
+        auto sawS = wt::spectrumOf(wt::shape::saw);
+        double worst = 0; for (int h = 2; h <= 200; ++h) worst = std::max(worst, std::abs(20 * std::log10(std::abs(sawS[h]) / std::abs(sawS[1]) * h)));
+        check(worst < 0.05, "shape->spectrum: saw harmonics 1/h to h=200 (worst dB)", worst);
+        auto sq = wt::spectrumOf(wt::shape::square);
+        double even = 0; for (int h = 2; h <= 200; h += 2) even = std::max(even, std::abs(sq[h]) / std::abs(sq[1]));
+        check(20 * std::log10(even + 1e-30) < -80, "square / PWM 50%: even harmonics (dB)", 20 * std::log10(even + 1e-30));
+        auto s1 = wt::spectrumOf([](double t) { return wt::shape::sync(t, 1.0); });
+        double d = 0; for (int h = 1; h <= 200; ++h) d = std::max(d, std::abs(s1[h] - sawS[h]));
+        check(d < 1e-6, "SYNC at ratio 1 is the plain saw", d);
+        double worstA = -999;
+        for (int i = 0; i < wt::kFactoryTables; ++i) {
+            wt::Synth z; z.prepare(SR); z.setTable(&wt::factoryTable(i));
+            wt::Params q = p; q.unison = 1; q.position = 0.6; q.sub = 0; q.cutoffHz = 20000; z.update(q);
+            worstA = std::max(worstA, aliasDb(renderNote(z, 108, 48000), 440.0 * std::pow(2.0, (108 - 69) / 12.0)));
+        }
+        check(worstA < -60, "every built-in table alias-free at C8 (worst dB)", worstA);
+    }
+
+    // SCAN: the playhead travels Position -> end at the sound's speed (here a 1 s table)
+    {
+        wt::Wavetable t; t.build(wt::pwmSpectra()); t.seconds = 1.0;
+        auto at = [&](int mode, double speed, double start, double secs) {
+            wt::Synth z; z.prepare(SR); z.setTable(&t);
+            wt::Params q; q.position = start; q.scanMode = mode; q.scanSpeed = speed; q.ampS = 1; z.update(q);
+            const int n = (int)(secs * SR); std::vector<float> l(n), r(n);
+            z.noteOn(60, 1.0);
+            for (int i = 0; i < n; i += 64) z.process(&l[i], &r[i], std::min(64, n - i));
+            for (auto& v : z.views) if (v.note.load() >= 0) return (double)v.pos.load();
+            return -1.0;
+        };
+        auto near = [](double a, double b) { return std::abs(a - b) < 0.01; };
+        check(near(at(wt::kScanOnce, 1, 0, 0.5), 0.5), "scan once: halfway at 0.5 s", at(wt::kScanOnce, 1, 0, 0.5));
+        check(near(at(wt::kScanOnce, 1, 0, 1.5), 1.0), "scan once: holds the last frame after 1 s", at(wt::kScanOnce, 1, 0, 1.5));
+        check(near(at(wt::kScanLoop, 1, 0, 1.25), 0.25), "scan loop: wraps (0.25 at 1.25 s)", at(wt::kScanLoop, 1, 0, 1.25));
+        check(near(at(wt::kScanPingPong, 1, 0, 1.25), 0.75), "scan ping-pong: comes back (0.75 at 1.25 s)", at(wt::kScanPingPong, 1, 0, 1.25));
+        check(near(at(wt::kScanOnce, 2, 0, 0.25), 0.5), "scan speed x2: halfway at 0.25 s", at(wt::kScanOnce, 2, 0, 0.25));
+        check(near(at(wt::kScanOnce, 1, 0.5, 0.5), 0.75), "scan from Position 50%: 0.75 at 0.5 s", at(wt::kScanOnce, 1, 0.5, 0.5));
+    }
+
     // static: sweep Position through the table the way a host does (one value per 512-sample block)
     // and compare the energy *between* the note's harmonics with the same sweep updated every sample.
     // Clicks from stepping are broadband, so they land between the harmonics.

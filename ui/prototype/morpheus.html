@@ -49,6 +49,23 @@ html.host .bar { display: none; } html.host #stage { top: 0; } html.host body { 
 .tbtn { font: 10px var(--vec); letter-spacing: .14em; color: var(--amber); background: #141417cc;
   border: 1px solid #ff8a1f44; border-radius: 6px; padding: 6px 10px; cursor: pointer; display: none; }
 .tbtn:hover { border-color: #ffc93caa; box-shadow: 0 0 12px #ffc93c33; } .tbtn.show { display: block; }
+.tbtn.tab { display: block; color: var(--amber); }
+.tmenu { position: absolute; right: 44px; top: 200px; z-index: 5; display: none; gap: 4px; padding: 8px; min-width: 210px; background: #0d0a09f2;
+  border: 1px solid #ff8a1f44; border-radius: 10px; box-shadow: 0 12px 30px #000c; }
+.tmenu.open { display: grid; }
+.tmenu button { font: 11px var(--vec); letter-spacing: .14em; text-align: left; color: #ffd27a; background: #141417; border: 1px solid #ff8a1f22;
+  padding: 8px 10px; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; gap: 10px; }
+.tmenu button small { color: var(--dim); font-size: 9px; letter-spacing: .08em; }
+.tmenu button.on { border-color: #ffc93c; box-shadow: 0 0 10px #ffc93c44; color: #fff1c9; }
+.tmenu button.grown { color: #8ff0d2; border-color: #2fd6a844; } .tmenu button.grown.on { border-color: #2fd6a8; box-shadow: 0 0 10px #2fd6a855; }
+.tmenu button:disabled { opacity: .35; cursor: default; }
+.scanrow { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; margin: 0 12px; padding: 8px 10px; border-radius: 10px;
+  background: #0f0f12; box-shadow: 0 0 0 1px #ffffff0d inset; }
+.scanrow .lbl { font: 700 9px var(--sans); letter-spacing: .3em; color: var(--teal); text-shadow: 0 0 10px #2fd6a855; }
+.seg { display: flex; background: #0b0b0e; border-radius: 7px; padding: 2px; border: 1px solid #ffffff0d; }
+.seg button { flex: 1; font: 700 8.5px var(--sans); letter-spacing: .16em; color: var(--dim); background: transparent; border: 0; padding: 7px 4px; border-radius: 5px; cursor: pointer; }
+.seg button.on { background: #2a2a31; color: var(--teal); box-shadow: 0 0 0 1px #2fd6a855 inset, 0 0 10px #2fd6a833; }
+.scanrow .knob .name { font-size: 7.5px; }
 .tbtn.load { display: block; color: #8ff0d2; border-color: #2fd6a866; } .tbtn.load:hover { border-color: #2fd6a8; box-shadow: 0 0 12px #2fd6a855; }
 .hero .dropzone { position: absolute; inset: 14px; z-index: 4; border: 2px dashed #ffc93c; border-radius: 12px; display: none; place-items: center; text-align: center;
   font: 13px var(--vec); letter-spacing: .22em; color: var(--amber); background: #0d0a09cc; pointer-events: none; text-shadow: 0 0 12px #ffc93c88; }
@@ -58,14 +75,14 @@ body.dragging .hero .dropzone, .hero.growing .dropzone { display: grid; }
 @keyframes grow { 50% { border-color: #2fd6a8; color: #8ff0d2; } }
 
 .rail { position: relative; border-radius: 16px; background: linear-gradient(180deg, var(--rail-hi), var(--rail)); box-shadow: 0 0 0 1px #ffffff0a inset;
-  display: grid; grid-template-rows: 38px auto auto auto 1fr; gap: 12px; padding: 0 0 12px; overflow: hidden; }
+  display: grid; grid-template-rows: 38px auto auto auto auto 1fr; gap: 12px; padding: 0 0 12px; overflow: hidden; }
 .preset { display: flex; align-items: center; gap: 8px; padding: 0 10px 0 16px; background: #0f0f12; border-bottom: 1px solid #ffffff0a; }
 .preset .nm { font: 700 11px var(--sans); letter-spacing: .26em; }
 .preset .pn { flex: 1; font: 10px var(--vec); color: var(--amber); letter-spacing: .08em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: .85; }
 .pbtn { width: 26px; height: 26px; border-radius: 6px; background: #1d1d22; border: 1px solid #ffffff12; color: var(--txt); display: grid; place-items: center; cursor: pointer; font-size: 11px; }
 .row { display: flex; justify-content: space-around; align-items: flex-start; padding: 0 12px; }
 .minis { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 12px; }
-.mini { position: relative; height: 200px; border-radius: 10px; background: #0d0a09; box-shadow: 0 0 0 1px #ffffff0a inset; overflow: hidden; }
+.mini { position: relative; height: 150px; border-radius: 10px; background: #0d0a09; box-shadow: 0 0 0 1px #ffffff0a inset; overflow: hidden; }
 .g6 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px 0; padding: 0 6px; }
 .pmenu { position: absolute; left: 0; right: 0; top: 38px; bottom: 0; z-index: 5; display: none; align-content: start; gap: 6px; padding: 14px 14px 18px;
   background: rgba(13,10,9,.96); backdrop-filter: blur(4px); overflow: auto; border-top: 1px solid #ff8a1f33; }
@@ -118,7 +135,8 @@ body.dragging .hero .dropzone, .hero.growing .dropzone { display: grid; }
       <div class="axis x" style="color:var(--amber)">POSITION<b id="axX"></b></div>
       <div class="hud" id="hud"></div>
       <div class="tbtns"><label class="tbtn load" for="loadIn" title="Grow a wavetable from a sound file">⇪ LOAD SOUND…</label><input id="loadIn" type="file" accept="audio/*,.wav,.aif,.aiff,.mp3,.m4a,.flac" hidden>
-        <div class="tbtn" id="factory" title="Back to the factory table">↺ ORPHEO TABLE</div></div>
+        <div class="tbtn tab" id="tableBtn" title="Choose the wavetable">TABLE ☰</div></div>
+      <div class="tmenu" id="tmenu"></div>
       <div class="dropzone" id="dropzone"><div>DROP AUDIO TO GROW A WAVETABLE<small>voice · synth · bass · drums · any sound</small></div></div>
     </div>
     <div class="rail">
@@ -126,6 +144,7 @@ body.dragging .hero .dropzone, .hero.growing .dropzone { display: grid; }
       <div class="row" id="big"></div>
       <div class="minis"><div class="mini"><canvas id="frameView"></canvas></div><div class="mini"><canvas id="filtView"></canvas></div></div>
       <div class="g6" id="small"></div>
+      <div class="scanrow"><span class="lbl">SCAN</span><div class="seg" id="scanSeg"></div><div id="scanK"></div></div>
       <div></div>
       <div class="pmenu" id="pmenu"></div>
     </div>
@@ -153,9 +172,10 @@ const VF = "'Share Tech Mono', ui-monospace, monospace";
 const log = m => { if (HOST) window.webkit.messageHandlers.lab.postMessage({ type: "log", msg: String(m) }); else console.log(m); };
 
 // ===================================================================== parameters (plain values; mirror plugin/synth/params.h)
-const DEF = { "Position": 40, "Unison": 1, "Detune": 15, "Spread": 60, "Sub": 0, "Cutoff": 20000, "Resonance": 10, "Filter Env": 0, "Position Env": 0,
+const DEF = { "Table": 0, "Scan": 0, "Scan Speed": 1, "Position": 40, "Unison": 1, "Detune": 15, "Spread": 60, "Sub": 0, "Cutoff": 20000, "Resonance": 10, "Filter Env": 0, "Position Env": 0,
   "Attack": 3, "Decay": 300, "Sustain": 80, "Release": 300, "Mod Attack": 3, "Mod Decay": 600, "Velocity": 60, "Drive": 0, "Output": 0 };
 const P = { ...DEF };
+let NF = 64;  // frames in the table being played (6 .. 64)
 const K = {};
 let userEdit = 0;
 function setParam(name, v) { P[name] = v; userEdit = performance.now(); if (HOST) window.webkit.messageHandlers.lab.postMessage({ type: "param", name, value: v }); }
@@ -206,7 +226,7 @@ const repaintMods = () => { K["Position"] && K["Position"].repaint(); K["Cutoff"
 const CUT_OCT = Math.log2(20000 / 20);
 
 // ===================================================================== layout
-knob($("#big"), { name: "Position", min: 0, max: 100, size: 84, color: COL.amber, fmt: v => "FRAME " + (1 + Math.round(v / 100 * 63)),
+knob($("#big"), { name: "Position", min: 0, max: 100, size: 84, color: COL.amber, fmt: v => "FRAME " + (1 + Math.round(v / 100 * (NF - 1))),
   mod: () => [{ amt: P["Position Env"] / 100, col: COL.violet }] });
 knob($("#big"), { name: "Cutoff", min: 20, max: 20000, log: true, size: 84, color: COL.orange, fmt: hz,
   mod: () => [{ amt: P["Filter Env"] / 100 * 6 / CUT_OCT, col: COL.violet }] });
@@ -229,13 +249,28 @@ $("#modR").children[1].querySelector(".name").textContent = "→ CUTOFF";
 knob($("#velK"), { name: "Velocity", min: 0, max: 100, size: 64, color: COL.red, fmt: pct });
 
 // ===================================================================== the wavetable (same spectra as dsp/WavetableSynth.h)
-const NF = 64, NP = 128;
+const NP = 128;
 function amp(f, h) {
   const seg = Math.floor(f / 16), t = (f % 16) / 15;
   const sine = h === 1 ? 1 : 0, tri = h % 2 ? (Math.floor(h / 2) % 2 ? -1 : 1) / (h * h) : 0, saw = 1 / h, sq = h % 2 ? 1 / h : 0;
   const vowel = () => { const f1 = 3 + 4 * t, f2 = 9 + 9 * t, lh = Math.log2(h);
     const g = Math.exp(-(((lh - Math.log2(f1)) / .35) ** 2)) + .7 * Math.exp(-(((lh - Math.log2(f2)) / .3) ** 2)); return (.08 + g) / Math.sqrt(h); };
   return [(1 - t) * sine + t * tri, (1 - t) * tri + t * saw, (1 - t) * saw + t * sq, (1 - t) * sq + t * vowel()][seg];
+}
+// browser preview only: the built-in tables drawn from their shapes (the plugin sends the real ones)
+const SH = { saw: t => 1 - 2 * t, sq: t => t < .5 ? 1 : -1, pulse: (t, d) => t < d ? 1 : -1, tri: t => 1 - 4 * Math.abs(t - .5),
+  shark: t => t < .75 ? -1 + 2 * t / .75 : 1 - 2 * (t - .75) / .25, sync: (t, r) => { const x = t * r; return 1 - 2 * (x - Math.floor(x)); } };
+function shapeTable(fns) { return fns.map(fn => { const w = new Float32Array(NP); for (let i = 0; i < NP; i++) w[i] = fn((i + .5) / NP); return w; }); }
+function previewTable(i) {
+  if (i === 0 || i === 5) { NF = 64; buildWT(); TN = i ? "GROWN" : "ORPHEO"; }
+  else {
+    const r = (n, f) => Array.from({ length: n }, (_, k) => f(k / (n - 1)));
+    WT = shapeTable([null, [SH.tri, SH.shark, SH.saw, SH.sq, t => SH.pulse(t, .3), t => SH.pulse(t, .1)],
+      r(32, u => t => SH.pulse(t, .5 - .45 * u)), r(32, u => t => SH.sync(t, 1 + 7 * u)),
+      r(16, u => t => (1 - .6 * u) * SH.saw(t) + (.4 + .6 * u) * SH.pulse(t, .5 - .4 * u))][i]).map(w => { let pk = 1e-9; w.forEach(x => pk = Math.max(pk, Math.abs(x))); return w.map(x => x / pk); });
+    NF = WT.length; TN = TABLES[i][0];
+  }
+  TI = "BUILT-IN " + NF + " FRAMES"; K["Position"].repaint();
 }
 let WT = [];
 function buildWT() {
@@ -277,12 +312,12 @@ function bloom(c) { let b = c.nextElementSibling; if (!b || !b.classList.contain
 let padDrag = null;
 function drawLand(now) {
   const c = $("#land"), [g, W, H] = fit(c);
-  const ox = 96, oy = H - 128, ww = 380, amp_ = 38, dx = 2.45, dy = 3.7;   // frame f sits at (ox + f*dx, oy - f*dy)
+  const span = 63 / Math.max(1, NF - 1), ox = 96, oy = H - 128, ww = 380, amp_ = 38, dx = 2.45 * span, dy = 3.7 * span;   // frame f sits at (ox + f*dx, oy - f*dy)
   const P0 = P["Position"] / 100;
   const ridge = (w, f) => { const x0 = ox + f * dx, y0 = oy - f * dy; g.beginPath(); for (let k = 0; k <= NP; k++) { const s = w[k % NP]; const x = x0 + ww * k / NP, y = y0 - s * amp_; k ? g.lineTo(x, y) : g.moveTo(x, y); } };
   // floor grid
   g.strokeStyle = "#2a2622"; g.lineWidth = 1;
-  for (let f = 0; f < NF; f += 7) { g.beginPath(); g.moveTo(ox + f * dx, oy - f * dy + amp_ + 6); g.lineTo(ox + f * dx + ww, oy - f * dy + amp_ + 6); g.stroke(); }
+  for (let f = 0; f < NF; f += Math.max(1, Math.round(7 / span))) { g.beginPath(); g.moveTo(ox + f * dx, oy - f * dy + amp_ + 6); g.lineTo(ox + f * dx + ww, oy - f * dy + amp_ + 6); g.stroke(); }
   for (let k = 0; k <= 8; k++) { g.beginPath(); g.moveTo(ox + ww * k / 8, oy + amp_ + 6); g.lineTo(ox + ww * k / 8 + (NF - 1) * dx, oy - (NF - 1) * dy + amp_ + 6); g.stroke(); }
   for (let f = NF - 1; f >= 0; f--) {
     const near = Math.abs(f / (NF - 1) - P0) * (NF - 1);
@@ -333,7 +368,7 @@ function drawFrame() {
     g.beginPath(); for (let k = 0; k <= NP; k++) { const s = w[(k + ph + NP) % NP]; const X = 14 + off + (W - 28) * k / NP, Y = H / 2 + 6 - s * (H / 2 - 22); k ? g.lineTo(X, Y) : g.moveTo(X, Y); }
     glow(g, u === (n - 1) / 2 || n === 1 ? COL.amber : rgba(COL.teal, .55), 8); g.lineWidth = u === (n - 1) / 2 || n === 1 ? 1.8 : 1; g.stroke();
   }
-  g.shadowBlur = 0; text(g, "FRAME " + (1 + Math.round(P["Position"] / 100 * 63)), 10, 16, COL.amber, 10); text(g, n + "×", W - 10, 16, COL.teal, 10, "right");
+  g.shadowBlur = 0; text(g, "FRAME " + (1 + Math.round(P["Position"] / 100 * (NF - 1))), 10, 16, COL.amber, 10); text(g, n + "×", W - 10, 16, COL.teal, 10, "right");
   bloom($("#frameView"));
 }
 // mini: the low-pass response, with how far the mod envelope opens it
@@ -383,8 +418,9 @@ const PRESETS = [
 let cur = 0;
 function applyPreset(i) {
   cur = (i + PRESETS.length) % PRESETS.length; const [nm, , p] = PRESETS[cur], all = { ...DEF, ...p };
-  for (const k in all) { P[k] = all[k]; K[k] && K[k].set(all[k]); }
-  repaintMods(); $("#pn").textContent = nm; $("#pmenu").classList.remove("open");
+  if (!("Table" in p)) delete all["Table"];  // a preset keeps your table unless it names one
+  for (const k in all) { P[k] = all[k]; if (K[k]) K[k].set(all[k]); else setParam(k, all[k]); }
+  repaintMods(); syncScan(); $("#pn").textContent = nm; $("#pmenu").classList.remove("open");
 }
 $("#pmenu").innerHTML = PRESETS.map(([n, d, , f], i) => `<button data-i="${i}" class="${f ? "flag" : ""}">${n}<small>${d}</small></button>`).join("");
 $("#pmenu").addEventListener("click", e => { const b = e.target.closest("[data-i]"); if (b) applyPreset(+b.dataset.i); });
@@ -421,21 +457,42 @@ addEventListener("dragleave", () => { if (--dragDepth <= 0) { dragDepth = 0; doc
 addEventListener("dragover", e => e.preventDefault());
 addEventListener("drop", e => { e.preventDefault(); dragDepth = 0; document.body.classList.remove("dragging"); const f = e.dataTransfer && e.dataTransfer.files[0]; if (f) growFrom(f); });
 $("#loadIn").addEventListener("change", e => { const f = e.target.files[0]; if (f) growFrom(f); e.target.value = ""; });
-$("#factory").onclick = () => { if (HOST) window.webkit.messageHandlers.lab.postMessage({ type: "factory" }); else { TN = "ORPHEO"; TI = "FACTORY"; buildWT(); } };
+// ---- the table menu: five built-in tables, the grown one, and loading a new sound
+const TABLES = [["ORPHEO", "sine → saw → square → voice"], ["MOOG", "the Minimoog's six waves"], ["PWM", "position = pulse width"],
+  ["SYNC", "position = hard-sync sweep"], ["JUNO", "the DCO: saw into narrowing pulse"]];
+let GROWN = "";
+function renderTableMenu() {
+  const cur = Math.round(P["Table"]);
+  $("#tmenu").innerHTML = TABLES.map(([n, d], i) => `<button data-t="${i}" class="${i === cur ? "on" : ""}">${n}<small>${d}</small></button>`).join("") +
+    `<button data-t="5" class="grown ${cur === 5 ? "on" : ""}" ${GROWN ? "" : "disabled"}>${GROWN ? "GROWN · " + GROWN : "GROWN"}<small>${GROWN ? "from your sound" : "load or drop a sound"}</small></button>`;
+}
+$("#tableBtn").onclick = () => { renderTableMenu(); $("#tmenu").classList.toggle("open"); };
+$("#tmenu").addEventListener("click", e => { const b = e.target.closest("[data-t]"); if (!b || b.disabled) return; chooseTable(+b.dataset.t); $("#tmenu").classList.remove("open"); });
+function chooseTable(i) { setParam("Table", i); if (!HOST) previewTable(i); }
+$("#hero").addEventListener("pointerdown", e => { if (!e.target.closest(".tmenu,#tableBtn")) $("#tmenu").classList.remove("open"); }, true);
+
+const SCANS = ["OFF", "ONCE", "LOOP", "PING-PONG"];
+$("#scanSeg").innerHTML = SCANS.map((n, i) => `<button data-i="${i}">${n}</button>`).join("");
+$("#scanSeg").addEventListener("click", e => { const b = e.target.closest("[data-i]"); if (b) { setParam("Scan", +b.dataset.i); syncScan(); } });
+function syncScan() { $("#scanSeg").querySelectorAll("button").forEach((b, i) => b.classList.toggle("on", i === Math.round(P["Scan"]))); }
+knob($("#scanK"), { name: "Scan Speed", min: .25, max: 4, log: true, size: 40, color: COL.teal, fmt: v => v.toFixed(2) + "×" });
+syncScan();
 
 // ===================================================================== plugin bridge
 window.__host = h => {
-  if (h.wt && h.wt.length === NF) { WT = h.wt.map(a => Float32Array.from(a)); }
+  if (h.wt && h.wt.length >= 2) { WT = h.wt.map(a => Float32Array.from(a)); NF = WT.length; K["Position"].repaint(); }
   if (h.p && performance.now() - userEdit > 400) {
     let moved = false;
     for (const k in h.p) if (k in P && Math.abs(P[k] - h.p[k]) > 1e-6 * Math.max(1, Math.abs(P[k]))) { P[k] = h.p[k]; K[k] && K[k].set(h.p[k], true); moved = true; }
     if (moved) repaintMods();
   }
-  if (h.tn != null) { TN = h.tn; TI = h.ti || ""; $("#factory").classList.toggle("show", TI !== "FACTORY"); }
-  if (pending) {  // growing: wait for the plugin to start and finish
+  if (h.tn != null) { TN = h.tn; TI = h.ti || ""; GROWN = h.grown || ""; $("#tableBtn").textContent = "TABLE ☰"; }
+  if (pending) {  // growing: wait for the plugin to start and finish, then play the new table
     if (h.busy) pending.seen = true;
-    if ((pending.seen && !h.busy) || performance.now() - pending.t > 30000) { pending = null; setGrowing(false, DROP_LABEL); }
+    if (pending.seen && !h.busy) { pending = null; setGrowing(false, DROP_LABEL); setParam("Table", 5); }
+    else if (performance.now() - pending.t > 30000) { pending = null; setGrowing(false, DROP_LABEL); }
   }
+  syncScan();
   voices = (h.v || []).map(([note, pos, a, m]) => ({ note, pos, amp: a, mod: m }));
   outLevel = Math.max(h.out || 0, outLevel * .85);
   frame();
@@ -484,7 +541,10 @@ function simulate() {
   const now = performance.now() / 1000; voices = [];
   for (let i = sim.length - 1; i >= 0; i--) { const v = sim[i], en = envAt(v, now);
     if (v.toff != null && en.a < .002) { sim.splice(i, 1); continue; }
-    voices.push({ note: v.note, pos: Math.max(0, Math.min(1, P["Position"] / 100 + P["Position Env"] / 100 * en.m)), amp: en.a, mod: en.m }); }
+    let base = P["Position"] / 100;
+    if (P["Scan"] > 0) { let s = (now - v.t0) * P["Scan Speed"] / 2;  // built-in tables scan over 2 s
+      s = P["Scan"] === 1 ? Math.min(1, s) : P["Scan"] === 2 ? s % 1 : (Math.floor(s) % 2 ? 1 - s % 1 : s % 1); base += (1 - base) * s; }
+    voices.push({ note: v.note, pos: Math.max(0, Math.min(1, base + P["Position Env"] / 100 * en.m)), amp: en.a, mod: en.m }); }
   outLevel = Math.max(outLevel * .9, voices.reduce((s, v) => s + v.amp * .25, 0));
 }
 

@@ -48,14 +48,19 @@ private:
     // grown wavetables: analysed on a worker thread, swapped in atomically, saved in the state
     void onEditorMessage(const std::string& type, const std::string& name, const std::string& data, double value);
     void growTable(std::vector<float> audio, double sr, std::string name);
-    void installTable(std::vector<wt::Spectrum> spectra, std::string name, std::string info);
+    void installTable(std::vector<wt::Spectrum> spectra, std::string name, std::string info, double seconds);
     void useFactoryTable();
+    const wt::Wavetable* pickTable(int tableParam) const;  // any thread: the table a Table value means
     std::mutex tableMx;                        // guards everything below (never taken on the audio thread)
     std::unique_ptr<wt::Wavetable> custom, retired;
     std::vector<wt::Spectrum> customSpectra;   // what the state saves
     std::string tableName = "ORPHEO", tableInfo = "FACTORY";
     std::thread worker;
     std::atomic<bool> growing{false};
+    double customSeconds = 0;
+    std::atomic<const wt::Wavetable*> customPtr{nullptr};  // what the audio thread may play as GROWN
+    std::atomic<bool> tableDirty{false};                    // a grown table arrived: re-pick the table
+    const wt::Wavetable* lastShown = nullptr;               // editor thread: which table the face has
     void setFromEditor(const std::string& name, double plain);
 };
 
