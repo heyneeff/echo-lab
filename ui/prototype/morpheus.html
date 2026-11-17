@@ -99,7 +99,11 @@ body.dragging .hero .dropzone, .hero.growing .dropzone { display: grid; }
 .g6 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px 0; padding: 0 6px; }
 .pmenu { position: absolute; left: 240px; right: 240px; top: 58px; max-height: 560px; z-index: 15; border-radius: 12px; box-shadow: 0 20px 50px #000c; display: none; align-content: start; gap: 6px; padding: 14px 14px 18px;
   background: rgba(13,10,9,.96); backdrop-filter: blur(4px); overflow: auto; border-top: 1px solid #ff8a1f33; }
-.pmenu.open { display: grid; }
+.pmenu.open { display: block; columns: 5; column-gap: 8px; overflow: auto; left: 16px; right: 16px; max-height: 700px; }
+.pmenu.open button { display: grid; gap: 1px; width: 100%; padding: 6px 10px; font-size: 11px; justify-content: stretch; }
+.pmenu.open button small { font-size: 9px; }
+.pmenu .psec { break-inside: avoid; display: grid; gap: 4px; margin-bottom: 12px; }
+.pmenu .psec .ph { font: 600 13px var(--cond, sans-serif); letter-spacing: .16em; color: var(--rust, #ff5a36); border-bottom: 1px solid #3a2a20; padding-bottom: 3px; margin: 0; }
 .pmenu button { font: 12px var(--vec); letter-spacing: .1em; text-align: left; color: #ffd27a; background: #141417; border: 1px solid #ff8a1f2e;
   padding: 10px 12px; border-radius: 7px; cursor: pointer; display: flex; justify-content: space-between; gap: 10px; }
 .pmenu button small { color: var(--dim); font-size: 10px; letter-spacing: .06em; }
@@ -1158,6 +1162,15 @@ function drawMeter() {  // horizontal, in the header
 
 // ===================================================================== presets
 const R = list => Object.fromEntries(list.flatMap(([s, d, a], i) => [[`Mod ${i + 1} Source`, s], [`Mod ${i + 1} Dest`, d], [`Mod ${i + 1} Amount`, a]]));
+// TableForge tables by name (index = 6 + the recipe's position in dsp/TableForge.h, which is append-only)
+const FORGE = ["SAW TO SQUARE", "SHARK FIN", "WARM SAW", "TRI FOLD", "SQUARE SYNC", "OCTAVE SAW", "DIODE LADDER", "FM 1:1", "FM 1:2", "FM 2:1", "FM 1:3", "FM FEEDBACK",
+  "PHASE DISTORT", "CZ RESONANCE", "BITCRUSH", "SAMPLE CRUSH", "SINE FOLD", "OVERDRIVE", "ODD TO EVEN", "HARMONIC SWEEP", "MOVING COMB", "DRAWBARS", "GLASS", "SPECTRAL TILT",
+  "PRIMES", "GOLDEN", "DIGITAL DUST", "VOWELS LOW", "VOWELS HIGH", "CHOIR", "TALKBOX", "LYRE", "UNDERWORLD", "ELYSIUM", "STYX", "NOCTURNE"];
+const T = name => 6 + FORGE.indexOf(name);
+// categories for the first presets (newer ones carry theirs as the 5th field)
+const CAT_OF = { "ORPHEO · Dream Pad": "PAD", "Init": "INIT", "Glass Pluck": "PLUCK", "Supersaw Dream": "PAD", "Morph Bass": "BASS", "Minimoog Bass": "BASS", "Acid 303": "BASS",
+  "Juno Strings": "STRINGS", "Sync Scream": "LEAD", "Talking Pad": "PAD", "Wobble Bass": "BASS", "Vibrato Lead": "LEAD", "Slide Bass 303": "BASS", "Vowel Lead": "LEAD" };
+const CAT_ORDER = ["INIT", "PAD", "STRINGS", "SPACE", "BASS", "LEAD", "PLUCK", "KEYS", "BELL", "VOX", "SEQ", "FX"];
 const PRESETS = [
   ["ORPHEO · Dream Pad", "slow bloom through the table", { "Position": 30, "Position Env": 35, "Unison": 5, "Detune": 18, "Spread": 80, "Sub": 20, "Cutoff": 2500, "Resonance": 25, "Filter Env": 35, "Attack": 400, "Decay": 1500, "Sustain": 70, "Release": 1800, "Mod Attack": 600, "Mod Decay": 3000, "Velocity": 40, "Drive": 1.5, "Output": 0,
     "LFO1 Rate": .15, "LFO1 Mode": 1, "LFO2 Shape": 6, "LFO2 Rate": .4,
@@ -1179,6 +1192,69 @@ const PRESETS = [
     "LFO1 Rate": 5.5, "Env3 Attack": 700, "Env3 Sustain": 100, "Voice Mode": 2, "Glide": 60, ...R([[4, 2, 1.2], [3, 1, 30], [10, 2, 1.5]]) }],
   ["Slide Bass 303", "legato: overlapping notes slide", { "Table": 1, "Position": 40, "Filter Type": 2, "Cutoff": 380, "Resonance": 75, "Filter Env": 55, "Filter Drive": 10,
     "Voice Mode": 2, "Glide": 90, "Attack": 1, "Decay": 260, "Sustain": 45, "Release": 80, "Mod Attack": 1, "Mod Decay": 200, "Velocity": 70, ...R([[8, 3, 30]]) }],
+  // ---------------------------------------------------------------- the Morpheus bank (our own designs: TableForge, warps, FX, SPACE)
+  ["Underworld Drone", "dark table, slow drift, far away", { "Table": T("UNDERWORLD"), "Position": 20, "Scan": 3, "Scan Speed": .3, "Unison": 3, "Detune": 12, "Spread": 90, "Sub": 30, "Cutoff": 1400, "Resonance": 20, "Attack": 1200, "Decay": 2000, "Sustain": 90, "Release": 4000,
+    "Reverb On": 1, "Reverb Style": 5, "Reverb Decay": 9, "Reverb Mix": 40, "Space On": 1, "Space Distance": 70, "Space Orbit": 6, "Space Rate": 5, "Space Size": 60, "Space Room": 70 }, 0, "PAD"],
+  ["Elysium Choir", "airy voices that open", { "Table": T("CHOIR"), "Position": 10, "Position Env": 50, "Unison": 5, "Detune": 14, "Spread": 100, "Cutoff": 6000, "Attack": 700, "Decay": 2500, "Sustain": 85, "Release": 2500, "Mod Attack": 1500, "Mod Decay": 4000,
+    "Chorus On": 1, "Chorus Mode": 3, "Chorus Mix": 40, "Reverb On": 1, "Reverb Style": 6, "Reverb Decay": 5, "Reverb Mix": 35 }, 0, "PAD"],
+  ["Glass Cathedral", "square-number partials, big hall", { "Table": T("GLASS"), "Position": 60, "Unison": 3, "Detune": 8, "Spread": 80, "Cutoff": 9000, "Attack": 300, "Decay": 3000, "Sustain": 60, "Release": 3500,
+    "Reverb On": 1, "Reverb Style": 4, "Reverb Decay": 8, "Reverb Mix": 38, "Echo On": 1, "Echo Mode": 2, "Echo Note L": 6, "Echo Note R": 8, "Echo Mix": 18 }, 0, "PAD"],
+  ["Halo Rise", "climbs over your head", { "Table": T("ELYSIUM"), "Position": 30, "Position Env": 40, "Unison": 5, "Detune": 16, "Spread": 90, "Cutoff": 5000, "Attack": 900, "Decay": 3000, "Sustain": 80, "Release": 3000, "Mod Attack": 2500, "Mod Decay": 5000,
+    "Reverb On": 1, "Reverb Mix": 30, "Space On": 1, "Space Orbit": 2, "Space Rate": 4, "Space Size": 80, "Space Distance": 35, "Space Listen": 1 }, 0, "PAD"],
+  ["Nocturne Strings", "soft square into an 'o'", { "Table": T("NOCTURNE"), "Position": 35, "Unison": 4, "Detune": 18, "Spread": 90, "Filter Type": 3, "Cutoff": 3000, "Resonance": 10, "HPF": 2, "Attack": 450, "Decay": 1500, "Sustain": 85, "Release": 1400,
+    "LFO3 Shape": 1, "LFO3 Rate": .25, "LFO3 Mode": 1, "Chorus On": 1, "Chorus Mode": 2, "Chorus Mix": 35, "Reverb On": 1, "Reverb Mix": 25, ...R([[6, 1, 15]]) }, 0, "STRINGS"],
+  ["Breathing Room", "comes close, drifts away", { "Table": T("WARM SAW"), "Position": 45, "Unison": 5, "Detune": 20, "Spread": 100, "Cutoff": 2200, "Resonance": 15, "Attack": 600, "Decay": 2000, "Sustain": 80, "Release": 2500,
+    "Space On": 1, "Space Orbit": 7, "Space Rate": 3, "Space Size": 70, "Space Room": 60, "Reverb On": 1, "Reverb Mix": 20 }, 0, "SPACE"],
+  ["Orbiter", "circles your head every 2 bars", { "Table": T("PHASE DISTORT"), "Position": 40, "Unison": 2, "Detune": 8, "Cutoff": 4000, "Resonance": 20, "Attack": 20, "Decay": 800, "Sustain": 70, "Release": 900,
+    "Space On": 1, "Space Orbit": 1, "Space Rate": 2, "Space Distance": 30, "Space Listen": 1, "Echo On": 1, "Echo Mix": 15 }, 0, "SPACE"],
+  ["Fly-By", "swoops past, Doppler and all", { "Table": T("SAW TO SQUARE"), "Position": 30, "Unison": 3, "Detune": 12, "Cutoff": 5000, "Attack": 10, "Decay": 600, "Sustain": 80, "Release": 700,
+    "Space On": 1, "Space Orbit": 4, "Space Rate": 3, "Space Size": 90, "Space Distance": 40 }, 0, "SPACE"],
+  ["Falling Star", "drops from above, bright to dark", { "Table": T("HARMONIC SWEEP"), "Position": 90, "Position Env": -70, "Cutoff": 9000, "Filter Env": -20, "Attack": 1, "Decay": 2500, "Sustain": 0, "Release": 2500, "Mod Attack": 1, "Mod Decay": 2500,
+    "Space On": 1, "Space Orbit": 3, "Space Rate": 1, "Space Size": 80, "Reverb On": 1, "Reverb Mix": 30 }, 0, "SPACE"],
+
+  ["FM Growl", "1:2 FM, the index rises with the env", { "Table": T("FM 1:2"), "Position": 10, "Position Env": 55, "Unison": 1, "Sub": 50, "Filter Type": 1, "Cutoff": 900, "Resonance": 25, "Filter Env": 40, "Filter Drive": 8, "Attack": 1, "Decay": 350, "Sustain": 50, "Release": 150, "Mod Attack": 1, "Mod Decay": 400, "Drive": 3 }, 0, "BASS"],
+  ["Reese Darkness", "detuned saws, slow phase drift", { "Table": T("WARM SAW"), "Position": 80, "Unison": 4, "Detune": 22, "Spread": 30, "Sub": 40, "Filter Type": 1, "Cutoff": 700, "Resonance": 20, "Attack": 2, "Decay": 500, "Sustain": 90, "Release": 200,
+    "LFO3 Rate": .15, "LFO3 Mode": 1, "Drive": 2.5, ...R([[6, 1, 10], [6, 3, 8]]) }, 0, "BASS"],
+  ["Fold Bass", "a wavefolder that bites harder", { "Table": T("TRI FOLD"), "Position": 15, "Position Env": 45, "Sub": 45, "Cutoff": 2400, "Resonance": 15, "Attack": 1, "Decay": 300, "Sustain": 55, "Release": 120, "Mod Attack": 1, "Mod Decay": 280, "Velocity": 60, ...R([[8, 1, 25]]) }, 0, "BASS"],
+  ["Crushed Sub", "bitcrushed, with a clean sub under", { "Table": T("BITCRUSH"), "Position": 55, "Sub": 70, "Filter Type": 0, "Cutoff": 1800, "Attack": 1, "Decay": 400, "Sustain": 70, "Release": 120, "Drive": 2, "Drive Style": 1 }, 0, "BASS"],
+  ["Talk Bass", "a vowel that speaks on each note", { "Table": T("TALKBOX"), "Position": 0, "Position Env": 70, "Sub": 40, "Cutoff": 3000, "Attack": 1, "Decay": 450, "Sustain": 40, "Release": 150, "Mod Attack": 5, "Mod Decay": 500, "Drive": 2 }, 0, "BASS"],
+  ["Pump Bass", "sidechain feel, locked to the beat", { "Table": T("OCTAVE SAW"), "Position": 60, "Sub": 50, "Filter Type": 1, "Cutoff": 600, "Resonance": 30, "Filter Env": 30, "Attack": 1, "Decay": 300, "Sustain": 80, "Release": 150, "Mod Decay": 250,
+    "Pump On": 1, "Pump Rate": 2, "Pump Depth": 65 }, 0, "BASS"],
+
+  ["CZ Lead", "phase distortion, a resonant edge", { "Table": T("CZ RESONANCE"), "Position": 20, "Position Env": 40, "Unison": 2, "Detune": 10, "Cutoff": 7000, "Attack": 3, "Decay": 500, "Sustain": 80, "Release": 300, "Mod Decay": 900, "Voice Mode": 2, "Glide": 40,
+    "Echo On": 1, "Echo Note L": 6, "Echo Mix": 20 }, 0, "LEAD"],
+  ["Prime Lead", "prime harmonics only: strange and bright", { "Table": T("PRIMES"), "Position": 50, "Unison": 3, "Detune": 12, "Spread": 60, "Cutoff": 8000, "Resonance": 15, "Attack": 5, "Decay": 400, "Sustain": 85, "Release": 300, "LFO1 Rate": 5.5, "Env3 Attack": 600, "Env3 Sustain": 100, ...R([[4, 2, 1], [3, 1, 20]]) }, 0, "LEAD"],
+  ["Square Sync Lead", "sync on a square, the mod wheel sweeps it", { "Table": T("SQUARE SYNC"), "Position": 10, "Unison": 2, "Detune": 6, "Cutoff": 6000, "Attack": 2, "Decay": 300, "Sustain": 90, "Release": 200, "Voice Mode": 1, "Glide": 30, ...R([[10, 1, 70]]) }, 0, "LEAD"],
+  ["Overdrive Solo", "tanh drive from soft to square", { "Table": T("OVERDRIVE"), "Position": 30, "Position Env": 30, "Unison": 2, "Detune": 8, "Cutoff": 5000, "Filter Type": 1, "Resonance": 20, "Attack": 2, "Decay": 600, "Sustain": 85, "Release": 300, "Mod Decay": 1200, "Drive": 3, "Drive Style": 3,
+    "Echo On": 1, "Echo Style": 1, "Echo Note L": 6, "Echo Mix": 22, "Reverb On": 1, "Reverb Mix": 15 }, 0, "LEAD"],
+
+  ["Lyre", "a plucked string, bright to soft", { "Table": T("LYRE"), "Position": 80, "Position Env": -60, "Cutoff": 9000, "Attack": 1, "Decay": 900, "Sustain": 0, "Release": 900, "Mod Attack": 1, "Mod Decay": 700, "Velocity": 70,
+    "Reverb On": 1, "Reverb Mix": 22, "Echo On": 1, "Echo Mode": 2, "Echo Mix": 14 }, 0, "PLUCK"],
+  ["Golden Pluck", "Fibonacci partials", { "Table": T("GOLDEN"), "Position": 70, "Position Env": -50, "Cutoff": 7000, "Filter Env": 30, "Attack": 1, "Decay": 500, "Sustain": 0, "Release": 500, "Mod Decay": 400, "Unison": 2, "Detune": 6, "Spread": 70,
+    "Echo On": 1, "Echo Note L": 5, "Echo Note R": 6, "Echo Mix": 20 }, 0, "PLUCK"],
+  ["Dust Pluck", "digital dust, short and grainy", { "Table": T("DIGITAL DUST"), "Position": 50, "Position Env": 30, "Cutoff": 6000, "Resonance": 25, "Filter Env": 40, "Attack": 1, "Decay": 250, "Sustain": 0, "Release": 300, "Mod Decay": 200, "Noise": 6, "Noise Color": 3 }, 0, "PLUCK"],
+  ["FM Mallet", "2:1 FM marimba-ish", { "Table": T("FM 2:1"), "Position": 60, "Position Env": -60, "Cutoff": 9000, "Attack": 1, "Decay": 700, "Sustain": 0, "Release": 600, "Mod Attack": 1, "Mod Decay": 300, "Velocity": 70, "Reverb On": 1, "Reverb Style": 2, "Reverb Mix": 18 }, 0, "PLUCK"],
+
+  ["Drawbar Organ", "flute to full, the wheel adds bars", { "Table": T("DRAWBARS"), "Position": 40, "Cutoff": 12000, "Attack": 3, "Decay": 200, "Sustain": 100, "Release": 80, "Chorus On": 1, "Chorus Mode": 1, "Chorus Mix": 50, ...R([[10, 1, 50]]) }, 0, "KEYS"],
+  ["Tine Keys", "a soft FM electric piano", { "Table": T("FM 1:1"), "Position": 30, "Position Env": -30, "Cutoff": 6000, "Attack": 1, "Decay": 1600, "Sustain": 30, "Release": 700, "Mod Attack": 1, "Mod Decay": 500, "Velocity": 80, "Chorus On": 1, "Chorus Mix": 30, "Reverb On": 1, "Reverb Style": 2, "Reverb Mix": 15 }, 0, "KEYS"],
+  ["Comb Keys", "a moving comb, like a phaser in the table", { "Table": T("MOVING COMB"), "Position": 20, "Scan": 3, "Scan Speed": .5, "Cutoff": 7000, "Attack": 2, "Decay": 1200, "Sustain": 50, "Release": 600, "Unison": 2, "Detune": 5 }, 0, "KEYS"],
+
+  ["Bell Tower", "glass partials, long ring", { "Table": T("GLASS"), "Position": 85, "Position Env": -40, "Cutoff": 12000, "Attack": 1, "Decay": 4000, "Sustain": 0, "Release": 4000, "Mod Decay": 2500, "Reverb On": 1, "Reverb Style": 4, "Reverb Mix": 30 }, 0, "BELL"],
+  ["Celesta", "FM 1:3, high and tiny", { "Table": T("FM 1:3"), "Position": 40, "Position Env": -40, "Cutoff": 10000, "Attack": 1, "Decay": 1200, "Sustain": 0, "Release": 1200, "Mod Decay": 600, "Echo On": 1, "Echo Mode": 2, "Echo Mix": 15, "Reverb On": 1, "Reverb Mix": 20 }, 0, "BELL"],
+
+  ["Vowel Morph", "A-E-I-O-U on the mod wheel", { "Table": T("VOWELS LOW"), "Position": 0, "Unison": 3, "Detune": 8, "Cutoff": 8000, "Attack": 20, "Decay": 800, "Sustain": 90, "Release": 600, ...R([[10, 1, 100]]) }, 0, "VOX"],
+  ["Choir of Ghosts", "high voices, wandering in space", { "Table": T("VOWELS HIGH"), "Position": 40, "Scan": 3, "Scan Speed": .25, "Unison": 5, "Detune": 15, "Spread": 100, "Cutoff": 7000, "Attack": 800, "Decay": 2000, "Sustain": 85, "Release": 2500,
+    "Reverb On": 1, "Reverb Mix": 35, "Space On": 1, "Space Orbit": 6, "Space Rate": 4, "Space Size": 50, "Space Distance": 50 }, 0, "VOX"],
+
+  ["Styx Sequence", "1/16 filter steps over FM fold", { "Table": T("STYX"), "Position": 35, "Cutoff": 1500, "Resonance": 45, "Filter Type": 2, "Attack": 1, "Decay": 200, "Sustain": 60, "Release": 120,
+    "LFO4 Shape": 5, "LFO4 Sync": 1, "LFO4 Note": 14, "LFO4 Mode": 1, "Echo On": 1, "Echo Note L": 6, "Echo Mix": 22, ...R([[7, 3, 35], [7, 1, 20]]) }, 0, "SEQ"],
+  ["Pulse Engine", "a gated 1/8 pump with the table stepping", { "Table": T("SAMPLE CRUSH"), "Position": 30, "Sub": 30, "Cutoff": 3000, "Attack": 1, "Decay": 300, "Sustain": 90, "Release": 100,
+    "LFO3 Shape": 4, "LFO3 Sync": 1, "LFO3 Note": 11, "LFO3 Mode": 1, "Pump On": 1, "Pump Rate": 3, "Pump Depth": 60, ...R([[6, 1, 25]]) }, 0, "SEQ"],
+
+  ["Static Rain", "vinyl noise through a comb, far away", { "Table": T("DIGITAL DUST"), "Osc A Level": 30, "Noise": 70, "Noise Color": 3, "Filter Type": 4, "Cutoff": 800, "Resonance": 60, "Attack": 1500, "Decay": 3000, "Sustain": 80, "Release": 4000,
+    "Reverb On": 1, "Reverb Style": 5, "Reverb Mix": 45, "Space On": 1, "Space Distance": 80, "Space Orbit": 6, "Space Rate": 5 }, 0, "FX"],
+  ["Riser", "climbs for 4 bars and leaves above", { "Table": T("HARMONIC SWEEP"), "Position": 0, "Unison": 7, "Detune": 30, "Spread": 100, "Noise": 25, "Cutoff": 600, "Attack": 4000, "Decay": 100, "Sustain": 100, "Release": 1500,
+    "Env3 Attack": 8000, "Env3 Sustain": 100, "Space On": 1, "Space Orbit": 2, "Space Rate": 3, "Space Size": 100, "Reverb On": 1, "Reverb Mix": 30, ...R([[3, 1, 100], [3, 3, 80], [3, 2, 12]]) }, 0, "FX"],
   ["Vowel Lead", "the voice at the end of the table", { "Position": 85, "Position Env": -20, "Unison": 3, "Detune": 10, "Spread": 50, "Cutoff": 6000, "Resonance": 15, "Filter Env": 10, "Attack": 5, "Decay": 300, "Sustain": 90, "Release": 250, "Mod Decay": 800, "Drive": 3 }],
 ];
 let cur = 0;
@@ -1189,7 +1265,9 @@ function applyPreset(i) {
   repaintMods(); syncScan(); renderFxState(); renderFinish(); $("#pn").textContent = nm; $("#pmenu").classList.remove("open");
   if (HOST) window.webkit.messageHandlers.lab.postMessage({ type: "pname", name: nm });
 }
-$("#pmenu").innerHTML = PRESETS.map(([n, d, , f], i) => `<button data-i="${i}" class="${f ? "flag" : ""}">${n}<small>${d}</small></button>`).join("");
+const catOf = pr => pr[4] || CAT_OF[pr[0]] || "SYNTH";
+$("#pmenu").innerHTML = CAT_ORDER.concat(["SYNTH"]).map(c => { const items = PRESETS.map((pr, i) => [pr, i]).filter(([pr]) => catOf(pr) === c);
+  return items.length ? `<div class="psec"><div class="ph">${c}</div>${items.map(([[n, d, , f], i]) => `<button data-i="${i}" class="${f ? "flag" : ""}">${n}<small>${d}</small></button>`).join("")}</div>` : ""; }).join("");
 $("#pmenu").addEventListener("click", e => { const b = e.target.closest("[data-i]"); if (b) applyPreset(+b.dataset.i); });
 $("#pm").onclick = () => $("#pmenu").classList.toggle("open");
 $("#prev").onclick = () => applyPreset(cur - 1); $("#next").onclick = () => applyPreset(cur + 1);
