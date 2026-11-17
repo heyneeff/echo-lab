@@ -30,12 +30,28 @@ FIELDS = ["loopHPHz", "loopLPHz", "loopLP2Hz", "loopTiltDb", "shelfHz", "loopPea
           "satBias", "satKnee", "wowCents", "wowRateHz", "flutterCents", "flutterRateHz",
           "noiseDb", "noiseLPHz", "outputDb"]
 INTS = {"wetLPPoles", "satType"}
+# hand-voiced styles (no reference to fit): first sketches, refined by ear with Neeff
+VOICED = {
+    # ORPHEO v0.1 (Nov 16): warm, slightly worn tape: repeats lose air gently, a little body
+    # bump, soft record-head saturation, slow wow + faint flutter, a whisper of hiss. Wide Dual
+    # is the flagship preset (set in the face presets).
+    "ORPHEO": {"loopHPHz": 90, "loopLPHz": 7800, "loopTiltDb": 1.2, "shelfHz": 3500, "loopPeakHz": 420,
+               "loopPeakDb": 0.6, "loopPeakQ": 0.7, "wetHPHz": 60, "wetLPHz": 11500, "wetLPPoles": 2,
+               "satType": 3, "satDrive": 1.05, "satBias": 0.02, "satKnee": 0.45, "wowCents": 7,
+               "wowRateHz": 0.8, "flutterCents": 2.5, "flutterRateHz": 5.5, "noiseDb": -78,
+               "noiseLPHz": 6000, "outputDb": -1.0},
+}
 
 
 def main():
     entries = []
     for ours, ref in ORDER:
         f = os.path.join(HERE, "fits", (ref or "") + ".json")
+        if ours in VOICED:
+            v = VOICED[ours]
+            parts = ['.name = "%s"' % ours] + [".%s = %s" % (k, int(round(v[k])) if k in INTS else "%.6g" % v[k]) for k in FIELDS if k in v]
+            entries.append("    {%s},  // voiced by ear (no reference)" % ", ".join(parts))
+            continue
         if not ref or not os.path.exists(f):
             entries.append('    {.name = "%s (soon)", .satType = 2},  // placeholder: clean until fitted/voiced' % ours)
             continue

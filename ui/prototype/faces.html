@@ -119,6 +119,17 @@ html.host body { background: #0b0b0d; }
 #vFreeze button.on { color: #0b0b0d; background: #8fd8ff; box-shadow: 0 0 14px #8fd8ff99; }
 .bloom { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; filter: blur(3px) brightness(1.7) saturate(1.3); mix-blend-mode: screen; opacity: .9; }
 .hero .bloom, .mini .bloom { z-index: 1; }
+.rail { position: relative; }
+.preset .pn { font: 10px var(--vec); color: var(--amber); letter-spacing: .08em; max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: .85; }
+.pmenu { position: absolute; left: 0; right: 0; top: 38px; bottom: 0; z-index: 5; display: none; align-content: start; gap: 6px; padding: 14px 14px 18px;
+  background: rgba(13,10,9,.96); backdrop-filter: blur(4px); overflow: auto; border-top: 1px solid #ff8a1f33; }
+.pmenu.open { display: grid; }
+.pmenu .ph { font: 11px var(--vec); letter-spacing: .2em; color: var(--dim); margin: 2px 2px 6px; }
+.pmenu button { font: 12px var(--vec); letter-spacing: .1em; text-align: left; color: #ffd27a; background: #141417; border: 1px solid #ff8a1f2e;
+  padding: 10px 12px; border-radius: 7px; cursor: pointer; display: flex; justify-content: space-between; gap: 10px; }
+.pmenu button small { color: var(--dim); font-size: 10px; letter-spacing: .06em; }
+.pmenu button:hover { border-color: #ffc93c99; box-shadow: 0 0 12px #ffc93c33; color: #fff1c9; }
+.pmenu button.flag { border-color: #2fd6a866; color: #8ff0d2; }
 </style>
 </head>
 <body>
@@ -144,7 +155,7 @@ html.host body { background: #0b0b0d; }
       <div class="axis x" style="color:var(--teal)">TIME<b id="axTime"></b></div>
     </div>
     <div class="rail">
-      <div class="preset"><span class="nm" id="eStyleName"></span><div class="pbtn" id="ePrev">◁</div><div class="pbtn" id="eNext">▷</div></div>
+      <div class="preset"><div class="pbtn pm" id="ePm" title="Presets">☰</div><span class="nm" id="eStyleName"></span><span class="pn" id="ePn"></span><div class="pbtn" id="ePrev">◁</div><div class="pbtn" id="eNext">▷</div></div>
       <div class="row" id="eBig"></div>
       <div class="minis"><div class="mini"><canvas id="ladder"></canvas></div><div class="mini"><canvas id="duckScope"></canvas></div></div>
       <div class="grid4 g6" id="eSmall"></div>
@@ -163,7 +174,7 @@ html.host body { background: #0b0b0d; }
       <div class="axis x" style="color:var(--red)">DRIVE<b id="axDrive"></b></div>
     </div>
     <div class="rail">
-      <div class="preset"><span class="nm" id="dStyleName"></span><div class="pbtn" id="dPrev">◁</div><div class="pbtn" id="dNext">▷</div></div>
+      <div class="preset"><div class="pbtn pm" id="dPm" title="Presets">☰</div><span class="nm" id="dStyleName"></span><span class="pn" id="dPn"></span><div class="pbtn" id="dPrev">◁</div><div class="pbtn" id="dNext">▷</div></div>
       <div class="row" id="dBig"></div>
       <div class="minis"><div class="mini"><canvas id="harm"></canvas></div><div class="mini"><canvas id="scope"></canvas></div></div>
       <div class="grid4" id="dSmall"></div>
@@ -182,7 +193,7 @@ html.host body { background: #0b0b0d; }
       <div class="axis x" style="color:var(--teal)">SIZE<b id="axSize"></b></div>
     </div>
     <div class="rail">
-      <div class="preset"><span class="nm" id="vStyleName"></span><div class="pbtn" id="vPrev">◁</div><div class="pbtn" id="vNext">▷</div></div>
+      <div class="preset"><div class="pbtn pm" id="vPm" title="Presets">☰</div><span class="nm" id="vStyleName"></span><span class="pn" id="vPn"></span><div class="pbtn" id="vPrev">◁</div><div class="pbtn" id="vNext">▷</div></div>
       <div class="row" id="vBig"></div>
       <div class="minis"><div class="mini"><canvas id="decayView"></canvas></div><div class="mini"><canvas id="reflView"></canvas></div></div>
       <div class="grid4 g6" id="vSmall"></div>
@@ -330,7 +341,7 @@ function updateDrive() {
 const STYLES = [
   { n: "STUDIO", lp: 21000, hp: 12, wob: 0 }, { n: "SPACE TAPE", lp: 2689, hp: 123, wob: 9.5 }, { n: "PLEX", lp: 8971, hp: 42, wob: 3.8 }, { n: "MEMORY", lp: 7225, hp: 42, wob: 21.8 },
   { n: "DARK ANALOG", lp: 2739, hp: 54, wob: 0 }, { n: "DIGITAL", lp: 21000, hp: 46, wob: 0 }, { n: "RADIO", lp: 6387, hp: 76, wob: 0 }, { n: "ORPHEO", lp: 12000, hp: 40, wob: 4 }];
-const E = { time: 375, fb: 55, mix: 35, sat: 4, lo: 20, hi: 20000, wob: 100, duck: 60, rel: 250, width: 100, out: 0, style: 1, mode: 0, on: true, throw: 0, age: 0, space: 0, warp: 1 };
+const E = { time: 375, timeR: 500, fb: 55, mix: 35, sat: 4, lo: 20, hi: 20000, wob: 100, duck: 60, rel: 250, width: 100, out: 0, style: 1, mode: 0, on: true, throw: 0, age: 0, space: 0, warp: 1 };
 const TAPE = 2.2;
 // ---- LETHE (reverb) state; in the browser a convolution stand-in, in the plugin the real FDN engine
 const VSTY = [  // mirrors dsp/ReverbEngine.h (sizeMul, erLevel, erSpread, hfRatio, bassRatio) + room proportions for the display
@@ -387,7 +398,7 @@ function updateEcho() {
   const mode = E.mode, w = E.width / 100;
   lines.forEach((L, i) => {
     L.sat.curve = curve;
-    const Ti = mode === 1 && i === 1 ? Math.min(2, T * 1.5) : T;
+    const Ti = mode === 1 && i === 1 ? Math.min(2, (E.timeR || E.time * 1.5) / 1000) : T;
     L.delay.delayTime.setTargetAtTime(Ti, t, 0.06); // tape-like glide when Time moves
     L.hp.frequency.setTargetAtTime(Math.max(st.hp, E.lo), t, .02); L.lp.frequency.setTargetAtTime(Math.min(st.lp, E.hi, 20000), t, .02);
     const cents = (st.wob + 2) * E.wob / 100; L.lfoG.gain.value = Ti * (Math.pow(2, cents / 1200) - 1) * 0.6; L.flG.gain.value = Ti * (Math.pow(2, cents * .25 / 1200) - 1) * 0.3;
@@ -755,6 +766,68 @@ function drawRefl() { // timeline: pre-delay, the early reflection taps, then wh
   g.shadowBlur = 0; text(g, "L", W - 30, 30, V.amber, 9); text(g, "R", W - 20, 30, V.teal, 9);
 }
 
+// ===================================================================== PRESETS
+// Each preset is complete: it starts from the unit's defaults, so nothing from the last sound leaks in.
+const PDEF = {
+  echo: { time: 375, timeR: 500, fb: 40, mix: 30, sat: 0, lo: 20, hi: 20000, wob: 100, duck: 0, rel: 250, width: 100, out: 0, style: 0, mode: 0, throw: 0, age: 0, space: 0, warp: 1 },
+  drive: { drive: 4, style: 0, punish: false, tone: 0, mix: 100, auto: true, out: 0, pump: 0, rate: 1, filter: 20000, res: 20 },
+  reverb: { vsize: 100, vdecay: 2.5, vpre: 10, vstyle: 0, vmix: 30, vdamp: 6000, vbass: 100, vdiff: 100, vmod: 100, vearly: 100, vlo: 20, vhi: 20000, vwidth: 100, vduck: 0, vrel: 300, vfreeze: false, vout: 0 },
+};
+const PRESETS = {
+  echo: [
+    ["ORPHEO · Wide Dual", "warm tape, L 3/16 · R 1/4 at 120", { style: 7, mode: 1, time: 375, timeR: 500, fb: 42, mix: 32, sat: 4, lo: 120, duck: 35, rel: 300, width: 100 }, true],
+    ["Dub Throw", "space tape into the sky", { style: 1, time: 375, fb: 78, mix: 45, sat: 8, lo: 150, wob: 120 }],
+    ["Slapback", "one tight bounce", { style: 0, time: 95, fb: 8, mix: 28, sat: 2 }],
+    ["Ping-Pong Eighths", "clean, side to side", { style: 5, mode: 2, time: 250, fb: 45, mix: 30, hi: 7000, duck: 40 }],
+    ["Ducked Vocal Throw", "echo only in the gaps", { style: 2, time: 500, fb: 40, mix: 35, duck: 70, rel: 250, lo: 200, hi: 6000 }],
+    ["Haunted Memory", "seasick bucket-brigade", { style: 3, time: 620, fb: 62, mix: 40, wob: 160, age: 40, sat: 6 }],
+    ["Dark Abyss", "long, low, falling", { style: 4, time: 750, fb: 85, mix: 40, space: 50 }],
+    ["Radio Ghost", "a voice from far away", { style: 6, time: 300, fb: 55, mix: 35, lo: 400 }],
+    ["Init", "defaults", {}],
+  ],
+  drive: [
+    ["Warm Tape Glue", "gentle, everything sits", { style: 0, drive: 3 }],
+    ["Desk Crunch", "console pushed hard", { style: 1, drive: 5.5, tone: 1.5 }],
+    ["Justice Smash", "crushed, punished, pumping", { style: 5, drive: 7.5, punish: true, pump: 55, rate: 1, tone: 2 }, true],
+    ["Filtered House Pump", "tube, resonant low-pass, 1/4", { style: 3, drive: 4, pump: 60, rate: 1, filter: 900, res: 45 }],
+    ["Pentode Bass Grit", "fat even harmonics", { style: 4, drive: 6, tone: -2, mix: 70 }],
+    ["Iron Thickener", "transformer weight", { style: 2, drive: 4, mix: 60, tone: -1 }],
+    ["Stolen Fire", "everything at once", { style: 4, drive: 9, punish: true, filter: 3500, res: 60 }],
+    ["Parallel Punch", "smash blended under", { style: 1, drive: 7, mix: 35 }],
+    ["Init", "defaults", {}],
+  ],
+  reverb: [
+    ["Vocal Plate", "bright, short, ducked", { vstyle: 1, vdecay: 1.8, vpre: 25, vmix: 22, vdamp: 9000, vlo: 200, vduck: 30 }],
+    ["Big Hall", "wide and tall", { vstyle: 0, vsize: 130, vdecay: 3.2, vpre: 30, vmix: 28 }],
+    ["Drum Room", "walls you can hear", { vstyle: 2, vsize: 70, vdecay: .8, vpre: 0, vearly: 150, vmix: 20 }],
+    ["Chamber Warmth", "dark, round, close", { vstyle: 3, vdecay: 1.6, vdamp: 5000, vbass: 120, vmix: 25 }],
+    ["Cathedral", "stone, long, high", { vstyle: 4, vdecay: 6, vpre: 40, vmix: 35, vdamp: 4500 }],
+    ["Underworld Drone", "endless, moving, deep", { vstyle: 5, vsize: 200, vdecay: 18, vmix: 45, vmod: 160, vdamp: 3000 }, true],
+    ["Ducked Ambience", "space only between notes", { vstyle: 0, vdecay: 2.5, vmix: 35, vduck: 70, vrel: 400 }],
+    ["Oblivion", "huge; hit FREEZE to hold", { vstyle: 5, vsize: 180, vdecay: 30, vmix: 60, vmod: 120 }],
+    ["Init", "defaults", {}],
+  ],
+};
+const UOBJ = { echo: () => E, drive: () => D, reverb: () => RV };
+function refreshUnit(u) { const keep = UNIT; try { UNIT_OVERRIDE = u; refreshWidgets(); } finally { UNIT_OVERRIDE = null; } }
+let UNIT_OVERRIDE = null;
+function applyPreset(u, i) {
+  const [name, , vals] = PRESETS[u][i], o = UOBJ[u]();
+  Object.assign(o, PDEF[u], vals);
+  userEdit = performance.now();
+  refreshUnit(u);
+  if (u === "echo") updateEcho(); else if (u === "drive") updateDrive(); else updateVerb();
+  $({ echo: "#ePn", drive: "#dPn", reverb: "#vPn" }[u]).textContent = name;
+}
+for (const [u, m, rail] of [["echo", "#ePm", "#echo .rail"], ["drive", "#dPm", "#drive .rail"], ["reverb", "#vPm", "#verb .rail"]]) {
+  const menu = document.createElement("div"); menu.className = "pmenu";
+  menu.innerHTML = `<div class="ph">PRESETS</div>` + PRESETS[u].map(([n, d, , flag], i) => `<button data-i="${i}" class="${flag ? "flag" : ""}"><span>${n}</span><small>${d}</small></button>`).join("");
+  $(rail).appendChild(menu);
+  const toggle = () => menu.classList.toggle("open");
+  $(m).onclick = toggle; $(m).nextElementSibling.onclick = toggle;
+  menu.addEventListener("click", e => { const b = e.target.closest("[data-i]"); if (!b) return; applyPreset(u, +b.dataset.i); menu.classList.remove("open"); });
+}
+
 // ===================================================================== HOST BRIDGE
 function shape(x) { // in the plugin: the true transfer curve of the current voice (129 points over -1..1)
   if (!(HOST && H && H.curve)) return localShape(x);
@@ -779,7 +852,7 @@ function hostDriveSamples() {
 const offLow = { to: v => v < 21 ? 0 : v, from: v => v <= 0 ? 20 : v }, offHigh = { to: v => v > 19900 ? 0 : v, from: v => v <= 0 ? 20000 : v };
 const bool = { to: v => v ? 1 : 0, from: v => v > .5 };
 const MAP = {
-  echo: [[E, "time", "Time"], [E, "fb", "Feedback"], [E, "mix", "Mix"], [E, "sat", "Saturation"], [E, "lo", "Low Cut", offLow], [E, "hi", "High Cut", offHigh],
+  echo: [[E, "time", "Time"], [E, "timeR", "Time R"], [E, "fb", "Feedback"], [E, "mix", "Mix"], [E, "sat", "Saturation"], [E, "lo", "Low Cut", offLow], [E, "hi", "High Cut", offHigh],
          [E, "wob", "Wobble"], [E, "duck", "Duck"], [E, "rel", "Duck Release"], [E, "width", "Width"], [E, "out", "Output"], [E, "style", "Style"], [E, "mode", "Mode"],
          [E, "throw", "Throw"], [E, "age", "Age"], [E, "space", "Space"], [E, "warp", "Warp"]],
   drive: [[D, "drive", "Drive"], [D, "style", "Style"], [D, "punish", "Punish", bool], [D, "tone", "Tone"], [D, "mix", "Mix"], [D, "auto", "Auto Gain", bool],
@@ -791,10 +864,10 @@ MAP.reverb = [[RV, "vsize", "Size"], [RV, "vdecay", "Decay"], [RV, "vpre", "Pre-
 const KEYOF = { echo: { out: "eout" }, drive: { out: "dout" } };
 const sent = {};
 function refreshWidgets() { // put every control in the state the plugin reports, without sending anything back
-  const km = KEYOF[UNIT] || {};
-  for (const [o, f] of MAP[UNIT]) { const k = K[km[f] || f]; if (k && typeof o[f] === "number") k.set(o[f], true); }
-  if (UNIT === "echo") { eMix.set(E.mix); $("#eStyleName").textContent = STYLES[E.style].n; $("#eModes").querySelectorAll("button").forEach((b, i) => b.classList.toggle("on", i === E.mode)); }
-  else if (UNIT === "reverb") { vMix.set(RV.vmix); $("#vStyleName").textContent = VSTY[RV.vstyle] ? VSTY[RV.vstyle].n : ""; $("#vFreeze button").classList.toggle("on", RV.vfreeze); }
+  const U = UNIT_OVERRIDE || UNIT, km = KEYOF[U] || {};
+  for (const [o, f] of MAP[U]) { const k = K[km[f] || f]; if (k && typeof o[f] === "number") k.set(o[f], true); }
+  if (U === "echo") { eMix.set(E.mix); $("#eStyleName").textContent = STYLES[E.style].n; $("#eModes").querySelectorAll("button").forEach((b, i) => b.classList.toggle("on", i === E.mode)); }
+  else if (U === "reverb") { vMix.set(RV.vmix); $("#vStyleName").textContent = VSTY[RV.vstyle] ? VSTY[RV.vstyle].n : ""; $("#vFreeze button").classList.toggle("on", RV.vfreeze); }
   else { dMix.set(D.mix); $("#dStyleName").textContent = DSTY[D.style] ? DSTY[D.style].n : ""; $("#dRates").querySelectorAll("button").forEach((b, i) => b.classList.toggle("on", i === D.rate));
     $("#dAuto").querySelectorAll("button").forEach((b, i) => b.classList.toggle("on", i === (D.auto ? 0 : 1))); $("#punish").classList.toggle("on", D.punish); $("#punState").textContent = D.punish ? "+18 dB" : "SAFE"; }
 }

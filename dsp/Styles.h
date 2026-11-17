@@ -14,7 +14,7 @@ inline const Style kStyles[] = {
     {.name = "Dark Analog", .loopHPHz = 54.1109, .loopLPHz = 2738.64, .loopTiltDb = 2.06328, .shelfHz = 4719.91, .loopPeakHz = 269.426, .loopPeakDb = -0.000417583, .loopPeakQ = 0.799952, .wetHPHz = 553.315, .wetLPHz = 1500, .wetLPPoles = 4, .wetBrickHz = 4341.17, .satType = 3, .satDrive = 1.5271, .satBias = 0, .satKnee = 0.0100003, .outputDb = 7.79808},  // fit: total error 297.4
     {.name = "Digital", .loopHPHz = 45.5104, .loopLPHz = 21000, .loopTiltDb = 3.19253e-05, .shelfHz = 8000, .loopPeakHz = 644.397, .loopPeakDb = -0.00066207, .loopPeakQ = 0.851462, .wetHPHz = 10, .wetLPHz = 21000, .wetLPPoles = 4, .wetBrickHz = 21000, .satType = 3, .satDrive = 0.05, .satBias = 0, .satKnee = 0.0228983, .outputDb = -2.62652},  // fit: total error 55.1
     {.name = "Radio", .loopHPHz = 75.6775, .loopLPHz = 6387.08, .loopTiltDb = 1.69724, .shelfHz = 8000, .loopPeakHz = 151.76, .loopPeakDb = -0.000112156, .loopPeakQ = 0.804204, .wetHPHz = 152.748, .wetLPHz = 21000, .wetLPPoles = 3, .wetBrickHz = 5708.67, .satType = 3, .satDrive = 0.447455, .satBias = 0.0473822, .satKnee = 0, .outputDb = 0.260128},  // fit: total error 146.6
-    {.name = "ORPHEO (soon)", .satType = 2},  // placeholder: clean until fitted/voiced
+    {.name = "ORPHEO", .loopHPHz = 90, .loopLPHz = 7800, .loopTiltDb = 1.2, .shelfHz = 3500, .loopPeakHz = 420, .loopPeakDb = 0.6, .loopPeakQ = 0.7, .wetHPHz = 60, .wetLPHz = 11500, .wetLPPoles = 2, .satType = 3, .satDrive = 1.05, .satBias = 0.02, .satKnee = 0.45, .wowCents = 7, .wowRateHz = 0.8, .flutterCents = 2.5, .flutterRateHz = 5.5, .noiseDb = -78, .noiseLPHz = 6000, .outputDb = -1},  // voiced by ear (no reference)
 };
 inline constexpr int kNumStyles = sizeof(kStyles) / sizeof(kStyles[0]);
 
