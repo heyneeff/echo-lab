@@ -28,6 +28,12 @@ def main():
             rows.append('    {.name = "Crush", .gainPerDriveDb = 4.0, .baseGainDb = 0, .ceiling = 0.3, .knee = 0.2, '
                         '.asym = 0.25, .bias = 0.12, .emphHz = 2500, .emphDb = 4, .lowHz = 40, .highHz = 14000, '
                         '.tiltDb = 1.5, .outDb = 6, .punishDb = 20},  // voiced (to tune by ear)')
+        elif ours == "ORPHEO":  # v0.1 (Nov 16): warm tube/tape hybrid voiced to sit in front of the ORPHEO echo:
+            # soft knee, lopsided clip (rich even harmonics), level-tracking bias, gentle top roll-off so
+            # repeats downstream never fizz. Level-matched to Tape within ~1 dB at drive 2/4/7.
+            rows.append('    {.name = "ORPHEO", .gainPerDriveDb = 3.0, .baseGainDb = -8.5, .ceiling = 0.30, .knee = 0.5, '
+                        '.asym = -0.22, .bias = 0.05, .biasTrack = 0.2, .lowHz = 25, .highHz = 18000, .tiltDb = -0.5, '
+                        '.outDb = 0.3, .punishDb = 15},  // voiced by ear (no reference)')
         else:
             rows.append('    {.name = "%s (soon)"},  // placeholder' % ours)
     assert len(rows) == 8

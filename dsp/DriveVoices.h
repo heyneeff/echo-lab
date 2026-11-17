@@ -11,7 +11,7 @@ inline const DriveVoice kDriveVoices[] = {
     {.name = "Tube", .gainPerDriveDb = 2.50495, .baseGainDb = -6.53861, .ceiling = 0.199609, .knee = 0.48799, .asym = -0.216408, .bias = 0.0412454, .emphHz = 12000, .emphDb = 0.000603257, .lowHz = 10.598, .highHz = 22000, .tiltDb = 0.000166667, .invert = true, .outDb = -0.00773269, .punishDb = 14.17},  // fit: total 3168.9
     {.name = "Pentode", .gainPerDriveDb = 3.80025, .baseGainDb = -5.11992, .ceiling = 0.200166, .knee = 0.472099, .asym = -0.423348, .bias = 0.0552833, .biasTrack = 0.25311, .emphHz = 1687.35, .emphDb = 0.00010636, .lowHz = 10.2898, .highHz = 22000, .tiltDb = 0.000107639, .invert = true, .outDb = -0.00165759, .punishDb = 25.67},  // fit: total 3624.8
     {.name = "Crush", .gainPerDriveDb = 4.0, .baseGainDb = 0, .ceiling = 0.3, .knee = 0.2, .asym = 0.25, .bias = 0.12, .emphHz = 2500, .emphDb = 4, .lowHz = 40, .highHz = 14000, .tiltDb = 1.5, .outDb = 6, .punishDb = 20},  // voiced (to tune by ear)
-    {.name = "ORPHEO (soon)"},  // placeholder
+    {.name = "ORPHEO", .gainPerDriveDb = 3.0, .baseGainDb = -8.5, .ceiling = 0.30, .knee = 0.5, .asym = -0.22, .bias = 0.05, .biasTrack = 0.2, .lowHz = 25, .highHz = 18000, .tiltDb = -0.5, .outDb = 0.3, .punishDb = 15},  // voiced by ear (no reference)
     {.name = "Spare (soon)"},  // placeholder
 };
 inline constexpr int kNumDriveVoices = 8;

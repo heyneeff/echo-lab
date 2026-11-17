@@ -99,6 +99,9 @@ int main(int argc, char** argv) {
         if (k == "--style") style = argv[i + 1];
         else if (k == "--style-json") styleJson = argv[i + 1];
         else if (k == "--time") p.timeMs[0] = p.timeMs[1] = v;
+        else if (k == "--timeR") p.timeMs[1] = v;
+        else if (k == "--width") p.width = v;
+        else if (k == "--release") p.duckReleaseMs = v;
         else if (k == "--feedback") p.feedback = v;
         else if (k == "--mix") p.mix = v;
         else if (k == "--sat") p.saturationDb = v;

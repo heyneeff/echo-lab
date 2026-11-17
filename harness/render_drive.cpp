@@ -92,6 +92,7 @@ int main(int argc, char** argv) {
         else if (k == "--punish") p.punish = v > 0.5;
         else if (k == "--mix") p.mix = v;
         else if (k == "--auto") p.autoGain = v > 0.5;
+        else if (k == "--tone") p.toneDb = v;
     }
     echolab::DriveEngine eng;
     eng.prepare(in.sr);

@@ -308,7 +308,8 @@ const D = { drive: 4, style: 4, punish: false, tone: 0, mix: 100, pump: 0, rate:
 const DSTY = [
   { n: "TAPE", knee: .8, asym: .05, bias: 0, track: .1 }, { n: "DESK", knee: .35, asym: .18, bias: .06, track: .5 },
   { n: "IRON", knee: .55, asym: .1, bias: .03, track: .3 }, { n: "TUBE", knee: .7, asym: .3, bias: .08, track: .6 },
-  { n: "PENTODE", knee: .25, asym: .4, bias: .1, track: .9 }, { n: "CRUSH", knee: .02, asym: .02, bias: 0, track: 0 }];
+  { n: "PENTODE", knee: .25, asym: .4, bias: .1, track: .9 }, { n: "CRUSH", knee: .02, asym: .02, bias: 0, track: 0 },
+  { n: "ORPHEO", knee: .5, asym: -.22, bias: .05, track: .2 }, { n: "SPARE (SOON)", knee: .5, asym: 0, bias: 0, track: 0 }];
 function localShape(x) { // DriveEngine-shaped clipper: pre-gain, knee, asymmetric ceiling, level-following bias
   const s = DSTY[D.style], gain = Math.pow(10, (D.drive * 3.3 + (D.punish ? 18 : 0) - 3) / 20);
   const lvl = Math.abs(x) * gain, u = x * gain + s.bias + s.track * 0.12 * Math.min(1, lvl);
@@ -777,7 +778,7 @@ const PDEF = {
 };
 const PRESETS = {
   echo: [
-    ["ORPHEO · Wide Dual", "warm tape, L 3/16 · R 1/4 at 120", { style: 7, mode: 1, time: 375, timeR: 500, fb: 42, mix: 32, sat: 4, lo: 120, duck: 35, rel: 300, width: 100 }, true],
+    ["ORPHEO · Wide Dual", "tight & wide: L 3/16 · R 1/8 at 120", { style: 7, mode: 1, time: 188, timeR: 250, fb: 25, mix: 28, sat: 4, lo: 150, duck: 35, rel: 300, width: 100 }, true],
     ["Dub Throw", "space tape into the sky", { style: 1, time: 375, fb: 78, mix: 45, sat: 8, lo: 150, wob: 120 }],
     ["Slapback", "one tight bounce", { style: 0, time: 95, fb: 8, mix: 28, sat: 2 }],
     ["Ping-Pong Eighths", "clean, side to side", { style: 5, mode: 2, time: 250, fb: 45, mix: 30, hi: 7000, duck: 40 }],
@@ -788,9 +789,10 @@ const PRESETS = {
     ["Init", "defaults", {}],
   ],
   drive: [
+    ["ORPHEO · Fire", "warm, thick, even harmonics", { style: 6, drive: 4.5, tone: 0.5 }, true],
     ["Warm Tape Glue", "gentle, everything sits", { style: 0, drive: 3 }],
     ["Desk Crunch", "console pushed hard", { style: 1, drive: 5.5, tone: 1.5 }],
-    ["Justice Smash", "crushed, punished, pumping", { style: 5, drive: 7.5, punish: true, pump: 55, rate: 1, tone: 2 }, true],
+    ["Justice Smash", "crushed, punished, pumping", { style: 5, drive: 7.5, punish: true, pump: 55, rate: 1, tone: 2 }],
     ["Filtered House Pump", "tube, resonant low-pass, 1/4", { style: 3, drive: 4, pump: 60, rate: 1, filter: 900, res: 45 }],
     ["Pentode Bass Grit", "fat even harmonics", { style: 4, drive: 6, tone: -2, mix: 70 }],
     ["Iron Thickener", "transformer weight", { style: 2, drive: 4, mix: 60, tone: -1 }],
@@ -799,12 +801,13 @@ const PRESETS = {
     ["Init", "defaults", {}],
   ],
   reverb: [
+    ["ORPHEO · Hall", "dark, lush, blooms in the gaps", { vstyle: 6, vsize: 110, vdecay: 2.6, vpre: 45, vmix: 30, vdamp: 5500, vlo: 180, vduck: 25, vrel: 350, vmod: 130, vearly: 60 }, true],
     ["Vocal Plate", "bright, short, ducked", { vstyle: 1, vdecay: 1.8, vpre: 25, vmix: 22, vdamp: 9000, vlo: 200, vduck: 30 }],
     ["Big Hall", "wide and tall", { vstyle: 0, vsize: 130, vdecay: 3.2, vpre: 30, vmix: 28 }],
     ["Drum Room", "walls you can hear", { vstyle: 2, vsize: 70, vdecay: .8, vpre: 0, vearly: 150, vmix: 20 }],
     ["Chamber Warmth", "dark, round, close", { vstyle: 3, vdecay: 1.6, vdamp: 5000, vbass: 120, vmix: 25 }],
     ["Cathedral", "stone, long, high", { vstyle: 4, vdecay: 6, vpre: 40, vmix: 35, vdamp: 4500 }],
-    ["Underworld Drone", "endless, moving, deep", { vstyle: 5, vsize: 200, vdecay: 18, vmix: 45, vmod: 160, vdamp: 3000 }, true],
+    ["Underworld Drone", "endless, moving, deep", { vstyle: 5, vsize: 200, vdecay: 18, vmix: 45, vmod: 160, vdamp: 3000 }],
     ["Ducked Ambience", "space only between notes", { vstyle: 0, vdecay: 2.5, vmix: 35, vduck: 70, vrel: 400 }],
     ["Oblivion", "huge; hit FREEZE to hold", { vstyle: 5, vsize: 180, vdecay: 30, vmix: 60, vmod: 120 }],
     ["Init", "defaults", {}],
