@@ -52,7 +52,7 @@ html.host .bar { display: none; } html.host #stage { top: 0; } html.host body { 
 .tbtn.tab { display: block; color: var(--amber); }
 .tmenu { position: fixed; z-index: 15; display: none; gap: 4px; padding: 8px; min-width: 210px; background: #0d0a09f2;
   border: 1px solid #ff8a1f44; border-radius: 10px; box-shadow: 0 12px 30px #000c; }
-.tmenu.open { display: grid; }
+.tmenu.open { display: grid; } .tmenu.wide { grid-template-columns: repeat(3, 1fr); }
 .tmenu button { font: 11px var(--vec); letter-spacing: .14em; text-align: left; color: #ffd27a; background: #141417; border: 1px solid #ff8a1f22;
   padding: 8px 10px; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; gap: 10px; }
 .tmenu button small { color: var(--dim); font-size: 9px; letter-spacing: .08em; }
@@ -147,6 +147,16 @@ body.dragging .hero .dropzone, .hero.growing .dropzone { display: grid; }
 .mrow .amtbar b { position: absolute; inset: 0; display: grid; place-items: center; font-weight: 400; color: var(--txt); font-size: 10px; }
 .mrow .x { cursor: pointer; text-align: center; } .mrow .x:hover { color: var(--red); }
 #pgFx { grid-template-columns: repeat(5, 1fr); gap: 12px; }
+#pgStage { grid-template-columns: 1fr 400px; gap: 12px; }
+#stageSlot { display: grid; min-height: 0; }
+.stageR { display: grid; grid-template-rows: auto 1fr auto; gap: 12px; min-height: 0; }
+.stageR .panel h4 .lbl2 { font: 9px var(--vec); letter-spacing: .1em; color: var(--dim); }
+.bigmacros { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px 4px; align-content: center; justify-items: center; }
+.bigmacros .knob .name { font-size: 10px; letter-spacing: .2em; cursor: default; }
+.padrow { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: center; font: 700 9px var(--sans); letter-spacing: .24em; }
+.padrow .selbtn { justify-self: start; }
+#panic { font: 700 11px var(--sans); letter-spacing: .4em; color: #ff4a2b; background: #1a0f0d; border: 1px solid #ff4a2b66; border-radius: 10px; padding: 14px; cursor: pointer; }
+#panic:active { background: #ff4a2b; color: #000; }
 .fxcard { position: relative; border-radius: 14px; background: linear-gradient(180deg, var(--rail-hi), var(--rail)); box-shadow: 0 0 0 1px #ffffff0a inset;
   display: grid; grid-template-rows: auto auto 1fr; gap: 10px; padding: 12px; align-content: start; min-height: 0; transition: opacity .2s; }
 .fxcard.off { opacity: .55; }
@@ -228,7 +238,7 @@ body.dragging .hero .dropzone, .hero.growing .dropzone { display: grid; }
     <header class="head">
       <img class="hmark" alt="MORPHEUS" src="data:image/png;base64,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">
       <div class="pbrowse"><div class="pbtn" id="pm" title="Presets">☰</div><div class="pbtn" id="prev">◁</div><span class="pn" id="pn"></span><div class="pbtn" id="next">▷</div></div>
-      <nav class="pages" id="pages"><button data-pg="pgSynth" class="on">SYNTH</button><button data-pg="pgMatrix">MATRIX</button><button data-pg="pgFx">FX</button><button disabled title="M5">STAGE</button></nav>
+      <nav class="pages" id="pages"><button data-pg="pgSynth" class="on">SYNTH</button><button data-pg="pgMatrix">MATRIX</button><button data-pg="pgFx">FX</button><button data-pg="pgStage">STAGE</button></nav>
       <div class="hmeter"><canvas id="meter"></canvas></div>
     </header>
     <div class="pg on" id="pgSynth">
@@ -244,8 +254,8 @@ body.dragging .hero .dropzone, .hero.growing .dropzone { display: grid; }
         <div class="hero" id="hero">
           <canvas id="land"></canvas>
           <div class="brk tr"></div><div class="brk bl"></div>
-          <div class="axis y" style="color:var(--orange)">CUTOFF<b id="axY"></b></div>
-          <div class="axis x" style="color:var(--amber)">POSITION<b id="axX"></b></div>
+          <div class="axis y" style="color:var(--orange)"><span id="axYn">CUTOFF</span><b id="axY"></b></div>
+          <div class="axis x" style="color:var(--amber)"><span id="axXn">POSITION</span><b id="axX"></b></div>
           <div class="hud" id="hud"></div>
           <div class="tbtns"><label class="tbtn load" for="loadIn" title="Grow a wavetable from a sound, or open a wavetable .wav">⇪ LOAD SOUND…</label><input id="loadIn" type="file" accept="audio/*,.wav,.aif,.aiff,.mp3,.m4a,.flac" hidden>
             <div class="tbtn tab" id="exportBtn" title="Save OSC A's table as a wavetable .wav">⇩ SAVE TABLE</div></div>
@@ -270,6 +280,13 @@ body.dragging .hero .dropzone, .hero.growing .dropzone { display: grid; }
     </div>
     <div class="pg" id="pgMatrix"><div class="mtx" id="mtx"></div></div>
     <div class="pg" id="pgFx"></div>
+    <div class="pg" id="pgStage"><div id="stageSlot"></div>
+      <div class="stageR">
+        <div class="panel"><h4 style="color:var(--orange)">X-Y PAD<span class="sp"></span><span class="lbl2">drag the dreamscape</span></h4>
+          <div class="padrow"><span style="color:var(--amber)">ACROSS</span><button class="selbtn" id="padXb"></button><span style="color:var(--orange)">UP</span><button class="selbtn" id="padYb"></button></div></div>
+        <div class="panel"><h4 style="color:#f4e3c1">ORPHEO MACROS</h4><div class="bigmacros" id="bigMacros"></div></div>
+        <button id="panic" title="stop every voice and every FX tail now">PANIC</button>
+      </div></div>
     <div class="pmenu" id="pmenu"></div>
     <div class="tmenu" id="tmenu"></div>
   </section>
@@ -353,8 +370,8 @@ function knob(parent, { name, min, max, log: lg, size = 44, color = COL.amber, f
   dial.addEventListener("wheel", e => { e.preventDefault(); n = Math.min(1, Math.max(0, n - e.deltaY / 900)); paint(); repaintMods(); }, { passive: false });
   if (label) el.querySelector(".name").textContent = label;
   paint(true);
-  self = { el, set(v, silent) { n = Math.min(1, Math.max(0, toN(v))); paint(silent); }, repaint() { paint(true); }, norm: () => n };
-  if (!K[name]) K[name] = { list: [], el, set(v, s) { this.list.forEach(k => k.set(v, s)); }, repaint() { this.list.forEach(k => k.repaint()); }, norm() { return this.list[0].norm(); } };
+  self = { el, set(v, silent) { n = Math.min(1, Math.max(0, toN(v))); paint(silent); }, setN(x) { n = Math.min(1, Math.max(0, x)); paint(); repaintMods(); }, repaint() { paint(true); }, norm: () => n, text: () => val.textContent };
+  if (!K[name]) K[name] = { list: [], el, set(v, s) { this.list.forEach(k => k.set(v, s)); }, repaint() { this.list.forEach(k => k.repaint()); }, norm() { return this.list[0].norm(); }, setN(x) { this.list[0].setN(x); }, text() { return this.list[0].text(); } };
   K[name].list.push(self);
   return self;
 }
@@ -708,6 +725,9 @@ function bloom(c) { if (!c.width || !c.height) return; let b = c.nextElementSibl
 
 // ===================================================================== the dreamscape: one ridge per frame, back to front (hidden lines)
 let padDrag = null;
+// the X-Y pad drives any two knobs (default Position across, Cutoff up); remembered per viewer
+const PAD = { x: "Position", y: "Cutoff" };
+try { const v = JSON.parse(localStorage.getItem("morpheus.pad") || "null"); if (v && v.x && v.y) Object.assign(PAD, v); } catch (e) {}
 function drawLand(now) {
   const c = $("#land"), [g, W, H] = fit(c);
   const span = 63 / Math.max(1, NF - 1), ox = W * .12, oy = H - 74, ww = W * .55, amp_ = 30, dx = W * .24 / 63 * span, dy = H * .42 / 63 * span;   // frame f sits at (ox + f*dx, oy - f*dy)
@@ -747,11 +767,11 @@ function drawLand(now) {
     text(g, noteName(v.note), W - 30, 104 + 13 * vi++, rgba(COL.teal, .5 + v.amp * .5), 10, "right");
   }
   // X-Y marker: position along the depth axis, cutoff as the height of the stem
-  const cn = Math.log(P["Cutoff"] / 20) / Math.log(1000), mx = ox + fp * dx - 22, my = oy - fp * dy + amp_;
+  const xn = K[PAD.x] ? K[PAD.x].norm() : P0, cn = K[PAD.y] ? K[PAD.y].norm() : 0, xf = xn * (NF - 1), mx = ox + xf * dx - 22, my = oy - xf * dy + amp_;
   g.strokeStyle = rgba(COL.orange, .7); g.lineWidth = 1.5; g.setLineDash([3, 4]); g.beginPath(); g.moveTo(mx, my); g.lineTo(mx, my - 30 - cn * H * .32); g.stroke(); g.setLineDash([]);
   glow(g, COL.orange, 12); g.beginPath(); g.arc(mx, my - 30 - cn * H * .32, padDrag ? 7 : 5, 0, 7); g.stroke(); g.beginPath(); g.arc(mx, my - 30 - cn * H * .32, 2, 0, 7); g.fill(); g.shadowBlur = 0;
-  $("#axX").textContent = "FRAME " + (1 + Math.round(fp));
-  $("#axY").textContent = hz(P["Cutoff"]);
+  $("#axX").textContent = PAD.x === "Position" ? "FRAME " + (1 + Math.round(fp)) : K[PAD.x] ? K[PAD.x].text() : "";
+  $("#axY").textContent = K[PAD.y] ? K[PAD.y].text() : "";
   const nv = voices.filter(v => v.amp > .01).length;
   $("#hud").innerHTML = performance.now() < noteUntil ? `<span>${NOTE_MSG}</span>` : `${TN} <span>· ${TI} ·</span> ${nv} ${nv === 1 ? "VOICE" : "VOICES"}`;
   bloom(c);
@@ -760,10 +780,10 @@ const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const noteName = n => NOTES[n % 12] + (Math.floor(n / 12) - 1);
 // drag the dreamscape: across = position, up/down = cutoff
 $("#hero").addEventListener("pointerdown", e => { if (e.target.closest(".tbtns")) return;  // buttons on the Dreamscape are buttons, not the pad
-  e.preventDefault(); padDrag = { x: e.clientX, y: e.clientY, p: K["Position"].norm(), c: K["Cutoff"].norm() }; $("#hero").setPointerCapture(e.pointerId); });
+  e.preventDefault(); padDrag = { x: e.clientX, y: e.clientY, p: K[PAD.x].norm(), c: K[PAD.y].norm() }; $("#hero").setPointerCapture(e.pointerId); });
 $("#hero").addEventListener("pointermove", e => { if (!padDrag) return; const s = scaleNow();
-  K["Position"].set((Math.min(1, Math.max(0, padDrag.p + (e.clientX - padDrag.x) / s / 420))) * 100);
-  K["Cutoff"].set(20 * Math.pow(1000, Math.min(1, Math.max(0, padDrag.c + (padDrag.y - e.clientY) / s / 300)))); });
+  K[PAD.x].setN(padDrag.p + (e.clientX - padDrag.x) / s / 420);
+  K[PAD.y].setN(padDrag.c + (padDrag.y - e.clientY) / s / 300); });
 $("#hero").addEventListener("pointerup", () => padDrag = null); $("#hero").addEventListener("lostpointercapture", () => padDrag = null);
 
 // oscillator screens: the frame now playing, through its warp (the same shapes as the engine)
@@ -985,7 +1005,8 @@ let GROWN = "";
 function openMenu(btn, items, current, pick) {  // a small list under a button
   const m = $("#tmenu"), r = btn.getBoundingClientRect();
   m.innerHTML = items.map(([n, d, dis, cls], i) => `<button data-i="${i}" class="${i === current ? "on" : ""} ${cls || ""}" ${dis ? "disabled" : ""}>${n}<small>${d || ""}</small></button>`).join("");
-  m.style.left = Math.min(innerWidth - 260, r.left) + "px"; m.style.top = (r.bottom + 4) + "px"; m.classList.add("open");
+  m.classList.toggle("wide", items.length > 12); m.style.top = (r.bottom + 4) + "px"; m.classList.add("open");
+  m.style.left = Math.max(8, Math.min(innerWidth - m.offsetWidth - 8, r.left)) + "px";
   m.onclick = e => { const b = e.target.closest("[data-i]"); if (!b || b.disabled) return; pick(+b.dataset.i); m.classList.remove("open"); };
 }
 addEventListener("pointerdown", e => { if (!e.target.closest(".tmenu,[data-tsel],[data-wsel]")) $("#tmenu").classList.remove("open"); }, true);
@@ -1001,7 +1022,19 @@ document.querySelectorAll("[data-wsel]").forEach(b => b.onclick = () => {
 });
 function chooseTable(i) { setParam("Table", i); if (!HOST) previewTable(i); syncScan(); }
 $("#pages").addEventListener("click", e => { const b = e.target.closest("[data-pg]"); if (!b) return;
-  $("#pages").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); document.querySelectorAll(".pg").forEach(p => p.classList.toggle("on", p.id === b.dataset.pg)); renderMatrix(); });
+  $("#pages").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); document.querySelectorAll(".pg").forEach(p => p.classList.toggle("on", p.id === b.dataset.pg)); renderMatrix();
+  const hero = $("#hero"); if (b.dataset.pg === "pgStage") $("#stageSlot").appendChild(hero); else if (hero.parentNode.id === "stageSlot") $(".col.center").prepend(hero); });
+// STAGE: big macros (the same parameters as the deck's), pad axes, panic
+for (let q = 0; q < 8; q++) knob($("#bigMacros"), { name: `Macro ${q + 1}`, label: MACRO_NAMES[q], min: 0, max: 100, size: 96, color: "#f4e3c1", fmt: pct });
+const PAD_CHOICES = () => Object.keys(DEST_OF).concat(["Macro 1", "Macro 2", "Macro 3", "Macro 4", "Macro 5", "Macro 6", "Macro 7", "Macro 8"]).filter(n => K[n]);
+function renderPad() {
+  $("#padXb").textContent = PAD.x.toUpperCase() + " ▾"; $("#padYb").textContent = PAD.y.toUpperCase() + " ▾";
+  $("#axXn").textContent = PAD.x.toUpperCase(); $("#axYn").textContent = PAD.y.toUpperCase();
+  try { localStorage.setItem("morpheus.pad", JSON.stringify(PAD)); } catch (e) {}
+}
+for (const ax of ["x", "y"]) $(ax === "x" ? "#padXb" : "#padYb").onclick = e => { const items = PAD_CHOICES(); openMenu(e.currentTarget, items.map(n => [n.toUpperCase(), ""]), items.indexOf(PAD[ax]), i => { PAD[ax] = items[i]; renderPad(); }); };
+renderPad();
+$("#panic").onclick = () => { if (HOST) window.webkit.messageHandlers.lab.postMessage({ type: "panic" }); voices.length = 0; NOTE_MSG = "PANIC · ALL VOICES STOPPED"; noteUntil = performance.now() + 2000; };
 $("#ncSeg").innerHTML = ["WHITE", "PINK", "BROWN", "VINYL"].map((n, i) => `<button data-i="${i}">${n}</button>`).join("");
 $("#ncSeg").addEventListener("click", e => { const b = e.target.closest("[data-i]"); if (b) { setParam("Noise Color", +b.dataset.i); syncScan(); } });
 $("#exportBtn").onclick = () => { if (HOST) window.webkit.messageHandlers.lab.postMessage({ type: "export", name: TN }); else { NOTE_MSG = "SAVING TABLES WORKS INSIDE THE PLUGIN"; noteUntil = performance.now() + 3000; } };

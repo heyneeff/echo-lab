@@ -54,6 +54,7 @@ private:
     // editor link
     std::atomic<float> mOut{0};
     std::atomic<bool> sendTable{true};
+    std::atomic<bool> panicReq{false};  // STAGE's panic button: every voice and FX tail stops at the next block
     std::string feedJson();
     // grown wavetables: analysed on a worker thread, swapped in atomically, saved in the state
     void onEditorMessage(const std::string& type, const std::string& name, const std::string& data, double value);

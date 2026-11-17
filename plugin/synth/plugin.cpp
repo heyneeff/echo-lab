@@ -210,6 +210,7 @@ tresult PLUGIN_API SynthPlugin::process(ProcessData& data) {
         }
     }
     if (tableDirty.exchange(false)) changed = true;
+    if (panicReq.exchange(false)) { synth.reset(); rack.reset(); }
     if (auto* ctx = data.processContext) {  // tempo + song position for synced LFOs
         const bool tempoOk = (ctx->state & ProcessContext::kTempoValid) != 0;
         const bool posOk = (ctx->state & ProcessContext::kProjectTimeMusicValid) != 0;
@@ -324,6 +325,8 @@ void SynthPlugin::onEditorMessage(const std::string& type, const std::string& na
         exportNote = ok ? "SAVED " + nm + ".WAV IN MUSIC/MORPHEUS/TABLES" : "COULDN'T SAVE THE TABLE";
     } else if (type == "factory") {
         useFactoryTable();
+    } else if (type == "panic") {
+        panicReq = true;
     }
 }
 

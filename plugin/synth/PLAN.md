@@ -184,5 +184,6 @@ The window grows to **1280 × 800** (the face still scales to fit). Layout:
 
 ## Where we stopped (save point)
 
-M4 done (FX rack in the engine, plugin and the FX page; sidechain source in the face). Next: M5
-(expression / MPE check, STAGE page, presets inside the plugin + the vintage bank, CPU benchmark).
+M4 done. M5 started: the STAGE page is in (Dreamscape full size, 8 big macros, X-Y pad assignable to any
+modulatable knob or macro and remembered per machine, PANIC -> synth + FX reset at the next block).
+Next in M5: presets inside the plugin + the vintage bank, expression / MPE check, CPU benchmark.
