@@ -115,10 +115,26 @@ if(SMTG_MAC)
         COMPANY_NAME "Echo Lab")
 endif()
 
+# ---------------------------------------------------------------- Morpheus (wavetable synth)
+smtg_add_vst3plugin(Morpheus
+    third_party/vst3sdk/public.sdk/source/vst/vstsinglecomponenteffect.cpp
+    plugin/synth/plugin.cpp
+    plugin/synth/entry.cpp
+)
+target_compile_features(Morpheus PRIVATE cxx_std_20)
+target_include_directories(Morpheus PRIVATE plugin/synth dsp)
+target_link_libraries(Morpheus PRIVATE sdk)
+smtg_target_configure_version_file(Morpheus)
+if(SMTG_MAC)
+    smtg_target_set_bundle(Morpheus
+        BUNDLE_IDENTIFIER "local.echolab.morpheus"
+        COMPANY_NAME "Echo Lab")
+endif()
+
 # ---------------------------------------------------------------- host-parameter contract tests
 # (Live clamps plain values into [plain(0), plain(1)]; see harness/test_params.cpp)
 enable_testing()
-foreach(t "echo;source;echolab" "drive;drive;echolab::drive" "verb;reverb;echolab::reverb" "pump;pump;echolab::pumpfx")
+foreach(t "echo;source;echolab" "drive;drive;echolab::drive" "verb;reverb;echolab::reverb" "pump;pump;echolab::pumpfx" "synth;synth;echolab::wtsynth")
     list(GET t 0 name)
     list(GET t 1 dir)
     list(GET t 2 ns)
@@ -128,3 +144,8 @@ foreach(t "echo;source;echolab" "drive;drive;echolab::drive" "verb;reverb;echola
         "PARAMS_H=\"${CMAKE_SOURCE_DIR}/plugin/${dir}/params.h\"" PLUGIN_NS=${ns} "PLUGIN_LABEL=\"${name}\"")
     add_test(NAME params_${name} COMMAND test_params_${name})
 endforeach()
+
+add_executable(test_synth harness/test_synth.cpp)
+target_compile_features(test_synth PRIVATE cxx_std_20)
+target_include_directories(test_synth PRIVATE dsp)
+add_test(NAME synth_engine COMMAND test_synth ${CMAKE_BINARY_DIR}/synth_demo.wav)
