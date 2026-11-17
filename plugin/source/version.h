@@ -13,7 +13,7 @@
 #define VERSION_STR MAJOR_VERSION_STR "." SUB_VERSION_STR "." RELEASE_NUMBER_STR
 
 #define stringOriginalFilename "EchoLab.vst3"
-#define stringFileDescription "Oread Echo"
+#define stringFileDescription "Echo Nymph"
 #define stringCompanyName "Echo Lab"
 #define stringCompanyWeb ""
 #define stringCompanyEmail ""

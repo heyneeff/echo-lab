@@ -67,3 +67,28 @@ if(SMTG_MAC)
         BUNDLE_IDENTIFIER "local.echolab.drive"
         COMPANY_NAME "Echo Lab")
 endif()
+
+# ---------------------------------------------------------------- Lethe (reverb)
+smtg_add_vst3plugin(Lethe
+    third_party/vst3sdk/public.sdk/source/vst/vstsinglecomponenteffect.cpp
+    plugin/reverb/plugin.cpp
+    plugin/reverb/entry.cpp
+    third_party/vst3sdk/public.sdk/source/common/pluginview.cpp
+    plugin/common/WebEditor.mm
+)
+target_compile_features(Lethe PRIVATE cxx_std_20)
+target_include_directories(Lethe PRIVATE plugin/reverb dsp)
+target_link_libraries(Lethe PRIVATE sdk)
+smtg_target_configure_version_file(Lethe)
+target_include_directories(Lethe PRIVATE plugin/common)
+if(SMTG_MAC)
+    target_link_libraries(Lethe PRIVATE "-framework WebKit" "-framework Cocoa")
+    target_compile_options(Lethe PRIVATE $<$<COMPILE_LANGUAGE:OBJCXX>:-fobjc-arc>)
+    target_compile_definitions(Lethe PRIVATE LAB_OBJC_PREFIX=LetheFace)
+    smtg_target_add_plugin_resources(Lethe RESOURCES ui/prototype/faces.html)
+    smtg_target_set_bundle(Lethe
+        BUNDLE_IDENTIFIER "local.echolab.lethe"
+        COMPANY_NAME "Echo Lab")
+endif()
+add_executable(render_verb harness/render_verb.cpp)
+target_compile_features(render_verb PRIVATE cxx_std_20)
