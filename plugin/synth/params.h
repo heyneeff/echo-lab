@@ -41,6 +41,8 @@ enum ParamId : int {
     kDriveStyle, kDriveMix, kChorusOn, kChorusMode, kChorusMix,
     kEchoOn, kEchoStyle, kEchoMode, kEchoSync, kEchoNoteL, kEchoNoteR, kEchoTimeL, kEchoTimeR, kEchoFeedback, kEchoMix,
     kVerbOn, kVerbStyle, kVerbDecay, kVerbSize, kVerbMix, kPumpOn, kPumpMode, kPumpRate, kPumpDepth, kPumpMix, kFxOrder,
+    // v0.8: morph snapshots (4 whole-patch states on the X-Y pad corners)
+    kMorphOn, kMorphX, kMorphY,
     kNumParams
 };
 constexpr int kModBase = kMod1Src;  // slot s (0-based): source kModBase + 3s, destination +1, amount +2
@@ -207,6 +209,9 @@ inline const ParamDef kParams[kNumParams] = {
     {kPumpDepth, "Pump Depth", "%", 0, 100, 45, Map::Linear},
     {kPumpMix, "Pump Mix", "%", 0, 100, 100, Map::Linear},
     {kFxOrder, "FX Order", "", 0, 119, 0, Map::List},
+    {kMorphOn, "Morph On", "", 0, 1, 0, Map::List},
+    {kMorphX, "Morph X", "%", 0, 100, 50, Map::Linear},
+    {kMorphY, "Morph Y", "%", 0, 100, 50, Map::Linear},
 };
 inline const int kDisplayOrder[kNumParams] = {
     kTable, kPosition, kScan, kScanSpeed, kPosEnv, kUnison, kDetune, kSpread, kSub,
@@ -231,6 +236,7 @@ inline const int kDisplayOrder[kNumParams] = {
     kDriveStyle, kDriveMix, kChorusOn, kChorusMode, kChorusMix,
     kEchoOn, kEchoStyle, kEchoMode, kEchoSync, kEchoNoteL, kEchoNoteR, kEchoTimeL, kEchoTimeR, kEchoFeedback, kEchoMix,
     kVerbOn, kVerbStyle, kVerbDecay, kVerbSize, kVerbMix, kPumpOn, kPumpMode, kPumpRate, kPumpDepth, kPumpMix, kFxOrder,
+    kMorphOn, kMorphX, kMorphY,
 };
 
 inline int stepCount(const ParamDef& p) { return p.map == Map::List ? (int)(p.max - p.min) : 0; }
@@ -292,7 +298,7 @@ inline std::string toText(const ParamDef& p, double n) {
     if (p.id == kTableB) return kTableNames[std::clamp((int)v, 0, 5)];
     if (p.id == kWarpA || p.id == kWarpB) return wt::kWarpNames[std::clamp((int)v, 0, wt::kNumWarps - 1)];
     if (p.id == kNoiseColor) return kNoiseColorNames[std::clamp((int)v, 0, 3)];
-    if (p.id == kChorusOn || p.id == kEchoOn || p.id == kVerbOn || p.id == kPumpOn || p.id == kEchoSync) return v > 0.5 ? "On" : "Off";
+    if (p.id == kChorusOn || p.id == kEchoOn || p.id == kVerbOn || p.id == kPumpOn || p.id == kEchoSync || p.id == kMorphOn) return v > 0.5 ? "On" : "Off";
     if (p.id == kDriveStyle) return kDriveVoices[std::clamp((int)v, 0, 7)].name;
     if (p.id == kChorusMode) return fx::kChorusNames[std::clamp((int)v, 0, 3)];
     if (p.id == kEchoStyle) return kStyles[std::clamp((int)v, 0, 7)].name;

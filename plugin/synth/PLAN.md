@@ -198,7 +198,7 @@ The window grows to **1280 × 800** (the face still scales to fit). Layout:
 **Morpheus, next level** (in order of payoff):
 
 1. **FINISH** (done): one-click recipes that stack and undo. Motion on LFO 3/4, so presets keep LFO 1/2.
-2. **Morph snapshots**: store 4 states of the whole patch on the X-Y pad corners and glide between them (Omnisphere/Output idea, our Dreamscape as the surface).
+2. **Morph snapshots** (done): 4 whole-patch states on the X-Y pad corners, blended in the plugin by Morph X/Y (automatable), saved with the set (state v6). Empty corners = the knobs as they are.
 3. **Remap curves per route**: amount + curve (exp, log, S, steps) per matrix slot (Serum/Vital).
 4. **Dice**: randomise a section (osc, filter, mod, FX) with locks; "mutate" by a small amount.
 5. **Step modulator / arp**: a 16-step lane as a source (Massive X performers, Pigments sequencer), plus a tempo arp.
@@ -210,4 +210,5 @@ The window grows to **1280 × 800** (the face still scales to fit). Layout:
 
 M4 done; M5: STAGE page in. M6 started: FINISH panel (12 recipes) in the deck, a new Morpheus opens on
 ORPHEO · Dream Pad (with Juno chorus + ORPHEO space), the preset name is saved with the set (state v5).
-Next: morph snapshots on the X-Y pad, then remap curves, Dice, presets inside the plugin.
+Morph snapshots done (Morph On/X/Y params; corners in the SCAN strip and on STAGE; the Dreamscape becomes the morph pad).
+Charon's pump clock fixed for a stopped transport. Next: remap curves, Dice, presets inside the plugin.

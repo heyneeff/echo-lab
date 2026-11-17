@@ -45,7 +45,7 @@ private:
     ParamDef def;
 };
 
-constexpr uint32 kStateVersion = 5;  // 2: + grown wavetable, 3: + its length (SCAN), 4: mod switches sized for growth, 5: + preset name
+constexpr uint32 kStateVersion = 6;  // 2: + grown wavetable, 3: + its length (SCAN), 4: mod switches sized for growth, 5: + preset name, 6: + morph snapshots
 constexpr int kSavedHarmonics = 512;   // per frame, complex, as floats
 
 std::string upper(std::string s) { for (auto& c : s) c = (char)std::toupper((unsigned char)c); return s; }
@@ -117,8 +117,32 @@ tresult PLUGIN_API SynthPlugin::setActive(TBool state) {
     return SingleComponentEffect::setActive(state);
 }
 
+// Morph: corners A (top left), B (top right), C (bottom left), D (bottom right), bilinear in Morph X/Y.
+// Continuous parameters blend in normalized space (so log knobs morph evenly); switches and routes' source /
+// destination come from the nearest corner. An empty corner stands for the knobs as they are.
+bool SynthPlugin::blendInto(const double* base, double* out) const {
+    bool has[4], any = false;
+    for (int c = 0; c < 4; ++c) any |= has[c] = hasSnap[c].load(std::memory_order_acquire);
+    if (base[kMorphOn] < 0.5 || !any) { for (int i = 0; i < kNumParams; ++i) out[i] = base[i]; return false; }
+    const double x = base[kMorphX], y = base[kMorphY];
+    const double w[4] = {(1 - x) * y, x * y, (1 - x) * (1 - y), x * (1 - y)};
+    int best = 0;
+    for (int c = 1; c < 4; ++c) if (w[c] > w[best] + 1e-9) best = c;
+    for (int id = 0; id < kNumParams; ++id) {
+        if (morphExcluded(id)) { out[id] = base[id]; continue; }
+        if (kParams[id].map == Map::List) { out[id] = has[best] ? snap[best][id] : base[id]; continue; }
+        double v = 0;
+        for (int c = 0; c < 4; ++c) v += w[c] * (has[c] ? snap[c][id] : base[id]);
+        out[id] = v;
+    }
+    return true;
+}
+
+void SynthPlugin::computeEffective() { morphActive = blendInto(norm.data(), eff.data()); }
+
 void SynthPlugin::applyParams() {
-    auto plain = [&](int id) { return toPlain(kParams[id], norm[id]); };
+    computeEffective();
+    auto plain = [&](int id) { return toPlain(kParams[id], eff[id]); };
     wt::Params p;
     p.position = plain(kPosition) / 100;
     p.unison = (int)plain(kUnison);
@@ -355,6 +379,27 @@ void SynthPlugin::onEditorMessage(const std::string& type, const std::string& na
         useFactoryTable();
     } else if (type == "panic") {
         panicReq = true;
+    } else if (type == "snap" && value >= 0 && value < 4) {  // capture what you hear into a corner
+        const int c = (int)value;
+        std::array<double, kNumParams> base, heard;
+        for (int id = 0; id < kNumParams; ++id) base[id] = getParamNormalized(id);
+        blendInto(base.data(), heard.data());
+        snap[c] = heard;
+        hasSnap[c].store(true, std::memory_order_release);
+        tableDirty = true;  // re-blend at the next block
+    } else if (type == "snapclear" && value >= 0 && value < 4) {
+        hasSnap[(int)value].store(false, std::memory_order_release);
+        tableDirty = true;
+    } else if (type == "snapload" && value >= 0 && value < 4 && hasSnap[(int)value].load()) {  // a corner into the knobs (morph off)
+        const int c = (int)value;
+        for (int id = 0; id < kNumParams; ++id) {
+            if (morphExcluded(id)) continue;
+            const double nv = snap[c][id];
+            beginEdit(id); performEdit(id, nv); setParamNormalized(id, nv); endEdit(id);
+        }
+        beginEdit(kMorphOn); performEdit(kMorphOn, 0); setParamNormalized(kMorphOn, 0); endEdit(kMorphOn);
+        synth.setTable(pickTable((int)toPlain(kParams[kTable], snap[c][kTable])));
+        synth.setTableB(pickTable((int)toPlain(kParams[kTableB], snap[c][kTableB])));
     } else if (type == "pname") {  // the face picked a preset: remember its name with the set
         std::string nm;
         for (char c : name) if ((unsigned char)c >= 32 && c != '"' && c != '\\') nm += c;
@@ -434,8 +479,12 @@ void SynthPlugin::setFromEditor(const std::string& name, double plain) {
 std::string SynthPlugin::feedJson() {
     std::string s = "{\"p\":{";
     char buf[160];
+    std::array<double, kNumParams> base, blend;  // morphing: show the blend (what plays), computed from the knobs here
+    for (int id = 0; id < kNumParams; ++id) base[id] = getParamNormalized(id);
+    blendInto(base.data(), blend.data());
     for (int id = 0; id < kNumParams; ++id) {
-        std::snprintf(buf, sizeof buf, "%s\"%s\":%.6g", id ? "," : "", kParams[id].name, toPlain(kParams[id], getParamNormalized(id)));
+        const double nv = blend[id];
+        std::snprintf(buf, sizeof buf, "%s\"%s\":%.6g", id ? "," : "", kParams[id].name, toPlain(kParams[id], nv));
         s += buf;
     }
     s += "},\"v\":[";
@@ -465,7 +514,9 @@ std::string SynthPlugin::feedJson() {
         }
         s += ",\"tn\":\"" + tn + "\",\"ti\":\"" + ti + "\",\"grown\":\"" + (custom ? tableName : std::string()) + "\"";
         if (!exportNote.empty()) { s += ",\"note\":\"" + exportNote + "\""; exportNote.clear(); }
-        s += ",\"pn\":\"";
+        s += ",\"sn\":[";
+        for (int c = 0; c < 4; ++c) { s += c ? "," : ""; s += hasSnap[c].load() ? "1" : "0"; }
+        s += "],\"pn\":\"";
         for (size_t i = 0; i < presetName.size();) {  // non-ASCII as \uXXXX, so the bridge's string encoding can't garble it
             const unsigned char c = (unsigned char)presetName[i];
             uint32_t cp = c; int len = 1;
@@ -554,6 +605,17 @@ tresult PLUGIN_API SynthPlugin::setState(IBStream* state) {
     std::string pn;
     if (version >= 5 && s.readInt32(pnLen) && pnLen >= 0 && pnLen <= 256) { pn.resize(pnLen); for (auto& c : pn) { int8 ch; if (!s.readInt8(ch)) break; c = (char)ch; } }
     { std::lock_guard<std::mutex> lock(tableMx); presetName = pn; }  // older sets: no name (the face shows a dash)
+    int32 mask = 0, cnt = 0;
+    for (auto& h : hasSnap) h.store(false);
+    if (version >= 6 && s.readInt32(mask) && s.readInt32(cnt) && cnt > 0 && cnt <= 4096) {
+        for (int c = 0; c < 4; ++c) {
+            if (!(mask & (1 << c))) continue;
+            snap[c] = norm;  // parameters newer than the saved set keep the knobs' values
+            for (int32 i = 0; i < cnt; ++i) { double v; if (!s.readDouble(v)) return kResultFalse; if (i < kNumParams) snap[c][i] = v; }
+            hasSnap[c].store(true);
+        }
+    }
+    applyParams();
     return kResultOk;
 }
 
@@ -577,6 +639,12 @@ tresult PLUGIN_API SynthPlugin::getState(IBStream* state) {
     }
     s.writeInt32((int32)presetName.size());
     for (char c : presetName) s.writeInt8((int8)c);
+    int32 mask = 0;
+    for (int c = 0; c < 4; ++c) if (hasSnap[c].load()) mask |= 1 << c;
+    s.writeInt32(mask);
+    s.writeInt32(kNumParams);
+    for (int c = 0; c < 4; ++c)
+        if (mask & (1 << c)) for (int i = 0; i < kNumParams; ++i) s.writeDouble(snap[c][i]);
     return kResultOk;
 }
 

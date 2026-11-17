@@ -55,7 +55,16 @@ private:
     // editor link
     std::atomic<float> mOut{0};
     std::atomic<bool> sendTable{true};
-    std::atomic<bool> panicReq{false};  // STAGE's panic button: every voice and FX tail stops at the next block
+    std::atomic<bool> panicReq{false};
+    // morph snapshots: 4 whole-patch states (normalized values) on the X-Y pad corners A B / C D, blended by Morph X/Y.
+    // eff = what the engine plays (the blend while morphing, else the knobs); the face shows eff.
+    std::array<std::array<double, kNumParams>, 4> snap{};
+    std::array<std::atomic<bool>, 4> hasSnap{};
+    std::array<double, kNumParams> eff{};
+    std::atomic<bool> morphActive{false};
+    void computeEffective();
+    bool blendInto(const double* base, double* out) const;  // the morph blend of base (normalized); false = morph not active
+    static bool morphExcluded(int id) { return id == kMorphOn || id == kMorphX || id == kMorphY || id == kModWheel || id == kPitchBend || id == kAftertouch; }  // STAGE's panic button: every voice and FX tail stops at the next block
     std::string feedJson();
     // grown wavetables: analysed on a worker thread, swapped in atomically, saved in the state
     void onEditorMessage(const std::string& type, const std::string& name, const std::string& data, double value);

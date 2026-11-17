@@ -139,7 +139,7 @@ body.dragging .hero .dropzone, .hero.growing .dropzone { display: grid; }
 .krow { display: flex; justify-content: space-around; align-items: flex-start; }
 .krow .knob .name { font-size: 7.5px; letter-spacing: .12em; }
 .tune { display: flex; justify-content: space-around; border-top: 1px solid #ffffff0d; padding-top: 4px; }
-.voicerow { grid-template-columns: auto 1fr auto; align-items: center; gap: 14px; padding: 6px 14px; }
+.voicerow { grid-template-columns: auto 1fr auto auto auto; align-items: center; gap: 14px; padding: 6px 14px; }
 .voicerow .lbl { font: 700 9px var(--sans); letter-spacing: .3em; color: var(--teal); }
 .fresp { height: 128px; border-radius: 9px; background: #0d0a09; box-shadow: 0 0 0 1px #ffffff0a inset; position: relative; overflow: hidden; }
 .fresp canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
@@ -156,7 +156,7 @@ body.dragging .hero .dropzone, .hero.growing .dropzone { display: grid; }
 #pgFx { grid-template-columns: repeat(5, 1fr); gap: 12px; }
 #pgStage { grid-template-columns: 1fr 400px; gap: 12px; }
 #stageSlot { display: grid; min-height: 0; }
-.stageR { display: grid; grid-template-rows: auto 1fr auto; gap: 12px; min-height: 0; }
+.stageR { display: grid; grid-template-rows: auto auto 1fr auto; gap: 12px; min-height: 0; }
 .stageR .panel h4 .lbl2 { font: 9px var(--vec); letter-spacing: .1em; color: var(--dim); }
 .bigmacros { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px 4px; align-content: center; justify-items: center; }
 .bigmacros .knob .name { font-size: 10px; letter-spacing: .2em; cursor: default; }
@@ -283,6 +283,18 @@ html.host body { background: #080606; }
   background-image: linear-gradient(#3fd0b40a 1px, transparent 1px), linear-gradient(90deg, #3fd0b40a 1px, transparent 1px); background-size: 14px 14px; }
 .voicerow .lbl, #subNoise .unirow .lbl { font-family: var(--cond); font-weight: 600; font-size: 14px; letter-spacing: .14em; }
 #panic { font-family: var(--cond); font-size: 16px; border-radius: 4px; }
+/* MORPH: four corner snapshots */
+.vsep { width: 1px; align-self: stretch; background: #3a2a20; }
+.morphbox { display: flex; align-items: center; gap: 6px; }
+.morphbox .mlbl { font: 600 14px var(--cond); letter-spacing: .14em; color: #ff8a5c; margin-right: 2px; }
+.morphbox .mon { font: 600 11px var(--cond); letter-spacing: .1em; color: #b9a896; background: #0d0a09; border: 1px solid #4a3324; border-radius: 3px; padding: 5px 8px; cursor: pointer; }
+.morphbox .mon.on { color: #1a0d07; background: #ff8a5c; border-color: #ff8a5c; box-shadow: 0 0 12px #ff8a5c88; }
+.morphbox .mgrid { display: grid; grid-template-columns: repeat(2, 26px); grid-auto-rows: 20px; gap: 3px; }
+.morphbox .mc { font: 600 12px var(--cond); color: #6c5a4c; background: #0d0a09; border: 1px dashed #4a3324; border-radius: 3px; cursor: pointer; padding: 0; }
+.morphbox .mc.has { color: #ffd2b8; border: 1px solid #ff8a5c99; background: #1d120c; }
+.morphbox .mc.near { box-shadow: 0 0 10px #ff8a5c99; border-color: #ff8a5c; color: #fff; }
+.hero.morphing .tbtns, .hero.morphing .axis, .hero.morphing .brk { display: none; }
+.morphrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 /* FINISH: one-click recipes (routes + FX + settings), stackable, click again to undo */
 .fin { display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: 1fr; gap: 5px; min-height: 0; }
 .fin button { position: relative; display: grid; align-content: center; gap: 1px; text-align: left; padding: 3px 8px 3px 20px; border-radius: 3px; cursor: pointer;
@@ -339,7 +351,7 @@ html.host body { background: #080606; }
             <div class="tbtn tab" id="exportBtn" title="Save OSC A's table as a wavetable .wav">⇩ SAVE TABLE</div></div>
           <div class="dropzone" id="dropzone"><div>DROP AUDIO TO GROW A WAVETABLE<small>a sound becomes a table · a wavetable .wav loads as is</small></div></div>
         </div>
-        <div class="panel voicerow"><span class="lbl">SCAN</span><div class="seg" id="scanSeg"></div><div id="scanK"></div></div>
+        <div class="panel voicerow"><span class="lbl">SCAN</span><div class="seg" id="scanSeg"></div><div id="scanK"></div><span class="vsep"></span><div class="morphbox mb1"></div></div>
       </div>
       <div class="col right">
         <div class="panel" id="filtP"><h4 style="color:var(--orange)">FILTER<span class="sp"></span><span style="font:9px var(--vec);letter-spacing:.1em;color:var(--dim)">HPF</span><div class="seg" id="hpfSeg"></div></h4>
@@ -363,6 +375,8 @@ html.host body { background: #080606; }
       <div class="stageR">
         <div class="panel"><h4 style="color:var(--orange)">X-Y PAD<span class="sp"></span><span class="lbl2">drag the dreamscape</span></h4>
           <div class="padrow"><span style="color:var(--amber)">ACROSS</span><button class="selbtn" id="padXb"></button><span style="color:var(--orange)">UP</span><button class="selbtn" id="padYb"></button></div></div>
+        <div class="panel"><h4>MORPH<span class="sp"></span><span class="lbl2">4 snapshots · drag the dreamscape</span></h4>
+          <div class="morphrow"><div class="morphbox mb2"></div><div class="krow" id="morphK"></div></div></div>
         <div class="panel"><h4 style="color:#f4e3c1">ORPHEO MACROS</h4><div class="bigmacros" id="bigMacros"></div></div>
         <button id="panic" title="stop every voice and every FX tail now">PANIC</button>
       </div></div>
@@ -399,7 +413,7 @@ Object.assign(DEF, { "Osc A Level": 100, "Table B": 0, "Position B": 40, "Octave
 Object.assign(DEF, { "Drive Style": 6, "Drive Mix": 100, "Chorus On": 0, "Chorus Mode": 0, "Chorus Mix": 50,
   "Echo On": 0, "Echo Style": 7, "Echo Mode": 1, "Echo Sync": 1, "Echo Note L": 3, "Echo Note R": 5, "Echo Time L": 188, "Echo Time R": 250, "Echo Feedback": 25, "Echo Mix": 28,
   "Reverb On": 0, "Reverb Style": 6, "Reverb Decay": 2.8, "Reverb Size": 100, "Reverb Mix": 25,
-  "Pump On": 0, "Pump Mode": 0, "Pump Rate": 2, "Pump Depth": 45, "Pump Mix": 100, "FX Order": 0 });
+  "Pump On": 0, "Pump Mode": 0, "Pump Rate": 2, "Pump Depth": 45, "Pump Mix": 100, "FX Order": 0, "Morph On": 0, "Morph X": 50, "Morph Y": 50 });
 Object.assign(P, DEF);
 
 let NF = 64;  // frames in the table being played (6 .. 64)
@@ -486,6 +500,38 @@ function addRoute(src, dst, amt = .25) {
 }
 function removeRoute(k) { setSlot(k, 0, 0, 0); afterRoutes(); }
 function afterRoutes() { repaintMods(); renderPills(); renderMatrix(); }
+// ===================================================================== MORPH: four whole-patch snapshots on the X-Y pad corners
+// A top left, B top right, C bottom left, D bottom right. The plugin blends them (Morph X/Y are automatable parameters);
+// an empty corner stands for the knobs as they are. With MORPH on, the dreamscape drives Morph X/Y directly.
+let SNAPS = [0, 0, 0, 0];
+const MORPH_COL = "#ff8a5c", CORNERS = "ABCD";
+const morphOn = () => P["Morph On"] > .5;
+const MR = (W, H) => ({ l: 64, r: W - 64, t: 52, b: H - 76 });  // the morph field inside the dreamscape
+function morphNear() { const x = P["Morph X"] / 100, y = P["Morph Y"] / 100, w = [(1 - x) * y, x * y, (1 - x) * (1 - y), x * (1 - y)]; return w.indexOf(Math.max(...w)); }
+function morphMsg(type, c) { if (HOST) window.webkit.messageHandlers.lab.postMessage({ type, value: c }); else flash("MORPH SNAPSHOTS WORK INSIDE THE PLUGIN"); }
+function renderMorph() {
+  $("#hero").classList.toggle("morphing", morphOn());
+  document.querySelectorAll(".morphbox").forEach(b => {
+    b.querySelector(".mon").classList.toggle("on", morphOn());
+    b.querySelectorAll(".mc").forEach((m, c) => { m.classList.toggle("has", !!SNAPS[c]); m.classList.toggle("near", morphOn() && !!SNAPS[c] && morphNear() === c); });
+  });
+}
+document.querySelectorAll(".morphbox").forEach(b => {
+  b.innerHTML = `<span class="mlbl">MORPH</span><button class="mon">ON</button><div class="mgrid">${[0, 1, 2, 3].map(c => `<button class="mc" data-c="${c}" title="corner ${CORNERS[c]}">${CORNERS[c]}</button>`).join("")}</div>`;
+  b.querySelector(".mon").onclick = () => { const v = morphOn() ? 0 : 1; putP("Morph On", v); if (v && !SNAPS.some(Boolean)) flash("capture a corner: click A, B, C or D"); renderMorph(); };
+  b.querySelectorAll(".mc").forEach(m => m.onclick = e => {
+    const c = +m.dataset.c;
+    if (!SNAPS[c]) { morphMsg("snap", c); SNAPS[c] = 1; flash("captured " + CORNERS[c]); renderMorph(); return; }
+    openMenu(m, [["GO TO " + CORNERS[c], "move the morph here"], ["CAPTURE AGAIN", "replace with what you hear now"], ["LOAD INTO KNOBS", "morph off, the knobs become " + CORNERS[c]], ["CLEAR", "empty this corner"]], -1, i => {
+      if (i === 0) { putP("Morph On", 1); putP("Morph X", c % 2 ? 100 : 0); putP("Morph Y", c < 2 ? 100 : 0); }
+      if (i === 1) { morphMsg("snap", c); flash("captured " + CORNERS[c]); }
+      if (i === 2) { morphMsg("snapload", c); P["Morph On"] = 0; flash("knobs = " + CORNERS[c]); }
+      if (i === 3) { morphMsg("snapclear", c); SNAPS[c] = 0; }
+      renderMorph();
+    });
+  });
+});
+
 // ===================================================================== FINISH: one-click recipes that make a sound feel done
 // Each sets a few parameters and/or adds routes; they stack. Clicking a lit one puts back what it changed and removes its routes.
 // Motion recipes use LFO 3 and LFO 4, so the presets' LFO 1 and 2 stay untouched.
@@ -890,21 +936,37 @@ function drawLand(now) {
     text(g, noteName(v.note), W - 30, 104 + 13 * vi++, rgba(COL.teal, .5 + v.amp * .5), 10, "right");
   }
   // X-Y marker: position along the depth axis, cutoff as the height of the stem
+  if (morphOn()) drawMorph(g, W, H); else {
   const xn = K[PAD.x] ? K[PAD.x].norm() : P0, cn = K[PAD.y] ? K[PAD.y].norm() : 0, xf = xn * (NF - 1), mx = ox + xf * dx - 22, my = oy - xf * dy + amp_;
   g.strokeStyle = rgba(COL.orange, .7); g.lineWidth = 1.5; g.setLineDash([3, 4]); g.beginPath(); g.moveTo(mx, my); g.lineTo(mx, my - 30 - cn * H * .32); g.stroke(); g.setLineDash([]);
   glow(g, COL.orange, 12); g.beginPath(); g.arc(mx, my - 30 - cn * H * .32, padDrag ? 7 : 5, 0, 7); g.stroke(); g.beginPath(); g.arc(mx, my - 30 - cn * H * .32, 2, 0, 7); g.fill(); g.shadowBlur = 0;
+  }
   $("#axX").textContent = PAD.x === "Position" ? "FRAME " + (1 + Math.round(fp)) : K[PAD.x] ? K[PAD.x].text() : "";
   $("#axY").textContent = K[PAD.y] ? K[PAD.y].text() : "";
   const nv = voices.filter(v => v.amp > .01).length;
   $("#hud").innerHTML = performance.now() < noteUntil ? `<span>${NOTE_MSG}</span>` : `${TN} <span>· ${TI} ·</span> ${nv} ${nv === 1 ? "VOICE" : "VOICES"}`;
   bloom(c);
 }
+function drawMorph(g, W, H) {  // the corners and the puck, as an instrument overlay
+  const f = MR(W, H), x = f.l + (f.r - f.l) * P["Morph X"] / 100, y = f.b - (f.b - f.t) * P["Morph Y"] / 100, near = morphNear();
+  [[f.l, f.t], [f.r, f.t], [f.l, f.b], [f.r, f.b]].forEach(([cx, cy], c) => {
+    const has = SNAPS[c], col = has ? (c === near ? "#ffffff" : MORPH_COL) : "#5a3a26";
+    g.strokeStyle = rgba(MORPH_COL, has ? .35 : .15); g.setLineDash([2, 5]); g.beginPath(); g.moveTo(cx, cy); g.lineTo(x, y); g.stroke(); g.setLineDash([]);
+    g.lineWidth = 1.5; glow(g, col, has ? 8 : 0); g.strokeRect(cx - 13, cy - 13, 26, 26); g.shadowBlur = 0;
+    text(g, CORNERS[c], cx, cy + 5, col, 15, "center");
+  });
+  g.strokeStyle = rgba(MORPH_COL, .25); g.beginPath(); g.moveTo(x, f.t); g.lineTo(x, f.b); g.moveTo(f.l, y); g.lineTo(f.r, y); g.stroke();
+  glow(g, MORPH_COL, 14); g.lineWidth = 2; g.beginPath(); g.arc(x, y, padDrag ? 11 : 9, 0, 7); g.stroke(); g.beginPath(); g.arc(x, y, 3, 0, 7); g.fill(); g.shadowBlur = 0;
+}
 const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const noteName = n => NOTES[n % 12] + (Math.floor(n / 12) - 1);
 // drag the dreamscape: across = position, up/down = cutoff
 $("#hero").addEventListener("pointerdown", e => { if (e.target.closest(".tbtns")) return;  // buttons on the Dreamscape are buttons, not the pad
-  e.preventDefault(); padDrag = { x: e.clientX, y: e.clientY, p: K[PAD.x].norm(), c: K[PAD.y].norm() }; $("#hero").setPointerCapture(e.pointerId); });
-$("#hero").addEventListener("pointermove", e => { if (!padDrag) return; const s = scaleNow();
+  e.preventDefault(); padDrag = { x: e.clientX, y: e.clientY, p: K[PAD.x].norm(), c: K[PAD.y].norm(), morph: morphOn() }; $("#hero").setPointerCapture(e.pointerId); if (padDrag.morph) morphTo(e); });
+function morphTo(e) {  // the puck follows the pointer; the corner boxes sit 46 px in from the edges
+  const h = $("#hero"), r = h.getBoundingClientRect(), W = h.clientWidth, H = h.clientHeight, f = MR(W, H);
+  K["Morph X"].setN(((e.clientX - r.left) / r.width * W - f.l) / (f.r - f.l)); K["Morph Y"].setN((f.b - (e.clientY - r.top) / r.height * H) / (f.b - f.t)); renderMorph(); }
+$("#hero").addEventListener("pointermove", e => { if (!padDrag) return; if (padDrag.morph) return morphTo(e); const s = scaleNow();
   K[PAD.x].setN(padDrag.p + (e.clientX - padDrag.x) / s / 420);
   K[PAD.y].setN(padDrag.c + (padDrag.y - e.clientY) / s / 300); });
 $("#hero").addEventListener("pointerup", () => padDrag = null); $("#hero").addEventListener("lostpointercapture", () => padDrag = null);
@@ -1152,6 +1214,8 @@ $("#pages").addEventListener("click", e => { const b = e.target.closest("[data-p
   $("#pages").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); document.querySelectorAll(".pg").forEach(p => p.classList.toggle("on", p.id === b.dataset.pg)); renderMatrix();
   const hero = $("#hero"); if (b.dataset.pg === "pgStage") $("#stageSlot").appendChild(hero); else if (hero.parentNode.id === "stageSlot") $(".col.center").prepend(hero); });
 // STAGE: big macros (the same parameters as the deck's), pad axes, panic
+knob($("#morphK"), { name: "Morph X", label: "ACROSS", min: 0, max: 100, size: 40, color: MORPH_COL, fmt: pct });
+knob($("#morphK"), { name: "Morph Y", label: "UP", min: 0, max: 100, size: 40, color: MORPH_COL, fmt: pct });
 for (let q = 0; q < 8; q++) knob($("#bigMacros"), { name: `Macro ${q + 1}`, label: MACRO_NAMES[q], min: 0, max: 100, size: 96, color: "#f4e3c1", fmt: pct });
 const PAD_CHOICES = () => Object.keys(DEST_OF).concat(["Macro 1", "Macro 2", "Macro 3", "Macro 4", "Macro 5", "Macro 6", "Macro 7", "Macro 8"]).filter(n => K[n]);
 function renderPad() {
@@ -1175,6 +1239,7 @@ const SCANS = ["OFF", "ONCE", "LOOP", "PING-PONG"];
 $("#scanSeg").innerHTML = SCANS.map((n, i) => `<button data-i="${i}">${n}</button>`).join("");
 $("#scanSeg").addEventListener("click", e => { const b = e.target.closest("[data-i]"); if (b) { setParam("Scan", +b.dataset.i); syncScan(); } });
 function syncScan() {  // every segmented switch shows the parameter's value (from the user or the host)
+  try { renderMorph(); } catch (e) {}
   $("#scanSeg").querySelectorAll("button").forEach((b, i) => b.classList.toggle("on", i === Math.round(P["Scan"])));
   $("#ftSeg").querySelectorAll("button").forEach((b, i) => b.classList.toggle("on", i === Math.round(P["Filter Type"])));
   $("#hpfSeg").querySelectorAll("button").forEach((b, i) => b.classList.toggle("on", i === Math.round(P["HPF"])));
@@ -1200,6 +1265,7 @@ window.__host = h => {
   if (h.wtB && h.wtB.length >= 2) { WTB = h.wtB.map(a => Float32Array.from(a)); NFB = WTB.length; K["Position B"].repaint(); }
   if (h.tnB != null) TNB = h.tnB;
   if (h.note) { NOTE_MSG = h.note; noteUntil = performance.now() + 3500; }
+  if (h.sn && h.sn.join() !== SNAPS.join()) { SNAPS = h.sn.slice(); renderMorph(); }
   if (typeof h.pn === "string" && h.pn !== lastPn) { lastPn = h.pn; $("#pn").textContent = h.pn || "—"; const i = PRESETS.findIndex(x => x[0] === h.pn); if (i >= 0) cur = i; }
   if (h.p && performance.now() - userEdit > 400) {
     let moved = false;
