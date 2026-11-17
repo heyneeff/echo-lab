@@ -242,7 +242,9 @@ tresult PLUGIN_API SynthPlugin::process(ProcessData& data) {
         const bool posOk = (ctx->state & ProcessContext::kProjectTimeMusicValid) != 0;
         synth.setTransport(tempoOk ? ctx->tempo : 120, posOk ? ctx->projectTimeMusic : 0, posOk && (ctx->state & ProcessContext::kPlaying));
         if (tempoOk) { hostTempo = ctx->tempo; rack.setTempo(hostTempo); }
-        fxBeat = posOk ? ctx->projectTimeMusic : fxBeat;
+        // follow the song only while it plays: a stopped transport keeps reporting the same position, which froze
+        // Charon's pump clock (no ducking while you audition a sound). Stopped, the FX clock runs on at the tempo.
+        if (posOk && (ctx->state & ProcessContext::kPlaying)) fxBeat = ctx->projectTimeMusic;
     }
     if (changed) applyParams();
     if (data.numOutputs == 0 || data.numSamples <= 0) return kResultOk;

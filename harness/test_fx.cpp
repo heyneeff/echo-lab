@@ -96,5 +96,12 @@ int main() {
         }
     }
     std::printf("fx: %s\n", fails ? "FAIL" : "ok");
+    // Charon pump: the gain really dips once per quarter note at 120 BPM (a steady tone in, depth 55 %)
+    {
+        FxRack r; r.prepare(SR); FxParams p; p.pumpOn = true; p.pumpMode = 0; p.pumpRate = 2; p.pumpDepth = 0.55; p.pumpMix = 1; r.update(p, 120);
+        std::vector<float> L(96000, 0.5f), R = L; run(r, L, R);
+        double lo = 1, hi = 0; for (size_t i = 48000; i < L.size(); ++i) { lo = std::min(lo, (double)L[i] / 0.5); hi = std::max(hi, (double)L[i] / 0.5); }
+        check(hi > 0.95 && lo < 0.5, "pump: gain swings each beat (min gain)", lo);
+    }
     return fails ? 1 : 0;
 }
