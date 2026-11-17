@@ -251,7 +251,9 @@ function meters(id, a, b, la, lb) {
 // ===================================================================== AUDIO ENGINE
 const ctx = new (window.AudioContext || window.webkitAudioContext)();
 const N = (type, opts) => new (window[type])(ctx, opts);
-const master = N("GainNode", { gain: 0.9 }); master.connect(ctx.destination);
+const master = N("GainNode", { gain: 0.9 });
+// inside the plugin the page must never make sound itself: its audio engine is only the browser demo
+if (HOST) { ctx.suspend(); ctx.close && ctx.close(); } else master.connect(ctx.destination);
 const input = N("GainNode");          // every source plugs in here
 // ---- DRIVE section
 const D = { drive: 4, style: 4, punish: false, tone: 0, mix: 100, pump: 0, rate: 1, filter: 20000, res: 20, out: 0, auto: true, on: true, bpm: 120 };
