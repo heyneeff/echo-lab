@@ -318,7 +318,8 @@ function drawLand(now) {
 const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const noteName = n => NOTES[n % 12] + (Math.floor(n / 12) - 1);
 // drag the dreamscape: across = position, up/down = cutoff
-$("#hero").addEventListener("pointerdown", e => { e.preventDefault(); padDrag = { x: e.clientX, y: e.clientY, p: K["Position"].norm(), c: K["Cutoff"].norm() }; $("#hero").setPointerCapture(e.pointerId); });
+$("#hero").addEventListener("pointerdown", e => { if (e.target.closest(".tbtns")) return;  // buttons on the Dreamscape are buttons, not the pad
+  e.preventDefault(); padDrag = { x: e.clientX, y: e.clientY, p: K["Position"].norm(), c: K["Cutoff"].norm() }; $("#hero").setPointerCapture(e.pointerId); });
 $("#hero").addEventListener("pointermove", e => { if (!padDrag) return; const s = scaleNow();
   K["Position"].set((Math.min(1, Math.max(0, padDrag.p + (e.clientX - padDrag.x) / s / 420))) * 100);
   K["Cutoff"].set(20 * Math.pow(1000, Math.min(1, Math.max(0, padDrag.c + (padDrag.y - e.clientY) / s / 300)))); });

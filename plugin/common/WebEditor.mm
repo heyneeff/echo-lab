@@ -37,6 +37,7 @@ using namespace Steinberg;
 // <input type="file"> in the page: WKWebView shows nothing unless the host app does, so we do
 - (void)webView:(WKWebView*)webView runOpenPanelWithParameters:(WKOpenPanelParameters*)parameters
     initiatedByFrame:(WKFrameInfo*)frame completionHandler:(void (^)(NSArray<NSURL*>*))completionHandler {
+    NSLog(@"[face] open panel requested");
     NSOpenPanel* panel = [NSOpenPanel openPanel];
     panel.canChooseFiles = YES;
     panel.canChooseDirectories = NO;
