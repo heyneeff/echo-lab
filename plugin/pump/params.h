@@ -70,6 +70,21 @@ inline double toNorm(const ParamDef& p, double v) {
     return 0;
 }
 
+// The plain values the host sees (VST3 normalizedParamToPlain / plainParamToNormalized).
+// They must rise with the knob: Live clamps plain values into [plain(0), plain(1)], so an "Off"
+// stored as 0 at the top of a knob collapses that range and every setting snaps to the bottom.
+// For Off-at-top knobs the log curve simply continues past max into the Off zone; the DSP side
+// (toPlain/toNorm) keeps its 0 = off convention.
+inline double hostPlain(const ParamDef& p, double n) {
+    if (p.map == Map::LogOffHigh) return p.min * std::pow(p.max / p.min, std::clamp(n, 0.0, 1.0) / 0.98);
+    return toPlain(p, n);
+}
+inline double hostNorm(const ParamDef& p, double v) {
+    if (p.map == Map::LogOffHigh)
+        return v <= 0 ? 1.0 : std::clamp(0.98 * std::log(v / p.min) / std::log(p.max / p.min), 0.0, 1.0);
+    return toNorm(p, v);
+}
+
 inline std::string toText(const ParamDef& p, double n) {
     double v = toPlain(p, n);
     char buf[64];

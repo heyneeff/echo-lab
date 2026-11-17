@@ -114,3 +114,17 @@ if(SMTG_MAC)
         BUNDLE_IDENTIFIER "local.echolab.charon"
         COMPANY_NAME "Echo Lab")
 endif()
+
+# ---------------------------------------------------------------- host-parameter contract tests
+# (Live clamps plain values into [plain(0), plain(1)]; see harness/test_params.cpp)
+enable_testing()
+foreach(t "echo;source;echolab" "drive;drive;echolab::drive" "verb;reverb;echolab::reverb" "pump;pump;echolab::pumpfx")
+    list(GET t 0 name)
+    list(GET t 1 dir)
+    list(GET t 2 ns)
+    add_executable(test_params_${name} harness/test_params.cpp)
+    target_compile_features(test_params_${name} PRIVATE cxx_std_20)
+    target_compile_definitions(test_params_${name} PRIVATE
+        "PARAMS_H=\"${CMAKE_SOURCE_DIR}/plugin/${dir}/params.h\"" PLUGIN_NS=${ns} "PLUGIN_LABEL=\"${name}\"")
+    add_test(NAME params_${name} COMMAND test_params_${name})
+endforeach()

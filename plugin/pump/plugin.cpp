@@ -34,8 +34,8 @@ public:
         if (ok) v = n;
         return ok;
     }
-    ParamValue toPlain(ParamValue v) const SMTG_OVERRIDE { return pumpfx::toPlain(def, v); }
-    ParamValue toNormalized(ParamValue v) const SMTG_OVERRIDE { return pumpfx::toNorm(def, v); }
+    ParamValue toPlain(ParamValue v) const SMTG_OVERRIDE { return hostPlain(def, v); }
+    ParamValue toNormalized(ParamValue v) const SMTG_OVERRIDE { return hostNorm(def, v); }
 
 private:
     ParamDef def;

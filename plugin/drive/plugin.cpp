@@ -41,8 +41,8 @@ public:
         v = toNorm(def, x);
         return true;
     }
-    ParamValue toPlain(ParamValue v) const SMTG_OVERRIDE { return drive::toPlain(def, v); }
-    ParamValue toNormalized(ParamValue v) const SMTG_OVERRIDE { return drive::toNorm(def, v); }
+    ParamValue toPlain(ParamValue v) const SMTG_OVERRIDE { return hostPlain(def, v); }
+    ParamValue toNormalized(ParamValue v) const SMTG_OVERRIDE { return hostNorm(def, v); }
 
 private:
     ParamDef def;
