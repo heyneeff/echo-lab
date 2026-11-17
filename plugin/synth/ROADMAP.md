@@ -40,6 +40,10 @@ ORPHEO rail, gothic wordmark in `ui/brand/morpheus-wordmark.png`).
   UNISON/SCAN strip → FILTER → AMP/OUT; modulation + macros along the bottom; MATRIX page with all 16
   slots. Plan for the rest: `plugin/synth/PLAN.md`.
 
+- **M4 · The FX rack:** Prometheus (8 styles), Chorus (Juno I/II/I+II, Solina Ensemble), Echo Nymph
+  (tempo-synced), Letheverb, Charon, in any of 120 orders; a sidechain input feeding Charon and a
+  SIDECHAIN mod source; the FX page (cards in chain order, on/off, ◀ ▶ to reorder). `test_fx`.
+
 ## Face layout (where new things go)
 
 - **Dreamscape (hero):** always the table. Later: OSC B as a second, cooler-coloured landscape;

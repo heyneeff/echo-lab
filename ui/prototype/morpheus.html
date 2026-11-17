@@ -146,6 +146,21 @@ body.dragging .hero .dropzone, .hero.growing .dropzone { display: grid; }
 .mrow .amtbar i { position: absolute; top: 2px; bottom: 2px; border-radius: 3px; opacity: .8; }
 .mrow .amtbar b { position: absolute; inset: 0; display: grid; place-items: center; font-weight: 400; color: var(--txt); font-size: 10px; }
 .mrow .x { cursor: pointer; text-align: center; } .mrow .x:hover { color: var(--red); }
+#pgFx { grid-template-columns: repeat(5, 1fr); gap: 12px; }
+.fxcard { position: relative; border-radius: 14px; background: linear-gradient(180deg, var(--rail-hi), var(--rail)); box-shadow: 0 0 0 1px #ffffff0a inset;
+  display: grid; grid-template-rows: auto auto 1fr; gap: 10px; padding: 12px; align-content: start; min-height: 0; transition: opacity .2s; }
+.fxcard.off { opacity: .55; }
+.fxcard .fxh { display: flex; align-items: center; gap: 6px; font: 700 11px var(--sans); letter-spacing: .26em; }
+.fxcard .fxh .sp { flex: 1; }
+.fxcard .num { font: 10px var(--vec); color: var(--dim); letter-spacing: .1em; }
+.onbtn { font: 700 8.5px var(--sans); letter-spacing: .2em; color: var(--dim); background: #0b0b0e; border: 1px solid #ffffff18; border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+.onbtn.on { color: #0b0b0d; background: var(--c); box-shadow: 0 0 12px var(--c); border-color: var(--c); }
+.mv { width: 24px; height: 24px; border-radius: 6px; background: #1d1d22; border: 1px solid #ffffff12; color: var(--txt); cursor: pointer; font-size: 10px; }
+.mv:disabled { opacity: .25; cursor: default; }
+.fxcard .ctl { display: grid; gap: 10px; align-content: start; }
+.fxcard .kgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 0; justify-items: center; }
+.fxcard .seg button { padding: 6px 4px; font-size: 8px; letter-spacing: .1em; }
+.fxcard .chainline { font: 9px var(--vec); letter-spacing: .1em; color: var(--dim); }
 .mhead { grid-column: 1 / -1; font: 700 10px var(--sans); letter-spacing: .3em; color: var(--amber); margin-bottom: 2px; }
 .card { position: relative; border-radius: 16px; background: linear-gradient(180deg, var(--rail-hi), var(--rail)); box-shadow: 0 0 0 1px #ffffff0a inset;
   display: grid; grid-template-rows: 24px 1fr; padding: 9px 12px 8px; gap: 6px; min-width: 0; min-height: 0; }
@@ -213,7 +228,7 @@ body.dragging .hero .dropzone, .hero.growing .dropzone { display: grid; }
     <header class="head">
       <img class="hmark" alt="MORPHEUS" src="data:image/png;base64,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">
       <div class="pbrowse"><div class="pbtn" id="pm" title="Presets">☰</div><div class="pbtn" id="prev">◁</div><span class="pn" id="pn"></span><div class="pbtn" id="next">▷</div></div>
-      <nav class="pages" id="pages"><button data-pg="pgSynth" class="on">SYNTH</button><button data-pg="pgMatrix">MATRIX</button><button disabled title="M4">FX</button><button disabled title="M5">STAGE</button></nav>
+      <nav class="pages" id="pages"><button data-pg="pgSynth" class="on">SYNTH</button><button data-pg="pgMatrix">MATRIX</button><button data-pg="pgFx">FX</button><button disabled title="M5">STAGE</button></nav>
       <div class="hmeter"><canvas id="meter"></canvas></div>
     </header>
     <div class="pg on" id="pgSynth">
@@ -254,6 +269,7 @@ body.dragging .hero .dropzone, .hero.growing .dropzone { display: grid; }
     </div>
     </div>
     <div class="pg" id="pgMatrix"><div class="mtx" id="mtx"></div></div>
+    <div class="pg" id="pgFx"></div>
     <div class="pmenu" id="pmenu"></div>
     <div class="tmenu" id="tmenu"></div>
   </section>
@@ -284,6 +300,10 @@ for (let q = 1; q <= 4; q++) Object.assign(DEF, { [`LFO${q} Shape`]: 0, [`LFO${q
 for (let q = 1; q <= 8; q++) DEF[`Macro ${q}`] = 0;
 Object.assign(DEF, { "Osc A Level": 100, "Table B": 0, "Position B": 40, "Octave B": 0, "Semi B": 0, "Fine B": 0, "Osc B Level": 0,
   "Warp A": 0, "Warp A Amount": 0, "Warp B": 0, "Warp B Amount": 0, "Noise": 0, "Noise Color": 0 });
+Object.assign(DEF, { "Drive Style": 6, "Drive Mix": 100, "Chorus On": 0, "Chorus Mode": 0, "Chorus Mix": 50,
+  "Echo On": 0, "Echo Style": 7, "Echo Mode": 1, "Echo Sync": 1, "Echo Note L": 3, "Echo Note R": 5, "Echo Time L": 188, "Echo Time R": 250, "Echo Feedback": 25, "Echo Mix": 28,
+  "Reverb On": 0, "Reverb Style": 6, "Reverb Decay": 2.8, "Reverb Size": 100, "Reverb Mix": 25,
+  "Pump On": 0, "Pump Mode": 0, "Pump Rate": 2, "Pump Depth": 45, "Pump Mix": 100, "FX Order": 0 });
 Object.assign(P, DEF);
 
 let NF = 64;  // frames in the table being played (6 .. 64)
@@ -352,6 +372,7 @@ const SRC = [null,
   { id: 14, key: "DRIFT", name: "DRIFT", col: "#b0e0c8" }];
 const MACRO_NAMES = ["DREAM", "BLOOM", "MOTION", "GRIT", "SPACE", "WIDTH", "TONE", "FLUX"];
 for (let q = 0; q < 8; q++) SRC.push({ id: 15 + q, key: MACRO_NAMES[q], name: "MACRO " + (q + 1) + " · " + MACRO_NAMES[q], col: "#f4e3c1" });
+SRC.push({ id: 23, key: "SIDECHAIN", name: "SIDECHAIN", col: "#7dffcf" });
 const DEST_NAMES = ["", "POSITION", "PITCH", "CUTOFF", "RESONANCE", "FILTER MORPH", "FILTER DRIVE", "DETUNE", "SPREAD", "SUB", "LEVEL", "PAN", "SCAN SPEED", "POSITION B", "LEVEL B", "WARP A", "WARP B", "NOISE"];
 // knob -> destination, and how far a +100% route moves that knob (in knob turns)
 const DEST_OF = { "Position": 1, "Cutoff": 3, "Resonance": 4, "Filter Morph": 5, "Filter Drive": 6, "Detune": 7, "Spread": 8, "Sub": 9, "Output": 10, "Scan Speed": 12,
@@ -369,6 +390,73 @@ function addRoute(src, dst, amt = .25) {
 }
 function removeRoute(k) { setSlot(k, 0, 0, 0); afterRoutes(); }
 function afterRoutes() { repaintMods(); renderPills(); renderMatrix(); }
+// ===================================================================== FX page: the rack, in chain order
+const FX = [
+  { key: "Prometheus", col: "#ff4a2b", on: () => P["Drive"] > .005, toggle: () => setP("Drive", P["Drive"] > .005 ? 0 : 5) },
+  { key: "Chorus", col: "#8fd8ff", on: () => P["Chorus On"] > .5, toggle: () => setP("Chorus On", P["Chorus On"] > .5 ? 0 : 1) },
+  { key: "Echo Nymph", col: "#2fd6a8", on: () => P["Echo On"] > .5, toggle: () => setP("Echo On", P["Echo On"] > .5 ? 0 : 1) },
+  { key: "Letheverb", col: "#a98bff", on: () => P["Reverb On"] > .5, toggle: () => setP("Reverb On", P["Reverb On"] > .5 ? 0 : 1) },
+  { key: "Charon", col: "#ffc93c", on: () => P["Pump On"] > .5, toggle: () => setP("Pump On", P["Pump On"] > .5 ? 0 : 1) }];
+const DRIVE_STYLES = ["TAPE", "DESK", "IRON", "TUBE", "PENTODE", "CRUSH", "ORPHEO", "SPARE"];
+const ECHO_STYLES = ["STUDIO", "SPACE TAPE", "PLEX", "MEMORY", "DARK ANALOG", "DIGITAL", "RADIO", "ORPHEO"];
+const VERB_STYLES = ["HALL", "PLATE", "ROOM", "CHAMBER", "CATHEDRAL", "UNDERWORLD", "ORPHEO"];
+const ECHO_NOTES = ["1/32", "1/16T", "1/16", "1/16D", "1/8T", "1/8", "1/8D", "1/4T", "1/4", "1/4D", "1/2", "1/2D", "1/1"];
+const PUMP_RATES = ["1/1", "1/2", "1/4", "1/8", "1/16", "1/2T", "1/4T", "1/8T"];
+function setP(name, v) { setParam(name, v); if (K[name]) K[name].set(v, true); renderFxState(); }
+function orderFromIndex(idx) { const pool = [0, 1, 2, 3, 4], out = []; let f = 24; idx = Math.max(0, Math.min(119, Math.round(idx)));
+  for (let k = 0; k < 5; k++) { const q = Math.floor(idx / f); idx %= f; out.push(pool.splice(q, 1)[0]); if (k < 4) f /= 4 - k; } return out; }
+function indexFromOrder(o) { const pool = [0, 1, 2, 3, 4]; let idx = 0, f = 24;
+  for (let k = 0; k < 5; k++) { const q = pool.indexOf(o[k]); idx += q * f; pool.splice(q, 1); if (k < 4) f /= 4 - k; } return idx; }
+const fxCards = [];
+function seg(el, names, par) { el.innerHTML = names.map((n, i) => `<button data-i="${i}">${n}</button>`).join("");
+  el.addEventListener("click", e => { const b = e.target.closest("[data-i]"); if (b) { setParam(par, +b.dataset.i); renderFxState(); } }); el.dataset.par = par; }
+function styleBtn(card, par, names) { const b = document.createElement("button"); b.className = "selbtn"; b.dataset.par = par; b.dataset.names = names.join("|");
+  b.onclick = () => openMenu(b, names.map(n => [n, ""]), Math.round(P[par]), i => { setParam(par, i); renderFxState(); }); card.querySelector(".ctl").appendChild(b); }
+FX.forEach((fx, id) => {
+  const c = document.createElement("div"); c.className = "fxcard"; c.style.setProperty("--c", fx.col); c.dataset.fx = id;
+  c.innerHTML = `<div class="fxh" style="color:${fx.col}"><span class="num"></span>${fx.key.toUpperCase()}<span class="sp"></span><button class="mv" data-mv="-1">◀</button><button class="mv" data-mv="1">▶</button></div>
+    <button class="onbtn">OFF</button><div class="ctl"></div>`;
+  c.querySelector(".onbtn").onclick = () => fx.toggle();
+  c.querySelectorAll(".mv").forEach(b => b.onclick = () => { const o = orderFromIndex(P["FX Order"]), i = o.indexOf(id), j = i + +b.dataset.mv; if (j < 0 || j > 4) return;
+    [o[i], o[j]] = [o[j], o[i]]; setParam("FX Order", indexFromOrder(o)); renderFxState(); });
+  fxCards[id] = c; $("#pgFx").appendChild(c);
+  const ctl = c.querySelector(".ctl"), kg = () => { const g = document.createElement("div"); g.className = "kgrid"; ctl.appendChild(g); return g; }, sg = () => { const g = document.createElement("div"); g.className = "seg"; ctl.appendChild(g); return g; };
+  if (id === 0) { styleBtn(c, "Drive Style", DRIVE_STYLES); const g = kg();
+    knob(g, { name: "Drive", label: "DRIVE", min: 0, max: 10, size: 58, color: fx.col, fmt: v => v < .005 ? "OFF" : v.toFixed(1) });
+    knob(g, { name: "Drive Mix", label: "MIX", min: 0, max: 100, size: 58, color: fx.col, fmt: pct }); }
+  if (id === 1) { seg(sg(), ["JUNO I", "JUNO II", "I+II", "ENSEMBLE"], "Chorus Mode"); const g = kg();
+    knob(g, { name: "Chorus Mix", label: "MIX", min: 0, max: 100, size: 58, color: fx.col, fmt: pct }); }
+  if (id === 2) { styleBtn(c, "Echo Style", ECHO_STYLES); seg(sg(), ["SINGLE", "DUAL", "PING-PONG"], "Echo Mode");
+    const sy = document.createElement("button"); sy.className = "syncbtn"; sy.id = "echoSync"; sy.textContent = "♩ SYNC"; sy.onclick = () => { setParam("Echo Sync", P["Echo Sync"] > .5 ? 0 : 1); renderFxState(); }; ctl.appendChild(sy);
+    const g = kg(); g.id = "echoTimes";
+    knob(g, { name: "Echo Note L", label: "LEFT", min: 0, max: 12, step: 1, size: 50, color: fx.col, fmt: v => ECHO_NOTES[Math.round(v)] });
+    knob(g, { name: "Echo Note R", label: "RIGHT", min: 0, max: 12, step: 1, size: 50, color: fx.col, fmt: v => ECHO_NOTES[Math.round(v)] });
+    knob(g, { name: "Echo Time L", label: "LEFT", min: 5, max: 2000, log: true, size: 50, color: fx.col, fmt: ms });
+    knob(g, { name: "Echo Time R", label: "RIGHT", min: 5, max: 2000, log: true, size: 50, color: fx.col, fmt: ms });
+    const g2 = kg(); knob(g2, { name: "Echo Feedback", label: "FEEDBACK", min: 0, max: 110, size: 50, color: fx.col, fmt: pct });
+    knob(g2, { name: "Echo Mix", label: "MIX", min: 0, max: 100, size: 50, color: fx.col, fmt: pct }); }
+  if (id === 3) { styleBtn(c, "Reverb Style", VERB_STYLES); const g = kg();
+    knob(g, { name: "Reverb Decay", label: "DECAY", min: .2, max: 30, log: true, size: 58, color: fx.col, fmt: v => v < 10 ? v.toFixed(2) + " s" : v.toFixed(1) + " s" });
+    knob(g, { name: "Reverb Size", label: "SIZE", min: 25, max: 200, size: 58, color: fx.col, fmt: pct });
+    knob(g, { name: "Reverb Mix", label: "MIX", min: 0, max: 100, size: 58, color: fx.col, fmt: pct }); }
+  if (id === 4) { seg(sg(), ["PUMP", "SIDECHAIN", "BOTH"], "Pump Mode"); const g = kg();
+    knob(g, { name: "Pump Rate", label: "RATE", min: 0, max: 7, step: 1, size: 58, color: fx.col, fmt: v => PUMP_RATES[Math.round(v)] });
+    knob(g, { name: "Pump Depth", label: "DEPTH", min: 0, max: 100, size: 58, color: fx.col, fmt: pct });
+    knob(g, { name: "Pump Mix", label: "MIX", min: 0, max: 100, size: 58, color: fx.col, fmt: pct });
+    const note = document.createElement("div"); note.className = "chainline"; note.textContent = "SIDECHAIN: route a kick into Morpheus's sidechain input in Live"; ctl.appendChild(note); }
+});
+function renderFxState() {
+  const o = orderFromIndex(P["FX Order"]);
+  o.forEach((id, k) => { const c = fxCards[id]; c.style.order = k; c.querySelector(".num").textContent = (k + 1) + " ·";
+    c.querySelector('[data-mv="-1"]').disabled = k === 0; c.querySelector('[data-mv="1"]').disabled = k === 4;
+    const on = FX[id].on(); c.classList.toggle("off", !on); const b = c.querySelector(".onbtn"); b.classList.toggle("on", on); b.textContent = on ? "ON" : "OFF"; });
+  document.querySelectorAll("#pgFx .seg[data-par]").forEach(g => g.querySelectorAll("button").forEach((b, i) => b.classList.toggle("on", i === Math.round(P[g.dataset.par]))));
+  document.querySelectorAll("#pgFx .selbtn[data-par]").forEach(b => { b.textContent = b.dataset.names.split("|")[Math.round(P[b.dataset.par])] + " ▾"; });
+  const sy = P["Echo Sync"] > .5, et = $("#echoTimes"); if (et) { $("#echoSync").classList.toggle("on", sy);
+    [...et.children].forEach((k, i) => k.style.display = (i < 2) === sy ? "" : "none"); }
+}
+renderFxState();
+
 // MATRIX page: all 16 slots as rows (the same data as the pills)
 function renderMatrix() {
   const box = $("#mtx"); if (!box || !box.offsetParent) return;
@@ -471,7 +559,7 @@ function chipEl(src, small) {
 for (const id of [1, 2, 3, 4, 5, 6, 7]) chips.appendChild(chipEl(id));
 const midiChip = document.createElement("div"); midiChip.className = "chip"; midiChip.style.color = "#ff4a2b"; midiChip.dataset.src = 8;
 midiChip.innerHTML = `<span class="lbl">MIDI · PLAY</span>`; midiChip.onclick = () => selectSource(8); chips.appendChild(midiChip);
-for (const id of [8, 9, 10, 11, 12, 13, 14]) $("#midiChips").appendChild(chipEl(id, true));
+for (const id of [8, 9, 10, 11, 12, 13, 14, 23]) $("#midiChips").appendChild(chipEl(id, true));
 // macros
 for (let q = 0; q < 8; q++) {
   const m = document.createElement("div"); m.className = "macro"; $("#macros").appendChild(m);
@@ -482,7 +570,7 @@ for (let q = 0; q < 8; q++) {
 }
 function selectSource(id) {
   selSrc = id;
-  const show = id >= 8 && id <= 14 ? 8 : id;
+  const show = (id >= 8 && id <= 14) || id === 23 ? 8 : id;
   bodies.querySelectorAll(".srcbody").forEach(b => b.classList.toggle("on", +b.dataset.src === show));
   chips.querySelectorAll(".chip").forEach(c => c.classList.toggle("on", +c.dataset.src === show));
   renderPills();
@@ -491,7 +579,7 @@ function selectSource(id) {
 function pillHtml(r) {
   const w = Math.abs(r.amt) * 50, left = r.amt >= 0 ? 50 : 50 - w;
   return `<div class="pill" data-k="${r.k}" style="border-color:${SRC[r.src].col}55"><span class="bar" style="left:${left}%;width:${w}%;background:${SRC[r.src].col}"></span>
-    <b>${r.src >= 8 && r.src <= 14 ? SRC[r.src].key + " " : ""}→ ${DEST_NAMES[r.dst]}</b><span class="amt">${r.amt > 0 ? "+" : ""}${Math.round(r.amt * 100)}%</span><span class="x" data-x="${r.k}">×</span></div>`;
+    <b>${(r.src >= 8 && r.src <= 14) || r.src === 23 ? SRC[r.src].key + " " : ""}→ ${DEST_NAMES[r.dst]}</b><span class="amt">${r.amt > 0 ? "+" : ""}${Math.round(r.amt * 100)}%</span><span class="x" data-x="${r.k}">×</span></div>`;
 }
 function renderPills() {
   const all = routes();
@@ -499,7 +587,7 @@ function renderPills() {
     const id = +box.dataset.src, mine = all.filter(r => r.src === id);
     box.innerHTML = mine.map(pillHtml).join("") + (mine.length ? "" : `<div class="ph">NO ROUTES YET<br>drag ● onto a knob</div>`) + `<button class="addroute" data-add="${id}">+ ROUTE</button>`;
   });
-  const mp = all.filter(r => r.src >= 8 && r.src <= 14);
+  const mp = all.filter(r => (r.src >= 8 && r.src <= 14) || r.src === 23);
   $("#midiPills").innerHTML = mp.map(pillHtml).join("") + (mp.length ? "" : `<div class="ph">VELOCITY · NOTE · WHEEL · BEND<br>PRESSURE · RANDOM · DRIFT<br>drag a ● onto a knob</div>`);
 }
 let pillDrag = null;
@@ -955,7 +1043,7 @@ window.__host = h => {
   if (h.p && performance.now() - userEdit > 400) {
     let moved = false;
     for (const k in h.p) if (k in P && Math.abs(P[k] - h.p[k]) > 1e-6 * Math.max(1, Math.abs(P[k]))) { P[k] = h.p[k]; K[k] && K[k].set(h.p[k], true); moved = true; }
-    if (moved) { repaintMods(); renderPills(); renderMatrix(); }
+    if (moved) { repaintMods(); renderPills(); renderMatrix(); renderFxState(); }
   }
   if (h.lfo) h.lfo.forEach((x, i) => { LFOV[i] = x; });
   if (h.tn != null) { TN = h.tn; TI = h.ti || ""; GROWN = h.grown || ""; }
