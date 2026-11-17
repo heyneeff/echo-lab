@@ -163,7 +163,12 @@ html.host body { background: #080606; }
 .pun .name { font-family: var(--cond); font-weight: 600; font-size: 14px; letter-spacing: .16em; }
 .mix span { font-family: var(--cond); font-weight: 600; font-size: 10px; letter-spacing: .14em; }
 .mix .trk { border-radius: 3px; background: #090706; box-shadow: inset 0 2px 6px #000, 0 0 0 1px #3a2a20; }
-.mix .hd { border-radius: 2px; background: linear-gradient(90deg, #3a2e26, #6e5c4e, #3a2e26); }
+/* the cursor: a hairline with notches top and bottom, in the plugin's colour */
+.mix .hd { top: 0; bottom: 0; width: 12px; margin-left: -6px; border-radius: 0; background: none; box-shadow: none; }
+.mix .hd::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--c, #eadfce); box-shadow: 0 0 6px var(--c, #eadfce); }
+.mix .hd::after { content: ""; position: absolute; inset: 0; background:
+  conic-gradient(from -30deg at 50% 7px, var(--c, #eadfce) 0 60deg, #0000 0) top / 100% 7px no-repeat,
+  conic-gradient(from 150deg at 50% 0, var(--c, #eadfce) 0 60deg, #0000 0) bottom / 100% 7px no-repeat; filter: drop-shadow(0 0 3px var(--c, #eadfce)); }
 .mini { border-radius: 3px; background: #090706; box-shadow: 0 0 0 1px #3a2a20 inset;
   background-image: linear-gradient(#3fd0b40a 1px, transparent 1px), linear-gradient(90deg, #3fd0b40a 1px, transparent 1px); background-size: 14px 14px; }
 .axis { font-family: var(--cond); font-weight: 600; font-size: 14px; letter-spacing: .14em; }
@@ -337,7 +342,7 @@ function seg(parent, names, cur, onpick) {
   parent.innerHTML = names.map((nm, i) => `<button class="${i === cur ? "on" : ""}" data-i="${i}">${nm}</button>`).join("");
   parent.addEventListener("click", e => { const b = e.target.closest("[data-i]"); if (!b) return; parent.querySelectorAll("button").forEach(k => k.classList.toggle("on", k === b)); onpick(+b.dataset.i); });
 }
-// Portal-style dry/wet slider with a little particle field
+// dry/wet as an instrument dial: a calibrated ruler lit up to the cursor, and a scope trace on the wet side that swells with the signal
 function mixSlider(root, value, color, onchange) {
   const trk = root.querySelector(".trk"), hd = root.querySelector(".hd"), cv = root.querySelector("canvas"); let v = value / 100;
   const paint = () => { hd.style.left = (8 + v * (trk.clientWidth - 16)) + "px"; onchange(v * 100); };
@@ -346,10 +351,21 @@ function mixSlider(root, value, color, onchange) {
   trk.addEventListener("pointerdown", e => { e.preventDefault(); drag = true; trk.setPointerCapture(e.pointerId); at(e); });
   trk.addEventListener("pointermove", e => drag && at(e)); trk.addEventListener("pointerup", () => drag = false);
   nextFrame(paint);
-  const dots = Array.from({ length: 70 }, () => [Math.random(), Math.random(), Math.random()]);
-  return { set(x) { v = x / 100; hd.style.left = (8 + v * (trk.clientWidth - 16)) + "px"; }, draw(now, energy) { hd.style.left = (8 + v * (trk.clientWidth - 16)) + "px"; const [g, W, H] = fit(cv); const x1 = 8 + v * (W - 16);
-    for (const [x, y, s] of dots) { const px = 4 + ((x + now * .03 * (s + .3)) % 1) * (W - 8); if (px > x1) continue; g.fillStyle = color; g.globalAlpha = .25 + .6 * s * Math.min(1, .3 + energy * 4); g.fillRect(px, 6 + y * (H - 12), 1.6, 1.6); }
-    g.globalAlpha = 1; } };
+  hd.style.setProperty("--c", color);
+  return { set(x) { v = x / 100; hd.style.left = (8 + v * (trk.clientWidth - 16)) + "px"; }, draw(now, energy) { hd.style.left = (8 + v * (trk.clientWidth - 16)) + "px"; const [g, W, H] = fit(cv); const x1 = 8 + v * (W - 16), mid = H / 2;
+    // the ruler: 50 divisions, a long tick every tenth, lit up to the cursor
+    for (let i = 0; i <= 50; i++) { const x = Math.round(8 + i / 50 * (W - 16)) + .5, L = i % 10 === 0 ? 9 : i % 5 === 0 ? 6 : 3, lit = x <= x1 + .5;
+      g.strokeStyle = lit ? color : "#4a3a2e"; g.globalAlpha = lit ? .85 : .7; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(x, 2); g.lineTo(x, 2 + L); g.moveTo(x, H - 2); g.lineTo(x, H - 2 - L); g.stroke(); }
+    g.globalAlpha = 1;
+    // the dry side: a flat, dim baseline
+    g.strokeStyle = "#4a3a2e"; g.setLineDash([2, 3]); g.beginPath(); g.moveTo(x1, mid + .5); g.lineTo(W - 8, mid + .5); g.stroke(); g.setLineDash([]);
+    // the wet side: a scope trace, tapered at both ends, its height following the signal
+    if (x1 > 10) { const amp = Math.min(H * .26, 1.5 + energy * 60);
+      g.beginPath(); for (let x = 8; x <= x1; x += 1.5) { const t = (x - 8) / Math.max(1, x1 - 8), env = Math.sin(Math.PI * Math.min(1, t * 1.02));
+        const y = mid + Math.sin(x * .19 - now * 5) * amp * env * (.75 + .25 * Math.sin(x * .043 + now * 1.3)); x === 8 ? g.moveTo(x, y) : g.lineTo(x, y); }
+      g.strokeStyle = color; g.shadowColor = color; g.shadowBlur = 5; g.lineWidth = 1.2; g.stroke(); g.shadowBlur = 0; }
+  } };
 }
 function fit(c) { const d = Math.min(devicePixelRatio || 1, 1.5), W = c.clientWidth, H = c.clientHeight; if (c.width !== Math.round(W * d) || c.height !== Math.round(H * d)) { c.width = Math.round(W * d); c.height = Math.round(H * d); } const g = c.getContext("2d"); g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, W, H); return [g, W, H]; }
 function scaleUnits() { const s = HOST ? Math.min(innerWidth / 1060, innerHeight / 640) : Math.min(innerWidth / 1090, (innerHeight - 52) / 660, 1.35); $("#units").style.transform = `scale(${s})`; }
