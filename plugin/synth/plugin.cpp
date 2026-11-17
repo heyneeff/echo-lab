@@ -45,7 +45,7 @@ private:
     ParamDef def;
 };
 
-constexpr uint32 kStateVersion = 4;  // 2: + grown wavetable, 3: + its length (SCAN), 4: mod switches sized for growth
+constexpr uint32 kStateVersion = 5;  // 2: + grown wavetable, 3: + its length (SCAN), 4: mod switches sized for growth, 5: + preset name
 constexpr int kSavedHarmonics = 512;   // per frame, complex, as floats
 
 std::string upper(std::string s) { for (auto& c : s) c = (char)std::toupper((unsigned char)c); return s; }
@@ -64,7 +64,33 @@ tresult PLUGIN_API SynthPlugin::initialize(FUnknown* context) {
         parameters.addParameter(new TableParameter(kParams[id]));
         norm[id] = toNorm(kParams[id], kParams[id].def);
     }
+    applyInitPatch();
     return kResultOk;
+}
+
+// A new Morpheus opens on ORPHEO · Dream Pad (the face's first preset, finished with Juno chorus and the
+// ORPHEO space). The parameters' own defaults stay neutral, so double-click still resets a knob to Init.
+void SynthPlugin::applyInitPatch() {
+    struct V { const char* name; double plain; };
+    static const V patch[] = {
+        {"Position", 30}, {"Position Env", 35}, {"Unison", 5}, {"Detune", 18}, {"Spread", 80}, {"Sub", 20},
+        {"Cutoff", 2500}, {"Resonance", 25}, {"Filter Env", 35}, {"Attack", 400}, {"Decay", 1500}, {"Sustain", 70},
+        {"Release", 1800}, {"Mod Attack", 600}, {"Mod Decay", 3000}, {"Velocity", 40}, {"Drive", 1.5}, {"Output", 0},
+        {"LFO1 Rate", .15}, {"LFO1 Mode", 1}, {"LFO2 Shape", 6}, {"LFO2 Rate", .4},
+        {"Chorus On", 1}, {"Chorus Mode", 0}, {"Chorus Mix", 45},
+        {"Reverb On", 1}, {"Reverb Style", 6}, {"Reverb Decay", 3.5}, {"Reverb Size", 120}, {"Reverb Mix", 28}};
+    // DREAM sweeps the table, BLOOM opens the filter, MOTION widens, GRIT drives; LFOs breathe; Drift detunes a little
+    static const double routes[][3] = {{15, 1, 45}, {16, 3, 40}, {16, 4, 15}, {17, 7, 45}, {17, 8, 30}, {18, 6, 60}, {4, 1, 12}, {5, 3, 10}, {14, 2, .3}};
+    auto set = [&](const std::string& name, double plain) {
+        for (const auto& d : kParams)
+            if (name == d.name) { norm[d.id] = toNorm(d, plain); setParamNormalized(d.id, norm[d.id]); return; }
+    };
+    for (const auto& v : patch) set(v.name, v.plain);
+    for (int k = 0; k < (int)(sizeof routes / sizeof routes[0]); ++k) {
+        const std::string m = "Mod " + std::to_string(k + 1);
+        set(m + " Source", routes[k][0]); set(m + " Dest", routes[k][1]); set(m + " Amount", routes[k][2]);
+    }
+    applyParams();
 }
 
 tresult PLUGIN_API SynthPlugin::setBusArrangements(SpeakerArrangement* in, int32 ni, SpeakerArrangement* out, int32 no) {
@@ -327,6 +353,11 @@ void SynthPlugin::onEditorMessage(const std::string& type, const std::string& na
         useFactoryTable();
     } else if (type == "panic") {
         panicReq = true;
+    } else if (type == "pname") {  // the face picked a preset: remember its name with the set
+        std::string nm;
+        for (char c : name) if ((unsigned char)c >= 32 && c != '"' && c != '\\') nm += c;
+        std::lock_guard<std::mutex> lock(tableMx);
+        presetName = nm.substr(0, 64);
     }
 }
 
@@ -432,6 +463,17 @@ std::string SynthPlugin::feedJson() {
         }
         s += ",\"tn\":\"" + tn + "\",\"ti\":\"" + ti + "\",\"grown\":\"" + (custom ? tableName : std::string()) + "\"";
         if (!exportNote.empty()) { s += ",\"note\":\"" + exportNote + "\""; exportNote.clear(); }
+        s += ",\"pn\":\"";
+        for (size_t i = 0; i < presetName.size();) {  // non-ASCII as \uXXXX, so the bridge's string encoding can't garble it
+            const unsigned char c = (unsigned char)presetName[i];
+            uint32_t cp = c; int len = 1;
+            if (c >= 0xF0) { cp = c & 7; len = 4; } else if (c >= 0xE0) { cp = c & 15; len = 3; } else if (c >= 0xC0) { cp = c & 31; len = 2; }
+            for (int k = 1; k < len && i + k < presetName.size(); ++k) cp = (cp << 6) | ((unsigned char)presetName[i + k] & 63);
+            i += len;
+            if (cp < 128) s += (char)cp;
+            else if (cp < 0x10000) { char u[8]; std::snprintf(u, sizeof u, "\\u%04x", (unsigned)cp); s += u; }
+        }
+        s += "\"";
     }
     // tables for the face: frames x 128 points, from a smooth (64-harmonic) level; sent when they change
     auto tableJson = [&](const char* key, const wt::Wavetable& t) {
@@ -506,6 +548,10 @@ tresult PLUGIN_API SynthPlugin::setState(IBStream* state) {
     } else if (version >= 2) {
         useFactoryTable();
     }
+    int32 pnLen = 0;
+    std::string pn;
+    if (version >= 5 && s.readInt32(pnLen) && pnLen >= 0 && pnLen <= 256) { pn.resize(pnLen); for (auto& c : pn) { int8 ch; if (!s.readInt8(ch)) break; c = (char)ch; } }
+    { std::lock_guard<std::mutex> lock(tableMx); presetName = pn; }  // older sets: no name (the face shows a dash)
     return kResultOk;
 }
 
@@ -527,6 +573,8 @@ tresult PLUGIN_API SynthPlugin::getState(IBStream* state) {
         for (char c : tableInfo) s.writeInt8((int8)c);
         s.writeDouble(customSeconds);
     }
+    s.writeInt32((int32)presetName.size());
+    for (char c : presetName) s.writeInt8((int8)c);
     return kResultOk;
 }
 

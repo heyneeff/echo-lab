@@ -44,6 +44,7 @@ public:
 
 private:
     void applyParams();
+    void applyInitPatch();
     void render(float* L, float* R, int from, int to);
     std::array<double, kNumParams> norm{};
     wt::Synth synth;
@@ -71,6 +72,7 @@ private:
     double customSeconds = 0;
     std::atomic<const wt::Wavetable*> customPtr{nullptr};  // what the audio thread may play as GROWN
     std::atomic<bool> tableDirty{false};
+    std::string presetName = "ORPHEO \u00B7 Dream Pad";  // shown in the face's browser, saved in the set (guarded by tableMx)
     std::string exportNote;  // one-shot message for the face after exporting (guarded by tableMx)                    // a grown table arrived: re-pick the table
     const wt::Wavetable* lastShown = nullptr, *lastShownB = nullptr;  // editor thread: which tables the face has
     void setFromEditor(const std::string& name, double plain);

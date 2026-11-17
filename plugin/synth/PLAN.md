@@ -182,8 +182,32 @@ The window grows to **1280 × 800** (the face still scales to fit). Layout:
 4. Demo renders; Neeff plays it in Live.
 5. Commit on `wavetable` and update `plugin/synth/ROADMAP.md`.
 
+## M6: Sound design station (research + plan)
+
+**Where the others stand out** (what we take, not their look):
+
+| Synth | What makes it a sound design station |
+|---|---|
+| Serum 2 | Drawable LFO/envelope curves with grid and snap; LFO as a one-shot envelope; per-route remap curves; a real wavetable editor (draw, FFT, morph, formula); spectral, granular and multisample oscillators; arpeggiator and clip sequencer; FX parameters as mod destinations |
+| Vital | Drag any source to anything, remap curves on every route, text-to-wavetable, spectral warps, stereo LFOs, a free and very fast UI |
+| Pigments | Sequencer, function and random generators, mod combinators, macro "sound bank" tweaking, one-click randomise per section |
+| Phase Plant | Modular lanes, unlimited LFOs/envelopes, snapins: any FX anywhere |
+| Massive X | Performers (sequenced modulation in bars), trackers (curves from note or velocity) |
+| Omnisphere / Output | One gesture changes many things: the Orb, macro "states", morphing between snapshots |
+
+**Morpheus, next level** (in order of payoff):
+
+1. **FINISH** (done): one-click recipes that stack and undo. Motion on LFO 3/4, so presets keep LFO 1/2.
+2. **Morph snapshots**: store 4 states of the whole patch on the X-Y pad corners and glide between them (Omnisphere/Output idea, our Dreamscape as the surface).
+3. **Remap curves per route**: amount + curve (exp, log, S, steps) per matrix slot (Serum/Vital).
+4. **Dice**: randomise a section (osc, filter, mod, FX) with locks; "mutate" by a small amount.
+5. **Step modulator / arp**: a 16-step lane as a source (Massive X performers, Pigments sequencer), plus a tempo arp.
+6. **FX as destinations**: echo mix, reverb mix/decay, drive, pump depth on the matrix.
+7. **Table editor**: draw a frame, harmonics view, morph two grown tables (we already grow tables from sound: Serum can't).
+8. **Presets inside the plugin** (from M5) so FINISH + snapshots save with the patch everywhere.
+
 ## Where we stopped (save point)
 
-M4 done. M5 started: the STAGE page is in (Dreamscape full size, 8 big macros, X-Y pad assignable to any
-modulatable knob or macro and remembered per machine, PANIC -> synth + FX reset at the next block).
-Next in M5: presets inside the plugin + the vintage bank, expression / MPE check, CPU benchmark.
+M4 done; M5: STAGE page in. M6 started: FINISH panel (12 recipes) in the deck, a new Morpheus opens on
+ORPHEO · Dream Pad (with Juno chorus + ORPHEO space), the preset name is saved with the set (state v5).
+Next: morph snapshots on the X-Y pad, then remap curves, Dice, presets inside the plugin.
