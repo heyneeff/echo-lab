@@ -10,6 +10,7 @@
 #include "pluginterfaces/base/ustring.h"
 #include "pluginterfaces/vst/ivstevents.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
+#include "pluginterfaces/vst/ivstprocesscontext.h"
 #include "public.sdk/source/vst/vstparameters.h"
 
 using namespace Steinberg;
@@ -115,6 +116,27 @@ void SynthPlugin::applyParams() {
     p.filterDriveDb = plain(kFilterDrive);
     p.hpf = (int)plain(kHpf);
     p.keytrack = plain(kKeytrack) / 100;
+    for (int s = 0; s < wt::kModSlots; ++s)
+        p.slots[s] = {(int)plain(kModBase + 3 * s), (int)plain(kModBase + 3 * s + 1), plain(kModBase + 3 * s + 2) / 100};
+    for (int q = 0; q < wt::kLfos; ++q) {
+        auto& l = p.lfo[q];
+        l.shape = (int)plain(kLfoBase + 5 * q);
+        l.hz = plain(kLfoBase + 5 * q + 1);
+        l.sync = plain(kLfoBase + 5 * q + 2) > 0.5;
+        l.note = (int)plain(kLfoBase + 5 * q + 3);
+        l.mode = (int)plain(kLfoBase + 5 * q + 4);
+    }
+    p.env3A = plain(kEnv3A) / 1000;
+    p.env3D = plain(kEnv3D) / 1000;
+    p.env3S = plain(kEnv3S) / 100;
+    p.env3R = plain(kEnv3R) / 1000;
+    for (int q = 0; q < 8; ++q) p.macro[q] = plain(kMacro1 + q) / 100;
+    p.modWheel = plain(kModWheel) / 100;
+    p.pitchBend = plain(kPitchBend) / 100;
+    p.aftertouch = plain(kAftertouch) / 100;
+    p.bendRange = plain(kBendRange);
+    p.voiceMode = (int)plain(kVoiceMode);
+    p.glide = plain(kGlide) / 1000;
     synth.update(p);
     synth.setTable(pickTable((int)plain(kTable)));
     DriveParams d;
@@ -149,6 +171,11 @@ tresult PLUGIN_API SynthPlugin::process(ProcessData& data) {
         }
     }
     if (tableDirty.exchange(false)) changed = true;
+    if (auto* ctx = data.processContext) {  // tempo + song position for synced LFOs
+        const bool tempoOk = (ctx->state & ProcessContext::kTempoValid) != 0;
+        const bool posOk = (ctx->state & ProcessContext::kProjectTimeMusicValid) != 0;
+        synth.setTransport(tempoOk ? ctx->tempo : 120, posOk ? ctx->projectTimeMusic : 0, posOk && (ctx->state & ProcessContext::kPlaying));
+    }
     if (changed) applyParams();
     if (data.numOutputs == 0 || data.numSamples <= 0) return kResultOk;
 
@@ -174,6 +201,8 @@ tresult PLUGIN_API SynthPlugin::process(ProcessData& data) {
                 else synth.noteOff(e.noteOn.pitch);
             } else if (e.type == Event::kNoteOffEvent) {
                 synth.noteOff(e.noteOff.pitch);
+            } else if (e.type == Event::kPolyPressureEvent) {
+                synth.polyPressure(e.polyPressure.pitch, e.polyPressure.pressure);
             }
         }
     }
@@ -188,6 +217,21 @@ tresult PLUGIN_API SynthPlugin::process(ProcessData& data) {
     if (pk > mOut.load(std::memory_order_relaxed)) mOut.store(pk, std::memory_order_relaxed);
     out.silenceFlags = synth.activeVoices() == 0 && !driveOn ? 3 : 0;
     return kResultOk;
+}
+
+tresult PLUGIN_API SynthPlugin::queryInterface(const TUID iid, void** obj) {
+    QUERY_INTERFACE(iid, obj, IMidiMapping::iid, IMidiMapping)
+    return SingleComponentEffect::queryInterface(iid, obj);
+}
+
+tresult PLUGIN_API SynthPlugin::getMidiControllerAssignment(int32 busIndex, int16, CtrlNumber cc, ParamID& id) {
+    if (busIndex != 0) return kResultFalse;
+    switch (cc) {
+        case kCtrlModWheel: id = kModWheel; return kResultTrue;
+        case kAfterTouch: id = kAftertouch; return kResultTrue;
+        case kPitchBend: id = kPitchBend; return kResultTrue;
+    }
+    return kResultFalse;
 }
 
 SynthPlugin::~SynthPlugin() {
@@ -290,8 +334,13 @@ std::string SynthPlugin::feedJson() {
         s += buf;
         first = false;
     }
-    std::snprintf(buf, sizeof buf, "],\"out\":%.5g,\"busy\":%d", mOut.exchange(0), growing.load() ? 1 : 0);
+    std::snprintf(buf, sizeof buf, "],\"out\":%.5g,\"busy\":%d,\"lfo\":[", mOut.exchange(0), growing.load() ? 1 : 0);
     s += buf;
+    for (int q = 0; q < wt::kLfos; ++q) {
+        std::snprintf(buf, sizeof buf, "%s[%.4f,%.4f]", q ? "," : "", synth.lfoView[q].load(std::memory_order_relaxed), synth.lfoPhaseView[q].load(std::memory_order_relaxed));
+        s += buf;
+    }
+    s += "]";
     const wt::Wavetable* shown = &synth.wavetable();
     {
         std::lock_guard<std::mutex> lock(tableMx);

@@ -8,6 +8,7 @@
 #include <string>
 
 #include "public.sdk/source/vst/vstsinglecomponenteffect.h"
+#include "pluginterfaces/vst/ivstmidicontrollers.h"
 
 #include "params.h"
 #include "WebEditor.h"
@@ -17,8 +18,15 @@
 namespace echolab {
 namespace wtsynth {
 
-class SynthPlugin : public Steinberg::Vst::SingleComponentEffect {
+class SynthPlugin : public Steinberg::Vst::SingleComponentEffect, public Steinberg::Vst::IMidiMapping {
 public:
+    // mod wheel, channel aftertouch and pitch bend arrive as the parameters of the same names
+    Steinberg::tresult PLUGIN_API getMidiControllerAssignment(Steinberg::int32 busIndex, Steinberg::int16 channel,
+                                                              Steinberg::Vst::CtrlNumber midiControllerNumber,
+                                                              Steinberg::Vst::ParamID& id) SMTG_OVERRIDE;
+    Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID iid, void** obj) SMTG_OVERRIDE;
+    Steinberg::uint32 PLUGIN_API addRef() SMTG_OVERRIDE { return SingleComponentEffect::addRef(); }
+    Steinberg::uint32 PLUGIN_API release() SMTG_OVERRIDE { return SingleComponentEffect::release(); }
     using tresult = Steinberg::tresult;
     static Steinberg::FUnknown* createInstance(void*) { return (Steinberg::Vst::IAudioProcessor*)new SynthPlugin; }
     ~SynthPlugin() override;

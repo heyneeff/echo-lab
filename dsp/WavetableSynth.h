@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "Filters.h"
+#include "Modulation.h"
 
 namespace echolab {
 namespace wt {
@@ -201,7 +202,17 @@ struct Params {
     double filterDriveDb = 0;     // 0..24
     double keytrack = 0;          // 0..1: cutoff follows the note (1 = an octave per octave, around C4)
     int hpf = 1;                  // 0 boost, 1 flat, 2 low, 3 high
+    // modulation (dsp/Modulation.h)
+    std::array<ModSlot, kModSlots> slots{};
+    std::array<LfoParams, kLfos> lfo{};
+    double env3A = 0.01, env3D = 0.5, env3S = 0, env3R = 0.3;
+    std::array<double, 8> macro{};            // 0..1
+    double modWheel = 0, pitchBend = 0, aftertouch = 0;  // wheel/AT 0..1, bend -1..1
+    double bendRange = 2;                     // semitones
+    int voiceMode = 0;                        // 0 poly, 1 mono, 2 legato (overlapping notes slide, no retrigger)
+    double glide = 0;                         // seconds
 };
+enum VoiceMode { kPoly = 0, kMono, kLegato };
 
 // ------------------------------------------------------------------ envelope
 struct Env {
@@ -233,12 +244,20 @@ struct Voice {
     int note = -1;
     double vel = 0;
     uint64_t age = 0;
-    Env amp, mod;
+    Env amp, mod, env3;
     std::array<double, kMaxUnison> phase{};
     double subPhase = 0;
     double scan = 0;            // SCAN playhead 0..1 (from Position to the end)
     int scanDir = 1;
     VoiceFilter filt;
+    std::array<LfoState, kLfos> lfo{};
+    double rnd = 0;             // per-note random, -1..1
+    double drift = 0, driftTarget = 0;  // slow per-voice wander, -1..1
+    int driftCount = 0;
+    double pressure = 0;        // poly aftertouch 0..1
+    double pitch = 60;          // sounding pitch in semitones (glides toward note)
+    double ratio = 1;           // last pitch ratio from modulation + bend + glide (for band-limiting)
+    double modDetune = 0, modSpread = 0;  // last block's modulation of the per-block settings
     bool active() const { return amp.stage != Env::Idle; }
 };
 
@@ -258,6 +277,9 @@ public:
         for (auto& v : voices) v = Voice{};
         wireCombs();
         held.fill(false);
+        depth = 0;
+        lastPitch = -1;
+        for (int k = 0; k < kLfos; ++k) lfoG[k].start(97 + k);
     }
     void update(const Params& np) {
         if (np.hpf != p.hpf) hpf.set(np.hpf, sr);
@@ -265,35 +287,56 @@ public:
     }
 
     void noteOn(int note, double velocity) {
+        const bool wasHeld = depth > 0;
+        push(note);
+        if (p.voiceMode != kPoly) {  // one voice; the others let go
+            Voice& v = voices[0];
+            for (int i = 1; i < kVoices; ++i) if (voices[i].active()) gateAll(voices[i], false);
+            const bool slide = p.voiceMode == kLegato && wasHeld && v.active();
+            if (!v.active()) startVoice(v, note, velocity, note);
+            else if (p.glide <= 0 || (p.voiceMode == kLegato && !wasHeld)) v.pitch = note;  // jump (else glide on)
+            v.note = note;
+            v.age = ++clock;
+            if (!slide) { v.vel = velocity; retrigger(v); }
+            lastPitch = note;
+            return;
+        }
         Voice* v = nullptr;
         for (auto& c : voices) if (!c.active()) { v = &c; break; }
         if (!v) {  // steal: the oldest releasing voice, else the oldest
             for (auto& c : voices) if (c.amp.stage == Env::Release && (!v || c.age < v->age)) v = &c;
             if (!v) for (auto& c : voices) if (!v || c.age < v->age) v = &c;
         }
-        const bool fresh = !v->active();
+        const double from = p.glide > 0 && lastPitch >= 0 ? lastPitch : note;  // poly portamento
+        if (!v->active()) startVoice(*v, note, velocity, from);  // a stolen voice keeps running phases: no click
+        else { v->pitch = from; }
         v->note = note;
         v->vel = velocity;
         v->age = ++clock;
-        if (fresh) {  // keep running phases on a stolen voice: no click
-            v->amp.v = 0;
-            v->mod.v = 0;
-            for (int u = 0; u < kMaxUnison; ++u) v->phase[u] = u == 0 ? 0.0 : rand01();
-            v->subPhase = 0;
-            v->filt.reset();
-        }
-        v->scan = 0;
-        v->scanDir = 1;
-        v->amp.gate(true);
-        v->mod.gate(true);
-        held[note & 127] = true;
+        retrigger(*v);
+        lastPitch = note;
     }
     void noteOff(int note) {
-        held[note & 127] = false;
+        remove(note);
+        if (p.voiceMode != kPoly) {
+            Voice& v = voices[0];
+            if (v.note != note || !v.active()) return;
+            if (depth > 0) {  // fall back to the newest held note, without retriggering
+                v.note = stack[depth - 1];
+                if (p.glide <= 0) v.pitch = v.note;
+                lastPitch = v.note;
+            } else gateAll(v, false);
+            return;
+        }
         for (auto& v : voices)
-            if (v.note == note && v.active() && v.amp.stage != Env::Release) { v.amp.gate(false); v.mod.gate(false); }
+            if (v.note == note && v.active() && v.amp.stage != Env::Release) gateAll(v, false);
     }
-    void allOff() { for (auto& v : voices) { v.amp.gate(false); v.mod.gate(false); } }
+    void polyPressure(int note, double value) { for (auto& v : voices) if (v.note == note && v.active()) v.pressure = value; }
+    void allOff() { for (auto& v : voices) gateAll(v, false); depth = 0; }
+    void setTransport(double bpm, double beatPos, bool isPlaying) { if (bpm > 20) tempo = bpm; beat = beatPos; playing = isPlaying; }
+
+    // what the face shows: each LFO's value and phase for the newest voice (or the shared clock)
+    std::array<std::atomic<float>, kLfos> lfoView{}, lfoPhaseView{};
 
     // add n samples into L/R (caller clears)
     void process(float* L, float* R, int n) {
@@ -305,14 +348,18 @@ private:
     // Knob moves arrive once per host block; stepping the table position or the cutoff that coarsely
     // is audible as static. These glide sample by sample (~12 ms) instead.
     static constexpr int kChunk = 64;
-    struct Smooth { double pos = -1, cut = 0, res = 0, sub = 0, out = 0, morph = 0, drive = 0; } sm;
+    struct Smooth { double pos = -1, cut = 0, res = 0, sub = 0, out = 0, morph = 0, drive = 0, wheel = 0, bend = 0, at = 0; std::array<double, 8> mac{}; } sm;
 
     void processChunk(float* L, float* R, int n) {
         const Wavetable& table = *current.load(std::memory_order_acquire);
         const double k = 1 - std::exp(-1.0 / (0.012 * sr));
         const double tCut = std::log2(std::max(20.0, p.cutoffHz)), tOut = std::pow(10.0, p.outputDb / 20);
-        if (sm.pos < 0) sm = {p.position, tCut, p.resonance, p.sub, tOut, p.filterMorph, p.filterDriveDb};  // first block: on target
+        if (sm.pos < 0) {  // first block: start on target
+            sm = {p.position, tCut, p.resonance, p.sub, tOut, p.filterMorph, p.filterDriveDb};
+            sm.wheel = p.modWheel; sm.bend = p.pitchBend; sm.at = p.aftertouch; sm.mac = p.macro;
+        }
         double sPos[kChunk], sCut[kChunk], sRes[kChunk], sSub[kChunk], sOut[kChunk], sMorph[kChunk], sDrive[kChunk];
+        double sWheel[kChunk], sBend[kChunk], sAt[kChunk], sMac[8][kChunk];
         for (int i = 0; i < n; ++i) {
             sm.pos += (p.position - sm.pos) * k; sPos[i] = sm.pos;
             sm.cut += (tCut - sm.cut) * k;       sCut[i] = sm.cut;
@@ -321,7 +368,45 @@ private:
             sm.out += (tOut - sm.out) * k;        sOut[i] = sm.out;
             sm.morph += (p.filterMorph - sm.morph) * k; sMorph[i] = sm.morph;
             sm.drive += (p.filterDriveDb - sm.drive) * k; sDrive[i] = sm.drive;
+            sm.wheel += (p.modWheel - sm.wheel) * k; sWheel[i] = sm.wheel;
+            sm.bend += (p.pitchBend - sm.bend) * k;  sBend[i] = sm.bend;
+            sm.at += (p.aftertouch - sm.at) * k;     sAt[i] = sm.at;
+            for (int q = 0; q < 8; ++q) { sm.mac[q] += (p.macro[q] - sm.mac[q]) * k; sMac[q][i] = sm.mac[q]; }
         }
+        // the routes that do something this block
+        ModSlot act[kModSlots];
+        int nAct = 0;
+        bool useLfo[kLfos] = {};
+        for (const auto& sl : p.slots)
+            if (sl.src > kSrcNone && sl.src < kNumSources && sl.dst > kDstNone && sl.dst < kNumDests && std::abs(sl.amt) > 1e-5) {
+                act[nAct++] = sl;
+                if (sl.src >= kSrcLfo1 && sl.src <= kSrcLfo4) useLfo[sl.src - kSrcLfo1] = true;
+            }
+        // LFO clocks: the free-running ones are shared by every voice (and follow the host's beat when synced)
+        const double bps = tempo / 60.0 / sr;
+        double lfoInc[kLfos], gLfo[kLfos][kChunk];
+        for (int q = 0; q < kLfos; ++q) {
+            const auto& lp = p.lfo[q];
+            const double beats = kLfoNoteBeats[std::clamp(lp.note, 0, kLfoNotes - 1)];
+            lfoInc[q] = lp.sync ? bps / beats : lp.hz / sr;
+            if (lp.mode != kLfoFree) continue;
+            for (int i = 0; i < n; ++i) {
+                if (lp.sync && playing) {  // locked to the song position
+                    const double x = (beat + i * bps) / beats, ph = x - std::floor(x);
+                    if (ph < lfoG[q].phase) { lfoG[q].a = lfoG[q].b; lfoG[q].b = lfoG[q].rnd(); }
+                    lfoG[q].phase = ph;
+                    gLfo[q][i] = lfoStep(lfoG[q], lp.shape, 0, false);
+                } else gLfo[q][i] = lfoStep(lfoG[q], lp.shape, lfoInc[q], false);
+            }
+            lfoView[q].store((float)gLfo[q][n - 1], std::memory_order_relaxed);
+            lfoPhaseView[q].store((float)lfoG[q].phase, std::memory_order_relaxed);
+        }
+        beat += n * bps;
+        const double glideK = p.glide > 1e-4 ? 1 - std::exp(-3.0 / (p.glide * sr)) : 1.0;
+        const double driftK = 1 - std::exp(-1.0 / (0.35 * sr));
+        uint64_t newest = 0;
+        for (const auto& v : voices) if (v.active()) newest = std::max(newest, v.age);
+
         const int uni = std::clamp(p.unison, 1, kMaxUnison);
         const double uniGain = 1.0 / std::sqrt((double)uni);
         for (int vi = 0; vi < kVoices; ++vi) {
@@ -329,16 +414,20 @@ private:
             if (!v.active()) { views[vi].note.store(-1, std::memory_order_relaxed); continue; }
             v.amp.set(sr, p.ampA, p.ampD, p.ampS, p.ampR);
             v.mod.set(sr, p.modA, p.modD, 0, p.ampR);
+            v.env3.set(sr, p.env3A, p.env3D, p.env3S, p.env3R);
             const double f0 = 440.0 * std::pow(2.0, (v.note - 69) / 12.0);
-            // per-unison increments, pan gains and band-limit level (fixed for the block)
+            // per-unison increments, pan gains and band-limit level (fixed for the block; detune and
+            // spread take the modulation from the end of the previous block)
+            const double detune = std::max(0.0, p.detuneCents + v.modDetune * 100);
+            const double spread = std::clamp(p.spread + v.modSpread, 0.0, 1.0);
             double inc[kMaxUnison], gl[kMaxUnison], gr[kMaxUnison];
             int lev[kMaxUnison];
             for (int u = 0; u < uni; ++u) {
                 const double x = uni == 1 ? 0.0 : (2.0 * u / (uni - 1) - 1);  // -1..1
-                const double f = f0 * std::pow(2.0, x * p.detuneCents / 2 / 1200);
+                const double f = f0 * std::pow(2.0, x * detune / 2 / 1200);
                 inc[u] = f / sr;
-                lev[u] = levelFor(f);
-                const double pan = x * p.spread * 0.5 + 0.5;  // 0 = left
+                lev[u] = levelFor(f * std::max(1.0, v.ratio) * 1.06);  // headroom for pitch moving within the block
+                const double pan = x * spread * 0.5 + 0.5;  // 0 = left
                 gl[u] = std::cos(pan * kPi / 2) * uniGain * 1.41421356;
                 gr[u] = std::sin(pan * kPi / 2) * uniGain * 1.41421356;
             }
@@ -348,21 +437,42 @@ private:
             const double keyOct = p.keytrack * (v.note - 60) / 12.0;
             FilterSettings fs;
             fs.type = p.filterType;
+            double src[kNumSources] = {};
+            double mods[kNumDests] = {};
             for (int i = 0; i < n; ++i) {
-                const double a = v.amp.next(), m = v.mod.next();
+                const double a = v.amp.next(), m = v.mod.next(), e3 = v.env3.next();
                 if (!v.active()) break;
-                // table position with the mod envelope, frames interpolated
+                // ---- modulation sources -> destinations
+                v.drift += (v.driftTarget - v.drift) * driftK;
+                if (--v.driftCount <= 0) { v.driftTarget = rand01() * 2 - 1; v.driftCount = (int)(sr * (0.15 + 0.3 * rand01())); }
+                std::fill(mods, mods + kNumDests, 0.0);
+                if (nAct) {
+                    src[kSrcAmpEnv] = a; src[kSrcModEnv] = m; src[kSrcEnv3] = e3;
+                    for (int q = 0; q < kLfos; ++q)
+                        if (useLfo[q]) src[kSrcLfo1 + q] = p.lfo[q].mode == kLfoFree ? gLfo[q][i] : lfoStep(v.lfo[q], p.lfo[q].shape, lfoInc[q], p.lfo[q].mode == kLfoOnce);
+                    src[kSrcVelocity] = v.vel; src[kSrcNote] = (v.note - 60) / 60.0;
+                    src[kSrcModWheel] = sWheel[i]; src[kSrcPitchBend] = sBend[i]; src[kSrcAftertouch] = std::max(sAt[i], v.pressure);
+                    src[kSrcRandom] = v.rnd; src[kSrcDrift] = v.drift;
+                    for (int q = 0; q < 8; ++q) src[kSrcMacro1 + q] = sMac[q][i];
+                    for (int r = 0; r < nAct; ++r) mods[act[r].dst] += act[r].amt * src[act[r].src];
+                }
+                // ---- pitch: modulation, bend, glide
+                v.pitch += (v.note - v.pitch) * glideK;
+                const double semis = mods[kDstPitch] * 12 + sBend[i] * p.bendRange + (v.pitch - v.note);
+                const double ratio = std::abs(semis) > 1e-9 ? std::exp2(semis / 12) : 1.0;
+                v.ratio = ratio;
+                // ---- table position: SCAN playhead, mod envelope, routes
                 double base = sPos[i];
                 if (p.scanMode != kScanOff) {
                     base += (1 - base) * v.scan;
-                    v.scan += scanInc * v.scanDir;
+                    v.scan += scanInc * v.scanDir * (mods[kDstScanSpeed] != 0 ? std::exp2(mods[kDstScanSpeed] * 2) : 1.0);
                     if (v.scan >= 1) {
                         if (p.scanMode == kScanOnce) v.scan = 1;
                         else if (p.scanMode == kScanLoop) v.scan -= 1;
                         else { v.scan = 2 - v.scan; v.scanDir = -1; }
                     } else if (v.scan <= 0 && v.scanDir < 0) { v.scan = -v.scan; v.scanDir = 1; }
                 }
-                const double pos = std::clamp(base + p.posEnv * m, 0.0, 1.0) * (table.frames - 1);
+                const double pos = std::clamp(base + p.posEnv * m + mods[kDstPosition], 0.0, 1.0) * (table.frames - 1);
                 const int f0i = std::min((int)pos, table.frames - 2);
                 const double ff = pos - f0i;
                 double sl = 0, sr_ = 0;
@@ -370,34 +480,78 @@ private:
                     const double s = read(table, f0i, ff, lev[u], v.phase[u]);
                     sl += s * gl[u];
                     sr_ += s * gr[u];
-                    v.phase[u] += inc[u];
-                    if (v.phase[u] >= 1) v.phase[u] -= 1;
+                    v.phase[u] += inc[u] * ratio;
+                    if (v.phase[u] >= 1) v.phase[u] -= std::floor(v.phase[u]);
                 }
-                if (sSub[i] > 1e-4) {
-                    const double s = std::sin(2 * kPi * v.subPhase) * sSub[i];
+                const double subLvl = std::clamp(sSub[i] + mods[kDstSub], 0.0, 1.0);
+                if (subLvl > 1e-4) {
+                    const double s = std::sin(2 * kPi * v.subPhase) * subLvl;
                     sl += s; sr_ += s;
-                    v.subPhase += subInc;
-                    if (v.subPhase >= 1) v.subPhase -= 1;
                 }
-                // filter (dsp/Filters.h); cutoff follows the mod envelope and the keyboard
-                fs.fc = std::clamp(std::exp2(sCut[i] + p.filterEnv * 6 * m + keyOct), 20.0, sr * 0.45);
-                fs.res = sRes[i];
-                fs.morph = sMorph[i];
-                fs.driveDb = sDrive[i];
+                v.subPhase += subInc * ratio;
+                if (v.subPhase >= 1) v.subPhase -= std::floor(v.subPhase);
+                // ---- filter (dsp/Filters.h): mod envelope, keyboard, routes
+                fs.fc = std::clamp(std::exp2(sCut[i] + p.filterEnv * 6 * m + keyOct + mods[kDstCutoff] * 6), 20.0, sr * 0.45);
+                fs.res = std::clamp(sRes[i] + mods[kDstResonance], 0.0, 1.0);
+                fs.morph = std::clamp(sMorph[i] + mods[kDstMorph], 0.0, 1.0);
+                fs.driveDb = std::clamp(sDrive[i] + mods[kDstFilterDrive] * 24, 0.0, 24.0);
                 // the plain SVF low-pass, wide open and clean, is transparent: skip it (as v0.1 did)
                 const bool open = fs.type == kFilterSvf && fs.fc >= sr * 0.449 && fs.res <= 0.01 && fs.morph < 1e-4 && fs.driveDb < 0.01;
                 if (!open) v.filt.process(sl, sr_, fs, sr);
-                const double g = a * velGain * sOut[i] * 0.35;
-                L[i] += (float)(sl * g);
-                R[i] += (float)(sr_ * g);
+                // ---- level and pan
+                const double g = a * velGain * sOut[i] * 0.35 * std::max(0.0, 1 + mods[kDstLevel]);
+                const double pan = std::clamp(mods[kDstPan], -1.0, 1.0);
+                L[i] += (float)(sl * g * (pan > 0 ? 1 - pan : 1));
+                R[i] += (float)(sr_ * g * (pan < 0 ? 1 + pan : 1));
                 if (i == n - 1) {
+                    v.modDetune = mods[kDstDetune];
+                    v.modSpread = mods[kDstSpread];
                     views[vi].pos.store((float)(pos / (table.frames - 1)), std::memory_order_relaxed);
                     views[vi].amp.store((float)a, std::memory_order_relaxed);
                     views[vi].mod.store((float)m, std::memory_order_relaxed);
+                    if (v.age == newest)
+                        for (int q = 0; q < kLfos; ++q) if (p.lfo[q].mode != kLfoFree && useLfo[q]) {
+                            lfoView[q].store((float)src[kSrcLfo1 + q], std::memory_order_relaxed);
+                            lfoPhaseView[q].store((float)v.lfo[q].phase, std::memory_order_relaxed);
+                        }
                 }
             }
             views[vi].note.store(v.active() ? v.note : -1, std::memory_order_relaxed);
         }
+    }
+
+    // ---- notes
+    void startVoice(Voice& v, int note, double velocity, double fromPitch) {
+        v.amp.v = 0; v.mod.v = 0; v.env3.v = 0;
+        for (int u = 0; u < kMaxUnison; ++u) v.phase[u] = u == 0 ? 0.0 : rand01();
+        v.subPhase = 0;
+        v.filt.reset();
+        v.pitch = fromPitch;
+        v.ratio = 1;
+        v.pressure = 0;
+        v.modDetune = v.modSpread = 0;
+        v.drift = v.driftTarget = rand01() * 2 - 1;
+        v.driftCount = 0;
+        v.note = note;
+        v.vel = velocity;
+    }
+    void retrigger(Voice& v) {
+        v.scan = 0;
+        v.scanDir = 1;
+        v.rnd = rand01() * 2 - 1;
+        for (int q = 0; q < kLfos; ++q) v.lfo[q].start((uint32_t)(clock * 7 + q));
+        v.amp.gate(true);
+        v.mod.gate(true);
+        v.env3.gate(true);
+        held[v.note & 127] = true;
+    }
+    static void gateAll(Voice& v, bool on) { v.amp.gate(on); v.mod.gate(on); v.env3.gate(on); }
+    void push(int note) { remove(note); if (depth < (int)stack.size()) stack[depth++] = note; held[note & 127] = true; }
+    void remove(int note) {
+        held[note & 127] = false;
+        int w = 0;
+        for (int r = 0; r < depth; ++r) if (stack[r] != note) stack[w++] = stack[r];
+        depth = w;
     }
 
 public:
@@ -445,6 +599,12 @@ private:
     std::atomic<const Wavetable*> current{nullptr};
     std::vector<float> combMem;  // comb-filter delay lines, 2 x kCombLen per voice (allocated once)
     HpfStep hpf;
+    std::array<LfoState, kLfos> lfoG{};  // free-running LFO clocks (shared)
+    std::array<int, 32> stack{};         // held notes, oldest first (mono/legato fall back to the newest)
+    int depth = 0;
+    double lastPitch = -1;
+    double tempo = 120, beat = 0;
+    bool playing = false;
     void wireCombs() { for (int i = 0; i < kVoices; ++i) voices[i].filt.comb = &combMem[(size_t)i * 2 * kCombLen]; }
     Params p;
     double sr = 48000;

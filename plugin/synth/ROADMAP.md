@@ -23,6 +23,15 @@ ORPHEO rail, gothic wordmark in `ui/brand/morpheus-wordmark.png`).
   resonance), OTA (Juno/Jupiter 24 dB), COMB, FORMANT (A-E-I-O-U); Filter Drive, Keytrack, the
   Juno-106 4-step HPF. Measured in `harness/test_filters.cpp`. Face: VOICE · FILTER tabs.
 
+- **M2 · The modulation system:** a 16-slot matrix evaluated per voice, per sample
+  (`dsp/Modulation.h`). Sources: Amp/Mod/Env 3, LFO 1-4 (7 shapes; free or tempo-synced; retrig,
+  free-running or one-shot; free+synced locks to the song position), velocity, note, mod wheel,
+  pitch bend, aftertouch (channel + per-note), per-note random, Drift, 8 ORPHEO macros
+  (DREAM BLOOM MOTION GRIT SPACE WIDTH TONE FLUX). Destinations: position, pitch, cutoff, resonance,
+  morph, filter drive, detune, spread, sub, level, pan, scan speed. Poly/Mono/Legato + glide (303
+  slide). Face: source chips with editors, drag a source's dot onto any knob, rings in the source's
+  colour, route pills (drag = amount, × = remove, + ROUTE for Pitch/Pan/Level). Tests: `test_mod`.
+
 ## Face layout (where new things go)
 
 - **Dreamscape (hero):** always the table. Later: OSC B as a second, cooler-coloured landscape;
