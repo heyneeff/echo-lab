@@ -181,3 +181,11 @@ The window grows to **1280 × 800** (the face still scales to fit). Layout:
 3. Run the real face in `editorhost` with `LAB_EVAL` scripts and check with `LAB_SNAPSHOT`.
 4. Demo renders; Neeff plays it in Live.
 5. Commit on `wavetable` and update `plugin/synth/ROADMAP.md`.
+
+## Where we stopped (save point)
+
+M4 in progress: `dsp/FxRack.h` (Prometheus, Chorus (Juno I/II/I+II, Ensemble), Echo Nymph, Letheverb,
+Charon; 120 chain orders as one index; sidechain follower) + `harness/test_fx.cpp`. All checks pass
+except one: the echo at 1/4 @ 120 BPM measures 301 samples (6 ms) off after settling, while 90 BPM is
+5 samples off. Investigate next (likely the tape glide/wow or peak picking at 120). Not wired into the
+plugin yet. Next: FX params (append-only), wire the rack + sidechain bus into plugin.cpp, FX page.
