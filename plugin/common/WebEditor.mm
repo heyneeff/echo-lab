@@ -16,7 +16,7 @@
 using namespace Steinberg;
 
 // Receives postMessage() calls from the page and forwards parameter edits to the plugin.
-@interface LabBridge : NSObject <WKScriptMessageHandler>
+@interface LabBridge : NSObject <WKScriptMessageHandler, WKUIDelegate>
 @property(nonatomic, assign) echolab::WebEditor* owner;
 @end
 
@@ -33,6 +33,17 @@ using namespace Steinberg;
         double value = [d[@"value"] isKindOfClass:[NSNumber class]] ? [d[@"value"] doubleValue] : 0.0;
         self.owner->onOther([type UTF8String], str(d[@"name"]), str(d[@"data"]), value);
     }
+}
+// <input type="file"> in the page: WKWebView shows nothing unless the host app does, so we do
+- (void)webView:(WKWebView*)webView runOpenPanelWithParameters:(WKOpenPanelParameters*)parameters
+    initiatedByFrame:(WKFrameInfo*)frame completionHandler:(void (^)(NSArray<NSURL*>*))completionHandler {
+    NSOpenPanel* panel = [NSOpenPanel openPanel];
+    panel.canChooseFiles = YES;
+    panel.canChooseDirectories = NO;
+    panel.allowsMultipleSelection = parameters.allowsMultipleSelection;
+    void (^done)(NSModalResponse) = ^(NSModalResponse r) { completionHandler(r == NSModalResponseOK ? panel.URLs : nil); };
+    if (webView.window) [panel beginSheetModalForWindow:webView.window completionHandler:done];
+    else done([panel runModal]);
 }
 @end
 
@@ -79,6 +90,7 @@ tresult PLUGIN_API WebEditor::attached(void* parent, FIDString type) {
         lv.web = [[WKWebView alloc] initWithFrame:frame configuration:cfg];
         [lv.web setValue:@NO forKey:@"drawsBackground"];
         lv.web.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+        lv.web.UIDelegate = lv.bridge;
         [host addSubview:lv.web];
 
         // the page ships inside the plugin bundle: Contents/Resources/<page>.html (faces.html by default)
@@ -98,6 +110,13 @@ tresult PLUGIN_API WebEditor::attached(void* parent, FIDString type) {
             [v.web evaluateJavaScript:js completionHandler:^(id, NSError*) { weakLV.busy = NO; }];
         }];
         [[NSRunLoop currentRunLoop] addTimer:lv.timer forMode:NSRunLoopCommonModes];
+        // test hook: LAB_EVAL=/path.js runs that script in the page after 1.5 s (used outside Live)
+        if (const char* evalPath = getenv("LAB_EVAL")) {
+            NSString* src = [NSString stringWithContentsOfFile:[NSString stringWithUTF8String:evalPath] encoding:NSUTF8StringEncoding error:nil];
+            if (src) dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                LabView* v = weakLV; if (v) [v.web evaluateJavaScript:src completionHandler:nil];
+            });
+        }
         // test hook: LAB_SNAPSHOT=/path.png writes what the editor shows after 4 s (used outside Live)
         if (const char* snap = getenv("LAB_SNAPSHOT")) {
             NSString* path = [NSString stringWithUTF8String:snap];

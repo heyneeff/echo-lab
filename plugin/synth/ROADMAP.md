@@ -35,6 +35,21 @@ ORPHEO rail, gothic wordmark in `ui/brand/morpheus-wordmark.png`).
 3. **ORPHEO macros:** one knob that does something musical, not technical.
 4. **Echo Nymph and Letheverb built in** as the FX section.
 
+## From the vintage synth library (~/Developer/vintage-synths)
+
+- **Filter models**, first the **Moog ladder** (4-stage 24 dB, saturating, self-oscillates to a
+  sine at full Emphasis, thins the bass as resonance rises; Minimoog/Taurus, with Overload drive
+  in front). Then the TB-303 18 dB diode, the Juno/Jupiter IR3109 24 dB, the OB/SEM 12 dB
+  LP↔BP↔HP morph (today's SVF grows into it), and the Juno-106's 4-step HPF incl. its bass boost.
+- **Vintage tables:** the Minimoog's six waveforms (tri, shark-tooth, saw, square, wide and
+  narrow pulse) as one table; a pulse-width table (Position = PWM); a hard-sync table
+  (Position = the Prophet sync sweep).
+- **Player behaviour:** 303 accent + slide (mono/legato + glide); CS-80 velocity/aftertouch →
+  brilliance + level (prepares MPE); Prophet Poly-Mod as a mod-deck route; a **Vintage** knob
+  (per-voice pitch/cutoff drift, OB/Prophet slop).
+- **FX cards:** Juno Chorus I/II (BBD), Solina string ensemble.
+- **Vintage bank:** the 26 racks rebuilt as Morpheus presets once the above exists.
+
 ## Synthesis & engine
 
 - **Physical-modeling oscillators:** waveguide, Karplus-Strong and modal resonators, for plucked

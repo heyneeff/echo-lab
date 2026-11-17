@@ -45,9 +45,11 @@ html.host .bar { display: none; } html.host #stage { top: 0; } html.host body { 
 .brk.tr { right: 40px; top: 40px; width: 60px; height: 70px; border-width: 2px 2px 0 0; border-radius: 0 6px 0 0; }
 .hud { position: absolute; right: 44px; bottom: 30px; font: 11px var(--vec); letter-spacing: .14em; color: var(--amber); pointer-events: none; text-align: right; }
 .hud span { color: var(--dim); }
-.tbtn { position: absolute; right: 44px; top: 128px; z-index: 3; font: 10px var(--vec); letter-spacing: .14em; color: var(--amber); background: #141417cc;
+.tbtns { position: absolute; right: 44px; top: 124px; z-index: 3; display: grid; gap: 8px; justify-items: end; }
+.tbtn { font: 10px var(--vec); letter-spacing: .14em; color: var(--amber); background: #141417cc;
   border: 1px solid #ff8a1f44; border-radius: 6px; padding: 6px 10px; cursor: pointer; display: none; }
 .tbtn:hover { border-color: #ffc93caa; box-shadow: 0 0 12px #ffc93c33; } .tbtn.show { display: block; }
+.tbtn.load { display: block; color: #8ff0d2; border-color: #2fd6a866; } .tbtn.load:hover { border-color: #2fd6a8; box-shadow: 0 0 12px #2fd6a855; }
 .hero .dropzone { position: absolute; inset: 14px; z-index: 4; border: 2px dashed #ffc93c; border-radius: 12px; display: none; place-items: center; text-align: center;
   font: 13px var(--vec); letter-spacing: .22em; color: var(--amber); background: #0d0a09cc; pointer-events: none; text-shadow: 0 0 12px #ffc93c88; }
 .hero .dropzone small { display: block; margin-top: 10px; font-size: 10px; color: var(--dim); letter-spacing: .14em; }
@@ -115,7 +117,8 @@ body.dragging .hero .dropzone, .hero.growing .dropzone { display: grid; }
       <div class="axis y" style="color:var(--orange)">CUTOFF<b id="axY"></b></div>
       <div class="axis x" style="color:var(--amber)">POSITION<b id="axX"></b></div>
       <div class="hud" id="hud"></div>
-      <div class="tbtn" id="factory" title="Back to the factory table">↺ ORPHEO TABLE</div>
+      <div class="tbtns"><label class="tbtn load" for="loadIn" title="Grow a wavetable from a sound file">⇪ LOAD SOUND…</label><input id="loadIn" type="file" accept="audio/*,.wav,.aif,.aiff,.mp3,.m4a,.flac" hidden>
+        <div class="tbtn" id="factory" title="Back to the factory table">↺ ORPHEO TABLE</div></div>
       <div class="dropzone" id="dropzone"><div>DROP AUDIO TO GROW A WAVETABLE<small>voice · synth · bass · drums · any sound</small></div></div>
     </div>
     <div class="rail">
@@ -416,6 +419,7 @@ addEventListener("dragenter", e => { if (e.dataTransfer && [...e.dataTransfer.ty
 addEventListener("dragleave", () => { if (--dragDepth <= 0) { dragDepth = 0; document.body.classList.remove("dragging"); } });
 addEventListener("dragover", e => e.preventDefault());
 addEventListener("drop", e => { e.preventDefault(); dragDepth = 0; document.body.classList.remove("dragging"); const f = e.dataTransfer && e.dataTransfer.files[0]; if (f) growFrom(f); });
+$("#loadIn").addEventListener("change", e => { const f = e.target.files[0]; if (f) growFrom(f); e.target.value = ""; });
 $("#factory").onclick = () => { if (HOST) window.webkit.messageHandlers.lab.postMessage({ type: "factory" }); else { TN = "ORPHEO"; TI = "FACTORY"; buildWT(); } };
 
 // ===================================================================== plugin bridge
