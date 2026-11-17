@@ -12,12 +12,15 @@ enum ModSource {
     kSrcNone = 0, kSrcAmpEnv, kSrcModEnv, kSrcEnv3, kSrcLfo1, kSrcLfo2, kSrcLfo3, kSrcLfo4,
     kSrcVelocity, kSrcNote, kSrcModWheel, kSrcPitchBend, kSrcAftertouch, kSrcRandom, kSrcDrift,
     kSrcMacro1, kSrcMacro2, kSrcMacro3, kSrcMacro4, kSrcMacro5, kSrcMacro6, kSrcMacro7, kSrcMacro8,
+    kSrcSidechain,  // envelope of the sidechain input
     kNumSources
 };
 inline const char* const kSourceNames[kNumSources] = {
     "None", "Amp Env", "Mod Env", "Env 3", "LFO 1", "LFO 2", "LFO 3", "LFO 4",
     "Velocity", "Note", "Mod Wheel", "Pitch Bend", "Aftertouch", "Random", "Drift",
-    "Macro 1", "Macro 2", "Macro 3", "Macro 4", "Macro 5", "Macro 6", "Macro 7", "Macro 8"};
+    "Macro 1", "Macro 2", "Macro 3", "Macro 4", "Macro 5", "Macro 6", "Macro 7", "Macro 8", "Sidechain"};
+// The Source and Destination switches are sized for growth, so adding to these lists never moves a saved route.
+constexpr int kSourceSlots = 40, kDestSlots = 40;
 
 // What a full (+100%) route does to each destination
 enum ModDest {

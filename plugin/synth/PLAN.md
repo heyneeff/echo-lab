@@ -184,8 +184,9 @@ The window grows to **1280 × 800** (the face still scales to fit). Layout:
 
 ## Where we stopped (save point)
 
-M4 in progress: `dsp/FxRack.h` (Prometheus, Chorus (Juno I/II/I+II, Ensemble), Echo Nymph, Letheverb,
-Charon; 120 chain orders as one index; sidechain follower) + `harness/test_fx.cpp`. All checks pass
-except one: the echo at 1/4 @ 120 BPM measures 301 samples (6 ms) off after settling, while 90 BPM is
-5 samples off. Investigate next (likely the tape glide/wow or peak picking at 120). Not wired into the
-plugin yet. Next: FX params (append-only), wire the rack + sidechain bus into plugin.cpp, FX page.
+M4 engine + plugin done: the FX rack is wired in (Prometheus with 8 styles + mix, Chorus, Echo Nymph,
+Letheverb, Charon, FX Order 0-119), the sidechain bus feeds Charon and a new SIDECHAIN mod source, and
+the mod Source/Dest switches are fixed-length (40) with a load-time migration for sets saved by the M2
+(112 params) and M3 (125 params) builds. All FX controls work from Live's parameter list now.
+Next: the FX page in the face (cards in chain order, on/off, key knobs, reorder), add SIDECHAIN to the
+face's source chips, then M5.

@@ -137,6 +137,7 @@ struct FxParams {
 struct Follower {
     double env = 0, a = 0, r = 0;
     void prepare(double sr, double attackMs = 2, double releaseMs = 150) { a = 1 - std::exp(-1.0 / (attackMs * 0.001 * sr)); r = 1 - std::exp(-1.0 / (releaseMs * 0.001 * sr)); }
+    double silence(int n) { env *= std::pow(1 - r, n); return env; }  // nothing routed: just release
     double run(const float* L, const float* R, int n) {
         for (int i = 0; i < n; ++i) {
             const double x = std::max(std::abs((double)L[i]), R ? std::abs((double)R[i]) : 0.0);

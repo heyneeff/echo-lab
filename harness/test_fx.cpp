@@ -49,7 +49,7 @@ int main() {
         FxParams p; p.echoOn = true; p.echoSync = true; p.noteL = p.noteR = 8; p.echoMode = 0; p.echoFb = 0; p.echoMix = 1;
         // a tape echo glides to a new time, so let it settle first; its wow moves a repeat by a couple of ms
         auto hit = [&](FxRack& r, int len, int expect) {
-            std::vector<float> s(48000 * 2, 0.f), s2 = s; run(r, s, s2);
+            std::vector<float> s(48000 * 8, 0.f), s2 = s; run(r, s, s2);
             std::vector<float> L(len, 0.f), R(len, 0.f); L[100] = R[100] = 1.f; run(r, L, R);
             int at = 0; double pk = 0; for (int i = 1000; i < len; ++i) if (std::abs(L[i]) > pk) { pk = std::abs(L[i]); at = i; }
             return at - 100 - expect;

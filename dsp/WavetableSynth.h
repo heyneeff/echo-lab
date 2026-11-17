@@ -384,6 +384,7 @@ public:
     }
     void polyPressure(int note, double value) { for (auto& v : voices) if (v.note == note && v.active()) v.pressure = value; }
     void allOff() { for (auto& v : voices) gateAll(v, false); depth = 0; }
+    void setSidechain(double env) { scTarget = env; }
     void setTransport(double bpm, double beatPos, bool isPlaying) { if (bpm > 20) tempo = bpm; beat = beatPos; playing = isPlaying; }
 
     // what the face shows: each LFO's value and phase for the newest voice (or the shared clock)
@@ -413,7 +414,7 @@ private:
         }
         double sPos[kChunk], sCut[kChunk], sRes[kChunk], sSub[kChunk], sOut[kChunk], sMorph[kChunk], sDrive[kChunk];
         double sWheel[kChunk], sBend[kChunk], sAt[kChunk], sMac[8][kChunk];
-        double sPosB[kChunk], sLvlA[kChunk], sLvlB[kChunk], sWA[kChunk], sWB[kChunk], sNoise[kChunk];
+        double sPosB[kChunk], sLvlA[kChunk], sLvlB[kChunk], sWA[kChunk], sWB[kChunk], sNoise[kChunk], sSc[kChunk];
         for (int i = 0; i < n; ++i) {
             sm.pos += (p.position - sm.pos) * k; sPos[i] = sm.pos;
             sm.cut += (tCut - sm.cut) * k;       sCut[i] = sm.cut;
@@ -432,6 +433,7 @@ private:
             sm.wA += (p.warpAmtA - sm.wA) * k;      sWA[i] = sm.wA;
             sm.wB += (p.warpAmtB - sm.wB) * k;      sWB[i] = sm.wB;
             sm.noise += (p.noise - sm.noise) * k;   sNoise[i] = sm.noise;
+            scSm += (scTarget - scSm) * k;          sSc[i] = std::min(1.0, scSm);
         }
         // the routes that do something this block
         ModSlot act[kModSlots];
@@ -532,6 +534,7 @@ private:
                     src[kSrcModWheel] = sWheel[i]; src[kSrcPitchBend] = sBend[i]; src[kSrcAftertouch] = std::max(sAt[i], v.pressure);
                     src[kSrcRandom] = v.rnd; src[kSrcDrift] = v.drift;
                     for (int q = 0; q < 8; ++q) src[kSrcMacro1 + q] = sMac[q][i];
+                    src[kSrcSidechain] = sSc[i];
                     for (int r = 0; r < nAct; ++r) mods[act[r].dst] += act[r].amt * src[act[r].src];
                 }
                 // ---- pitch: modulation, bend, glide
@@ -784,7 +787,7 @@ private:
     std::array<int, 32> stack{};         // held notes, oldest first (mono/legato fall back to the newest)
     int depth = 0;
     double lastPitch = -1;
-    double tempo = 120, beat = 0;
+    double tempo = 120, beat = 0, scTarget = 0, scSm = 0;
     bool playing = false;
     void wireCombs() { for (int i = 0; i < kVoices; ++i) voices[i].filt.comb = &combMem[(size_t)i * 2 * kCombLen]; }
     Params p;

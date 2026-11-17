@@ -45,15 +45,12 @@ private:
     ParamDef def;
 };
 
-constexpr uint32 kStateVersion = 3;  // 2: + grown wavetable, 3: + its length in seconds (SCAN)
+constexpr uint32 kStateVersion = 4;  // 2: + grown wavetable, 3: + its length (SCAN), 4: mod switches sized for growth
 constexpr int kSavedHarmonics = 512;   // per frame, complex, as floats
 
 std::string upper(std::string s) { for (auto& c : s) c = (char)std::toupper((unsigned char)c); return s; }
 
-const DriveVoice& orpheoDrive() {
-    for (const auto& v : kDriveVoices) if (!std::strcmp(v.name, "ORPHEO")) return v;
-    return kDriveVoices[0];
-}
+
 
 }  // namespace
 
@@ -61,6 +58,7 @@ tresult PLUGIN_API SynthPlugin::initialize(FUnknown* context) {
     tresult r = SingleComponentEffect::initialize(context);
     if (r != kResultOk) return r;
     addEventInput(STR16("MIDI In"), 16);
+    addAudioInput(STR16("Sidechain"), SpeakerArr::kStereo, BusTypes::kAux, 0);  // route a kick here (Charon, SIDECHAIN source)
     addAudioOutput(STR16("Stereo Out"), SpeakerArr::kStereo);
     for (int id : kDisplayOrder) {
         parameters.addParameter(new TableParameter(kParams[id]));
@@ -70,7 +68,8 @@ tresult PLUGIN_API SynthPlugin::initialize(FUnknown* context) {
 }
 
 tresult PLUGIN_API SynthPlugin::setBusArrangements(SpeakerArrangement* in, int32 ni, SpeakerArrangement* out, int32 no) {
-    if (ni == 0 && no == 1 && out[0] == SpeakerArr::kStereo) return SingleComponentEffect::setBusArrangements(in, ni, out, no);
+    if (no == 1 && out[0] == SpeakerArr::kStereo && (ni == 0 || (ni == 1 && (in[0] == SpeakerArr::kStereo || in[0] == SpeakerArr::kMono))))
+        return SingleComponentEffect::setBusArrangements(in, ni, out, no);
     return kResultFalse;
 }
 
@@ -84,10 +83,10 @@ tresult PLUGIN_API SynthPlugin::setupProcessing(ProcessSetup& setup) {
 tresult PLUGIN_API SynthPlugin::setActive(TBool state) {
     if (state) {
         synth.prepare(sampleRate);
-        drive.prepare(sampleRate);
-        drive.setVoice(orpheoDrive());
+        rack.prepare(sampleRate);
+        scFollow.prepare(sampleRate, 2, 150);
         applyParams();
-        drive.reset();
+        rack.reset();
     }
     return SingleComponentEffect::setActive(state);
 }
@@ -155,11 +154,35 @@ void SynthPlugin::applyParams() {
     synth.update(p);
     synth.setTable(pickTable((int)plain(kTable)));
     synth.setTableB(pickTable((int)plain(kTableB)));
-    DriveParams d;
-    d.drive = plain(kDrive);
-    d.autoGain = true;
-    driveOn = d.drive > 0.005;
-    drive.update(d);
+    fx::FxParams fp;
+    fp.order = (int)plain(kFxOrder);
+    fp.drive = plain(kDrive);
+    fp.driveStyle = (int)plain(kDriveStyle);
+    fp.driveMix = plain(kDriveMix) / 100;
+    fp.chorusOn = plain(kChorusOn) > 0.5;
+    fp.chorusMode = (int)plain(kChorusMode);
+    fp.chorusMix = plain(kChorusMix) / 100;
+    fp.echoOn = plain(kEchoOn) > 0.5;
+    fp.echoStyle = (int)plain(kEchoStyle);
+    fp.echoMode = (int)plain(kEchoMode);
+    fp.echoSync = plain(kEchoSync) > 0.5;
+    fp.noteL = (int)plain(kEchoNoteL);
+    fp.noteR = (int)plain(kEchoNoteR);
+    fp.timeL = plain(kEchoTimeL);
+    fp.timeR = plain(kEchoTimeR);
+    fp.echoFb = plain(kEchoFeedback) / 100;
+    fp.echoMix = plain(kEchoMix) / 100;
+    fp.verbOn = plain(kVerbOn) > 0.5;
+    fp.verbStyle = (int)plain(kVerbStyle);
+    fp.verbDecay = plain(kVerbDecay);
+    fp.verbSize = plain(kVerbSize) / 100;
+    fp.verbMix = plain(kVerbMix) / 100;
+    fp.pumpOn = plain(kPumpOn) > 0.5;
+    fp.pumpMode = (int)plain(kPumpMode);
+    fp.pumpRate = (int)plain(kPumpRate);
+    fp.pumpDepth = plain(kPumpDepth) / 100;
+    fp.pumpMix = plain(kPumpMix) / 100;
+    rack.update(fp, hostTempo);
 }
 
 // a built-in table, or the grown one (ORPHEO if nothing has been grown yet)
@@ -191,6 +214,8 @@ tresult PLUGIN_API SynthPlugin::process(ProcessData& data) {
         const bool tempoOk = (ctx->state & ProcessContext::kTempoValid) != 0;
         const bool posOk = (ctx->state & ProcessContext::kProjectTimeMusicValid) != 0;
         synth.setTransport(tempoOk ? ctx->tempo : 120, posOk ? ctx->projectTimeMusic : 0, posOk && (ctx->state & ProcessContext::kPlaying));
+        if (tempoOk) { hostTempo = ctx->tempo; rack.setTempo(hostTempo); }
+        fxBeat = posOk ? ctx->projectTimeMusic : fxBeat;
     }
     if (changed) applyParams();
     if (data.numOutputs == 0 || data.numSamples <= 0) return kResultOk;
@@ -201,6 +226,13 @@ tresult PLUGIN_API SynthPlugin::process(ProcessData& data) {
     const int n = data.numSamples;
     std::memset(L, 0, sizeof(float) * n);
     if (R != L) std::memset(R, 0, sizeof(float) * n);
+    // sidechain input (aux bus): its envelope is a mod source, and Charon can duck to it
+    const float *scL = nullptr, *scR = nullptr;
+    if (data.numInputs > 0 && data.inputs[0].numChannels > 0 && !(data.inputs[0].silenceFlags & 1)) {
+        scL = data.inputs[0].channelBuffers32[0];
+        scR = data.inputs[0].numChannels > 1 ? data.inputs[0].channelBuffers32[1] : scL;
+    }
+    synth.setSidechain(scL ? scFollow.run(scL, scR, n) : scFollow.silence(n));
 
     // notes, sample-accurate: render up to each event, then apply it
     int pos = 0;
@@ -223,7 +255,11 @@ tresult PLUGIN_API SynthPlugin::process(ProcessData& data) {
         }
     }
     render(L, R, pos, n);
-    if (driveOn) drive.process(L, R != L ? R : nullptr, n);
+    {
+        const double bps = hostTempo / 60.0 / sampleRate;
+        rack.process(L, R, scL, scR, n, fxBeat, bps);
+        fxBeat += n * bps;
+    }
     float pk = 0;
     for (int i = 0; i < n; ++i) {
         L[i] = wt::Synth::safety(L[i]);
@@ -231,7 +267,7 @@ tresult PLUGIN_API SynthPlugin::process(ProcessData& data) {
         pk = std::max(pk, std::max(std::abs(L[i]), std::abs(R[i])));
     }
     if (pk > mOut.load(std::memory_order_relaxed)) mOut.store(pk, std::memory_order_relaxed);
-    out.silenceFlags = synth.activeVoices() == 0 && !driveOn ? 3 : 0;
+    out.silenceFlags = synth.activeVoices() == 0 && !rack.anyOn() ? 3 : 0;
     return kResultOk;
 }
 
@@ -427,6 +463,18 @@ tresult PLUGIN_API SynthPlugin::setState(IBStream* state) {
         int32 id; double v;
         if (!s.readInt32(id) || !s.readDouble(v)) return kResultFalse;
         if (id >= 0 && id < kNumParams) { norm[id] = v; setParamNormalized(id, v); }
+    }
+    // Before v4 the Source/Dest switches were as long as their lists (sources 23; destinations 13 in the
+    // M2 build = 112 parameters, 18 in the M3 build = 125): re-express them on today's fixed-length switches.
+    if (version < 4 && (count == 112 || count == 125)) {
+        const double oldSrc = 22, oldDst = count == 112 ? 12 : 17;
+        for (int k = 0; k < wt::kModSlots; ++k) {
+            const int si = kModBase + 3 * k, di = si + 1;
+            norm[si] = std::round(norm[si] * oldSrc) / (wt::kSourceSlots - 1);
+            norm[di] = std::round(norm[di] * oldDst) / (wt::kDestSlots - 1);
+            setParamNormalized(si, norm[si]);
+            setParamNormalized(di, norm[di]);
+        }
     }
     applyParams();
     int32 hasTable = 0;

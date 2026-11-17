@@ -14,6 +14,7 @@
 #include "WebEditor.h"
 #include "../../dsp/DriveVoices.h"
 #include "../../dsp/Resynth.h"
+#include "../../dsp/FxRack.h"
 
 namespace echolab {
 namespace wtsynth {
@@ -46,8 +47,9 @@ private:
     void render(float* L, float* R, int from, int to);
     std::array<double, kNumParams> norm{};
     wt::Synth synth;
-    DriveEngine drive;
-    bool driveOn = false;
+    fx::FxRack rack;
+    fx::Follower scFollow;
+    double hostTempo = 120, fxBeat = 0;
     double sampleRate = 44100;
     // editor link
     std::atomic<float> mOut{0};

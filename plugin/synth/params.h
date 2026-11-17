@@ -9,6 +9,7 @@
 
 #include "../../dsp/Modulation.h"
 #include "../../dsp/WavetableSynth.h"
+#include "../../dsp/FxRack.h"
 
 namespace echolab {
 namespace wtsynth {
@@ -36,6 +37,10 @@ enum ParamId : int {
     kVoiceMode, kGlide,
     // v0.6: oscillator B, warp, noise
     kOscALevel, kTableB, kPositionB, kOctB, kSemiB, kFineB, kOscBLevel, kWarpA, kWarpAmtA, kWarpB, kWarpAmtB, kNoise, kNoiseColor,
+    // v0.7: the FX rack
+    kDriveStyle, kDriveMix, kChorusOn, kChorusMode, kChorusMix,
+    kEchoOn, kEchoStyle, kEchoMode, kEchoSync, kEchoNoteL, kEchoNoteR, kEchoTimeL, kEchoTimeR, kEchoFeedback, kEchoMix,
+    kVerbOn, kVerbStyle, kVerbDecay, kVerbSize, kVerbMix, kPumpOn, kPumpMode, kPumpRate, kPumpDepth, kPumpMix, kFxOrder,
     kNumParams
 };
 constexpr int kModBase = kMod1Src;  // slot s (0-based): source kModBase + 3s, destination +1, amount +2
@@ -176,6 +181,32 @@ inline const ParamDef kParams[kNumParams] = {
     {kWarpAmtB, "Warp B Amount", "%", 0, 100, 0, Map::Linear},
     {kNoise, "Noise", "%", 0, 100, 0, Map::Linear},
     {kNoiseColor, "Noise Color", "", 0, 3, 0, Map::List},
+    {kDriveStyle, "Drive Style", "", 0, 7, 6, Map::List},
+    {kDriveMix, "Drive Mix", "%", 0, 100, 100, Map::Linear},
+    {kChorusOn, "Chorus On", "", 0, 1, 0, Map::List},
+    {kChorusMode, "Chorus Mode", "", 0, 3, 0, Map::List},
+    {kChorusMix, "Chorus Mix", "%", 0, 100, 50, Map::Linear},
+    {kEchoOn, "Echo On", "", 0, 1, 0, Map::List},
+    {kEchoStyle, "Echo Style", "", 0, 7, 7, Map::List},
+    {kEchoMode, "Echo Mode", "", 0, 2, 1, Map::List},
+    {kEchoSync, "Echo Sync", "", 0, 1, 1, Map::List},
+    {kEchoNoteL, "Echo Note L", "", 0, 12, 3, Map::List},
+    {kEchoNoteR, "Echo Note R", "", 0, 12, 5, Map::List},
+    {kEchoTimeL, "Echo Time L", "ms", 5, 2000, 188, Map::Log},
+    {kEchoTimeR, "Echo Time R", "ms", 5, 2000, 250, Map::Log},
+    {kEchoFeedback, "Echo Feedback", "%", 0, 110, 25, Map::Linear},
+    {kEchoMix, "Echo Mix", "%", 0, 100, 28, Map::Linear},
+    {kVerbOn, "Reverb On", "", 0, 1, 0, Map::List},
+    {kVerbStyle, "Reverb Style", "", 0, 7, 6, Map::List},
+    {kVerbDecay, "Reverb Decay", "s", 0.2, 30, 2.8, Map::Log},
+    {kVerbSize, "Reverb Size", "%", 25, 200, 100, Map::Linear},
+    {kVerbMix, "Reverb Mix", "%", 0, 100, 25, Map::Linear},
+    {kPumpOn, "Pump On", "", 0, 1, 0, Map::List},
+    {kPumpMode, "Pump Mode", "", 0, 2, 0, Map::List},
+    {kPumpRate, "Pump Rate", "", 0, 7, 2, Map::List},
+    {kPumpDepth, "Pump Depth", "%", 0, 100, 45, Map::Linear},
+    {kPumpMix, "Pump Mix", "%", 0, 100, 100, Map::Linear},
+    {kFxOrder, "FX Order", "", 0, 119, 0, Map::List},
 };
 inline const int kDisplayOrder[kNumParams] = {
     kTable, kPosition, kScan, kScanSpeed, kPosEnv, kUnison, kDetune, kSpread, kSub,
@@ -197,6 +228,9 @@ inline const int kDisplayOrder[kNumParams] = {
     kMacro7, kMacro8, kModWheel, kPitchBend, kAftertouch, kBendRange,
     kVoiceMode, kGlide,
     kOscALevel, kTableB, kPositionB, kOctB, kSemiB, kFineB, kOscBLevel, kWarpA, kWarpAmtA, kWarpB, kWarpAmtB, kNoise, kNoiseColor,
+    kDriveStyle, kDriveMix, kChorusOn, kChorusMode, kChorusMix,
+    kEchoOn, kEchoStyle, kEchoMode, kEchoSync, kEchoNoteL, kEchoNoteR, kEchoTimeL, kEchoTimeR, kEchoFeedback, kEchoMix,
+    kVerbOn, kVerbStyle, kVerbDecay, kVerbSize, kVerbMix, kPumpOn, kPumpMode, kPumpRate, kPumpDepth, kPumpMix, kFxOrder,
 };
 
 inline int stepCount(const ParamDef& p) { return p.map == Map::List ? (int)(p.max - p.min) : 0; }
@@ -244,8 +278,8 @@ inline std::string toText(const ParamDef& p, double n) {
     if (p.id == kTable) return kTableNames[std::clamp((int)v, 0, 5)];
     if (p.id == kScan) return kScanNames[std::clamp((int)v, 0, 3)];
     if (p.id == kFilterType) return kFilterTypeNames[std::clamp((int)v, 0, 5)];
-    if (p.id >= kModBase && p.id < kModBase + 3 * wt::kModSlots && (p.id - kModBase) % 3 == 0) return wt::kSourceNames[std::clamp((int)v, 0, wt::kNumSources - 1)];
-    if (p.id >= kModBase && p.id < kModBase + 3 * wt::kModSlots && (p.id - kModBase) % 3 == 1) return wt::kDestNames[std::clamp((int)v, 0, wt::kNumDests - 1)];
+    if (p.id >= kModBase && p.id < kModBase + 3 * wt::kModSlots && (p.id - kModBase) % 3 == 0) return (int)v < wt::kNumSources ? wt::kSourceNames[std::max(0, (int)v)] : "None";
+    if (p.id >= kModBase && p.id < kModBase + 3 * wt::kModSlots && (p.id - kModBase) % 3 == 1) return (int)v < wt::kNumDests ? wt::kDestNames[std::max(0, (int)v)] : "None";
     if (p.id >= kLfoBase && p.id < kLfoBase + 5 * wt::kLfos) {
         switch ((p.id - kLfoBase) % 5) {
             case 0: return wt::kLfoShapeNames[std::clamp((int)v, 0, wt::kNumLfoShapes - 1)];
@@ -258,6 +292,16 @@ inline std::string toText(const ParamDef& p, double n) {
     if (p.id == kTableB) return kTableNames[std::clamp((int)v, 0, 5)];
     if (p.id == kWarpA || p.id == kWarpB) return wt::kWarpNames[std::clamp((int)v, 0, wt::kNumWarps - 1)];
     if (p.id == kNoiseColor) return kNoiseColorNames[std::clamp((int)v, 0, 3)];
+    if (p.id == kChorusOn || p.id == kEchoOn || p.id == kVerbOn || p.id == kPumpOn || p.id == kEchoSync) return v > 0.5 ? "On" : "Off";
+    if (p.id == kDriveStyle) return kDriveVoices[std::clamp((int)v, 0, 7)].name;
+    if (p.id == kChorusMode) return fx::kChorusNames[std::clamp((int)v, 0, 3)];
+    if (p.id == kEchoStyle) return kStyles[std::clamp((int)v, 0, 7)].name;
+    if (p.id == kEchoMode) { static const char* m[] = {"Single", "Dual", "Ping-Pong"}; return m[std::clamp((int)v, 0, 2)]; }
+    if (p.id == kEchoNoteL || p.id == kEchoNoteR) return fx::kEchoNoteNames[std::clamp((int)v, 0, 12)];
+    if (p.id == kVerbStyle) return verb::kVerbStyles[std::clamp((int)v, 0, 7)].name;
+    if (p.id == kPumpMode) { static const char* m[] = {"Pump", "Sidechain", "Both"}; return m[std::clamp((int)v, 0, 2)]; }
+    if (p.id == kPumpRate) return pump::kRateNames[std::clamp((int)v, 0, 7)];
+    if (p.id == kFxOrder) { const auto o = fx::orderFromIndex((int)v); std::string t; for (int k = 0; k < 5; ++k) { t += k ? " > " : ""; t += fx::kFxNames[o[k]]; } return t; }
     if (p.id == kOctB) { std::snprintf(buf, sizeof buf, "%+.0f oct", v); return buf; }
     if (p.id == kSemiB) { std::snprintf(buf, sizeof buf, "%+.0f st", v); return buf; }
     if (p.id == kBendRange) { std::snprintf(buf, sizeof buf, "%.0f st", v); return buf; }
