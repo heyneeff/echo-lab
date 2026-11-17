@@ -12,6 +12,7 @@
 #include <array>
 #include <atomic>
 #include <cmath>
+#include <cstdint>
 #include <vector>
 
 namespace echolab {
@@ -19,11 +20,14 @@ namespace space {
 
 constexpr double kPi = 3.14159265358979323846;
 
-enum Orbit { kStill = 0, kCircle, kRise, kFall, kSwoop, kFigure8, kDrift, kBreath, kNumOrbits };
-inline const char* const kOrbitNames[kNumOrbits] = {"Still", "Circle", "Rise", "Fall", "Swoop", "Figure 8", "Drift", "Breath"};
-inline const char* const kRateNames[] = {"1/2 Bar", "1 Bar", "2 Bars", "4 Bars", "8 Bars", "16 Bars"};
-inline const double kRateBeats[] = {2, 4, 8, 16, 32, 64};
-constexpr int kNumRates = 6;
+enum Orbit { kStill = 0, kCircle, kRise, kFall, kSwoop, kFigure8, kDrift, kBreath, kSpiral, kPingPong, kPendulum, kOverhead, kApproach, kTumble, kNumOrbits };
+inline const char* const kOrbitNames[kNumOrbits] = {"Still", "Circle", "Rise", "Fall", "Swoop", "Figure 8", "Drift", "Breath",
+                                                    "Spiral", "Ping-Pong", "Pendulum", "Overhead", "Approach", "Tumble"};
+constexpr int kOrbitSlots = 32;  // the Orbit switch is sized for growth: new paths never move a saved one
+inline const char* const kRateNames[] = {"1/8 Bar", "1/4 Bar", "1/2 Bar", "1 Bar", "2 Bars", "4 Bars", "8 Bars", "16 Bars"};
+inline const double kRateBeats[] = {0.5, 1, 2, 4, 8, 16, 32, 64};
+constexpr int kNumRates = 8;
+inline double hash01(long long k) { uint64_t x = (uint64_t)(k * 2654435761LL + 0x9E3779B97F4A7C15ULL); x ^= x >> 31; x *= 0xBF58476D1CE4E5B9ULL; x ^= x >> 29; return (x >> 11) * (1.0 / 9007199254740992.0); }
 
 // The sound's place in a cube around the listener (who sits at the centre, facing +z):
 // x -1 left .. +1 right, y -1 below .. +1 above, z -1 behind .. +1 in front. Distance grows toward the corners.
@@ -34,6 +38,7 @@ struct Params {
     int rate = 2;          // index into kRateBeats
     double size = 0.7;     // how far an orbit travels, 0..1
     double room = 0.5;     // how much space the distance brings, 0..1
+    double amount = 1.5;   // how strong every cue is: 0 = barely, 1 = natural, 2 = extreme
     bool headphones = false;
 };
 // cube position <-> the hearing cues' coordinates (around, height, distance)
@@ -87,9 +92,10 @@ public:
     // beat = musical position (quarter notes) at the block start
     void process(float* L, float* R, int n, double beat, double beatsPerSample) {
         const double smooth = 1 - std::exp(-1.0 / (0.03 * sr));  // 30 ms glide on every move
-        const double hp = p.headphones ? 1.0 : 0.5;
+        const double hp = p.headphones ? 1.0 : 0.75, A = std::clamp(p.amount, 0.0, 2.0);
         const double cyc = kRateBeats[std::clamp(p.rate, 0, kNumRates - 1)];
-        const double dopplerScale = p.orbit == kSwoop ? 1.0 : 0.25;
+        const bool flyer = p.orbit == kSwoop || p.orbit == kPendulum || p.orbit == kOverhead || p.orbit == kApproach;
+        const double dopplerScale = (flyer ? 1.0 : 0.2) * A;
         double baseAz, baseEl, baseD;
         toPolar(p.x, p.y, p.z, baseAz, baseEl, baseD);
         const int nsrc = p.mirror ? 2 : 1;
@@ -108,12 +114,23 @@ public:
                     case kDrift: az += s * 2.1 * (0.6 * std::sin(tw) + 0.4 * std::sin(3.13 * tw + 1)); el = std::clamp(el + s * 0.5 * std::sin(2.31 * tw + 2), -1.0, 1.0);
                                  d = std::clamp(d + s * 0.25 * std::sin(1.73 * tw), 0.0, 1.0); break;
                     case kBreath: d = std::clamp(d + s * 0.6 * (0.5 - 0.5 * std::cos(tw)), 0.0, 1.0); el = std::clamp(el + s * 0.15 * std::sin(tw), -1.0, 1.0); break;
+                    case kSpiral: az += 2 * kPi * u; el = std::clamp(el + s * (2 * u - 1) * 1.6, -1.0, 1.0); d = std::max(d, 0.35); break;
+                    case kPingPong: az += s * 1.5 * std::tanh(6 * std::sin(tw)) / std::tanh(6.0); break;  // hard left, hard right
+                    case kPendulum: az += s * 1.4 * std::sin(tw); d = std::clamp(d - s * 0.3 * std::cos(2 * tw) + 0.1, 0.0, 1.0); break;
+                    case kOverhead: el = std::clamp(s * std::sin(kPi * u) * 1.2, -1.0, 1.0); az += u < 0.5 ? 0 : kPi; d = std::max(d, 0.3); break;  // front, over your head, behind
+                    case kApproach: { const double t = u * u * (3 - 2 * u); d = std::clamp(1 - s * t, 0.0, 1.0); break; }  // from far away right up to you
+                    case kTumble: {  // a new place every 1/8 of the cycle, gliding between them
+                        const double q = u * 8; const long long k = (long long)std::floor(b / cyc * 8); const double f = q - std::floor(q), sm = f * f * (3 - 2 * f);
+                        auto pick = [&](long long j, int c) { return hash01(j * 3 + c) * 2 - 1; };
+                        az += s * kPi * (pick(k, 0) + (pick(k + 1, 0) - pick(k, 0)) * sm);
+                        el = std::clamp(el + s * (pick(k, 1) + (pick(k + 1, 1) - pick(k, 1)) * sm), -1.0, 1.0);
+                        d = std::clamp(d + s * 0.4 * (pick(k, 2) + (pick(k + 1, 2) - pick(k, 2)) * sm), 0.0, 1.0); break; }
                 }
             }
             if (first) { sAz = az; sEl = el; sDist = d; first = false; }
             double da = az - sAz; da -= 2 * kPi * std::floor((da + kPi) / (2 * kPi));  // glide the angle the short way round
             sAz += da * smooth; sEl += (el - sEl) * smooth; sDist += (d - sDist) * smooth;
-            if ((count++ & 31) == 0) coeffs(hp, nsrc);
+            if ((count++ & 31) == 0) coeffs(hp, nsrc, A);
 
             // ---- the source: mono, its width shrinks with distance
             const double mid = 0.5 * ((double)L[i] + R[i]), side = 0.5 * ((double)L[i] - R[i]);
@@ -133,13 +150,13 @@ public:
                     const bool far = (c == 0) == (sinA > 0);
                     double y = ear[c];
                     S.shZ[c] += (y - S.shZ[c]) * (far ? shK : nearK);  // head shadow: the far ear loses highs and level
-                    y = S.shZ[c] * (far ? 1 - 0.3 * shade : 1 + 0.12 * shade);
-                    if (cosA < 0) { S.backZ[c] += (y - S.backZ[c]) * backK; y += (S.backZ[c] - y) * (-cosA) * 0.45; }  // behind: darker
+                    y = S.shZ[c] * (far ? 1 - std::min(0.85, 0.36 * A) * shade : 1 + 0.12 * A * shade);
+                    if (cosA < 0) { S.backZ[c] += (y - S.backZ[c]) * backK; y += (S.backZ[c] - y) * (-cosA) * std::min(0.9, 0.4 * A); }  // behind: darker
                     ear[c] = S.tilt[c].run(S.notch[c].run(y));  // height
                 }
                 outL += ear[0] * srcGain; outR += ear[1] * srcGain;
             }
-            const double g = 1 / (1 + 2.2 * sDist), keepSide = p.mirror ? 0.0 : 0.8 * (1 - sDist);
+            const double g = 1 / (1 + (1.4 + 1.6 * A) * sDist), keepSide = p.mirror ? 0.0 : 0.8 * (1 - sDist);
             outL = (outL + side * keepSide) * g; outR = (outR - side * keepSide) * g;
             // ---- the room: farther = more of it (a small 4-line feedback network, Householder mix)
             const double send = mid * p.room * (0.15 + 0.85 * sDist) * 0.6;
@@ -147,7 +164,7 @@ public:
             for (int k = 0; k < 4; ++k) { o[k] = room[k][(rw - rlen[k]) & rmask[k]]; rdamp[k] += (o[k] - rdamp[k]) * rdK; o[k] = rdamp[k]; }
             const double sum = 0.5 * (o[0] + o[1] + o[2] + o[3]);
             for (int k = 0; k < 4; ++k) room[k][rw & rmask[k]] = send + 0.78 * (o[k] - sum);
-            const double wet = p.room * (0.1 + 0.9 * sDist);
+            const double wet = p.room * (0.1 + 0.9 * sDist) * (0.6 + 0.4 * A);
             outL += wet * (o[0] - o[2]) * 0.7;
             outR += wet * (o[1] - o[3]) * 0.7;
             L[i] = (float)outL;
@@ -164,20 +181,20 @@ public:
     std::atomic<float> viewAz{0}, viewX{0}, viewY{0}, viewZ{0.5f};  // for the face (where the sound is, in the cube)
 
 private:
-    void coeffs(double hp, int nsrc) {
+    void coeffs(double hp, int nsrc, double A) {
         const double shade = std::abs(std::sin(sAz));
-        shK = 1 - std::exp(-2 * kPi * std::min(0.45 * sr, 20000 - 17000 * shade) / sr);
+        shK = 1 - std::exp(-2 * kPi * std::min(0.45 * sr, 20000 * std::pow(0.07, shade * std::min(1.0, A / 1.4))) / sr);  // down to ~1.4 kHz
         nearK = 1 - std::exp(-2 * kPi * std::min(0.45 * sr, 20000.0) / sr);
         backK = 1 - std::exp(-2 * kPi * 4500 / sr);
-        airK = 1 - std::exp(-2 * kPi * std::min(0.45 * sr, 20000 * std::pow(0.12, sDist)) / sr);
+        airK = 1 - std::exp(-2 * kPi * std::min(0.45 * sr, 20000 * std::pow(0.12 / (1 + 0.4 * A), sDist)) / sr);
         rdK = 1 - std::exp(-2 * kPi * 5000 / sr);
         prox.shelf(sr, 180, 4.0 * std::max(0.0, 1 - sDist / 0.2), false);
         for (int k = 0; k < nsrc; ++k) {
             const double el = k ? -sEl : sEl;  // the mirror is below when the sound is above
             const double f = std::min(0.45 * sr, 6000 + 4500 * el);  // the pinna notch climbs with height
             for (int c = 0; c < 2; ++c) {
-                src[k].notch[c].peak(sr, f, 2.2, -10 * hp * (0.5 + 0.5 * std::abs(el)));
-                src[k].tilt[c].peak(sr, std::min(0.45 * sr, 8000.0), 0.9, 8 * hp * el);  // Blauert's 'above' band
+                src[k].notch[c].peak(sr, f, 2.2, -8 * A * hp * (0.5 + 0.5 * std::abs(el)));
+                src[k].tilt[c].peak(sr, std::min(0.45 * sr, 8000.0), 0.9, 7.5 * A * hp * el);  // Blauert's 'above' band
             }
         }
     }

@@ -214,6 +214,8 @@ void SynthPlugin::applyParams() {
     sp.y = plain(kSpaceY) / 100;
     sp.z = plain(kSpaceZ) / 100;
     sp.mirror = plain(kSpaceMirror) > 0.5;
+    sp.amount = plain(kSpaceAmount) / 50;
+    if (sp.orbit >= space::kNumOrbits) sp.orbit = space::kStill;
     sp.orbit = (int)plain(kSpaceOrbit);
     sp.rate = (int)plain(kSpaceRate);
     sp.size = plain(kSpaceSize) / 100;

@@ -433,7 +433,7 @@ Object.assign(DEF, { "Drive Style": 6, "Drive Mix": 100, "Chorus On": 0, "Chorus
   "Echo On": 0, "Echo Style": 7, "Echo Mode": 1, "Echo Sync": 1, "Echo Note L": 3, "Echo Note R": 5, "Echo Time L": 188, "Echo Time R": 250, "Echo Feedback": 25, "Echo Mix": 28,
   "Reverb On": 0, "Reverb Style": 6, "Reverb Decay": 2.8, "Reverb Size": 100, "Reverb Mix": 25,
   "Pump On": 0, "Pump Mode": 0, "Pump Rate": 2, "Pump Depth": 45, "Pump Mix": 100, "FX Order": 0, "Morph On": 0, "Morph X": 50, "Morph Y": 50,
-  "Space On": 0, "Space X": 0, "Space Y": 0, "Space Z": 50, "Space Mirror": 0, "Space Orbit": 0, "Space Rate": 2, "Space Size": 70, "Space Room": 50, "Space Listen": 0 });
+  "Space On": 0, "Space X": 0, "Space Y": 0, "Space Z": 50, "Space Mirror": 0, "Space Orbit": 0, "Space Rate": 4, "Space Size": 70, "Space Room": 50, "Space Listen": 0, "Space Amount": 75 });
 Object.assign(P, DEF);
 
 let NF = 64;  // frames in the table being played (6 .. 64)
@@ -555,8 +555,12 @@ document.querySelectorAll(".morphbox").forEach(b => {
 // ===================================================================== THE PAD: knobs, morph or space. SPACE places the whole sound
 // around you (around / height / distance) and can orbit; the plugin does the sound, the dreamscape shows where it is.
 let PADMODE = "knobs";  // SPACE page: the field moves the sound; SYNTH: the pad drives two knobs, or the morph when it is on
-const SPACE_COL = "#6ff0d6", ORBITS = ["STILL", "CIRCLE", "RISE", "FALL", "SWOOP", "FIGURE 8", "DRIFT", "BREATH"], ORBIT_D = ["stays put", "all the way round", "climbs from below to above", "falls from above to below", "flies past you, Doppler and all", "loops left and right, up and down", "wanders slowly", "comes close and drifts away"];
-const SRATES = ["1/2 BAR", "1 BAR", "2 BARS", "4 BARS", "8 BARS", "16 BARS"];
+const SPACE_COL = "#6ff0d6";
+const ORBITS = ["STILL", "CIRCLE", "RISE", "FALL", "SWOOP", "FIGURE 8", "DRIFT", "BREATH", "SPIRAL", "PING-PONG", "PENDULUM", "OVERHEAD", "APPROACH", "TUMBLE"];
+const ORBIT_D = ["stays put", "all the way round", "climbs from below to above", "falls from above to below", "flies past you, Doppler and all", "loops left and right, up and down",
+  "wanders slowly", "comes close and drifts away", "circles you while it climbs", "hard left, hard right", "swings in front of you, nearer in the middle",
+  "front, over your head, behind", "from far away right up to you", "a new place every step, gliding"];
+const SRATES = ["1/8 BAR", "1/4 BAR", "1/2 BAR", "1 BAR", "2 BARS", "4 BARS", "8 BARS", "16 BARS"];
 let SP = null, spLive = 0, spTrail = [];  // live position from the plugin [around deg, height -1..1, distance 0..1]
 const spaceOn = () => P["Space On"] > .5;
 function setPadMode(m) { PADMODE = m; renderPadMode(); }
@@ -608,9 +612,35 @@ function spaceMove(e) {
 $("#hero").addEventListener("wheel", e => { if (PADMODE !== "space") return; e.preventDefault(); const f = camInv([0, 0, 1]), p = spP(), a = e.deltaY * .002;
   spaceSet([p[0] + f[0] * a, p[1] + f[1] * a, p[2] + f[2] * a]); }, { passive: false });
 $("#hero").addEventListener("dblclick", () => { if (PADMODE === "space") { CAM.yaw = -.55; CAM.pitch = .38; } });
+// the orbit paths again (as in dsp/Spatial.h), so the cube shows the movement even before a note plays
+const RATE_BEATS = [.5, 1, 2, 4, 8, 16, 32, 64];
+const h01 = k => { const x = Math.sin(k * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
+function orbitPreview() {
+  const [x, y, z] = spP(), o = Math.round(P["Space Orbit"]), s_ = P["Space Size"] / 100;
+  let az = Math.atan2(x, z), el = Math.max(-1, Math.min(1, y)), d = Math.min(1, Math.hypot(x, y, z) / 1.7320508);
+  if (o > 0) {
+    const cyc = RATE_BEATS[Math.round(P["Space Rate"])] || 8, b = performance.now() / 500, u = b / cyc - Math.floor(b / cyc), tw = 2 * Math.PI * u, cl = v => Math.max(-1, Math.min(1, v)), c01 = v => Math.max(0, Math.min(1, v));
+    if (o === 1) { az += tw; d = Math.max(d, .35); }
+    else if (o === 2) { el = cl(el + s_ * (2 * u - 1) * 1.6); az += .6 * s_ * Math.sin(tw); }
+    else if (o === 3) { el = cl(el + s_ * (1 - 2 * u) * 1.6); az -= .6 * s_ * Math.sin(tw); }
+    else if (o === 4) { az += s_ * Math.PI * (u - .5) * 1.6; d = c01(d + s_ * .85 * (Math.cos(tw) * .5 + .5) - .2 * s_); }
+    else if (o === 5) { az += s_ * 1.6 * Math.sin(tw); el = cl(el + s_ * .7 * Math.sin(2 * tw)); }
+    else if (o === 6) { az += s_ * 2.1 * (.6 * Math.sin(tw) + .4 * Math.sin(3.13 * tw + 1)); el = cl(el + s_ * .5 * Math.sin(2.31 * tw + 2)); d = c01(d + s_ * .25 * Math.sin(1.73 * tw)); }
+    else if (o === 7) { d = c01(d + s_ * .6 * (.5 - .5 * Math.cos(tw))); el = cl(el + s_ * .15 * Math.sin(tw)); }
+    else if (o === 8) { az += tw; el = cl(el + s_ * (2 * u - 1) * 1.6); d = Math.max(d, .35); }
+    else if (o === 9) { az += s_ * 1.5 * Math.tanh(6 * Math.sin(tw)) / Math.tanh(6); }
+    else if (o === 10) { az += s_ * 1.4 * Math.sin(tw); d = c01(d - s_ * .3 * Math.cos(2 * tw) + .1); }
+    else if (o === 11) { el = cl(s_ * Math.sin(Math.PI * u) * 1.2); az += u < .5 ? 0 : Math.PI; d = Math.max(d, .3); }
+    else if (o === 12) { const t = u * u * (3 - 2 * u); d = c01(1 - s_ * t); }
+    else if (o === 13) { const q = u * 8, k = Math.floor(b / cyc * 8), f = q - Math.floor(q), sm = f * f * (3 - 2 * f), pk = (j, c) => h01(j * 3 + c) * 2 - 1;
+      az += s_ * Math.PI * (pk(k, 0) + (pk(k + 1, 0) - pk(k, 0)) * sm); el = cl(el + s_ * (pk(k, 1) + (pk(k + 1, 1) - pk(k, 1)) * sm)); d = c01(d + s_ * .4 * (pk(k, 2) + (pk(k + 1, 2) - pk(k, 2)) * sm)); }
+  }
+  const r = d * 1.7320508, rh = Math.sqrt(Math.max(0, r * r - el * el)), cl1 = v => Math.max(-1, Math.min(1, v));
+  return [cl1(rh * Math.sin(az)), el, cl1(rh * Math.cos(az))];
+}
 function drawSpace(g, W, H) {
-  const live = SP && spaceOn() && performance.now() - spLive < 600;   // the engine's position (orbits), else the knobs
-  const p = live ? SP : spP(), mir = P["Space Mirror"] > .5;
+  const live = SP && spaceOn() && performance.now() - spLive < 600;   // the engine's position while it plays, else the path previewed here
+  const p = live ? SP : orbitPreview(), mir = P["Space Mirror"] > .5;
   const V = []; for (const x of [-1, 1]) for (const y of [-1, 1]) for (const z of [-1, 1]) V.push([x, y, z]);
   // floor grid
   for (let k = -1; k <= 1.001; k += .5) for (const [a, b] of [[[k, -1, -1], [k, -1, 1]], [[-1, -1, k], [1, -1, k]]]) {
@@ -1216,7 +1246,7 @@ const T = name => 6 + FORGE.indexOf(name);
 // categories for the first presets (newer ones carry theirs as the 5th field)
 const CAT_OF = { "ORPHEO · Dream Pad": "PAD", "Init": "INIT", "Glass Pluck": "PLUCK", "Supersaw Dream": "PAD", "Morph Bass": "BASS", "Minimoog Bass": "BASS", "Acid 303": "BASS",
   "Juno Strings": "STRINGS", "Sync Scream": "LEAD", "Talking Pad": "PAD", "Wobble Bass": "BASS", "Vibrato Lead": "LEAD", "Slide Bass 303": "BASS", "Vowel Lead": "LEAD" };
-const CAT_ORDER = ["INIT", "PAD", "STRINGS", "SPACE", "BASS", "LEAD", "PLUCK", "KEYS", "BELL", "VOX", "SEQ", "FX"];
+const CAT_ORDER = ["INIT", "PAD", "STRINGS", "MOVEMENT", "BASS", "LEAD", "PLUCK", "KEYS", "BELL", "VOX", "SEQ", "FX"];
 const PRESETS = [
   ["ORPHEO · Dream Pad", "slow bloom through the table", { "Position": 30, "Position Env": 35, "Unison": 5, "Detune": 18, "Spread": 80, "Sub": 20, "Cutoff": 2500, "Resonance": 25, "Filter Env": 35, "Attack": 400, "Decay": 1500, "Sustain": 70, "Release": 1800, "Mod Attack": 600, "Mod Decay": 3000, "Velocity": 40, "Drive": 1.5, "Output": 0,
     "LFO1 Rate": .15, "LFO1 Mode": 1, "LFO2 Shape": 6, "LFO2 Rate": .4,
@@ -1240,24 +1270,47 @@ const PRESETS = [
     "Voice Mode": 2, "Glide": 90, "Attack": 1, "Decay": 260, "Sustain": 45, "Release": 80, "Mod Attack": 1, "Mod Decay": 200, "Velocity": 70, ...R([[8, 3, 30]]) }],
   // ---------------------------------------------------------------- the Morpheus bank (our own designs: TableForge, warps, FX, SPACE)
   ["Underworld Drone", "dark table, slow drift, far away", { "Table": T("UNDERWORLD"), "Position": 20, "Scan": 3, "Scan Speed": .3, "Unison": 3, "Detune": 12, "Spread": 90, "Sub": 30, "Cutoff": 1400, "Resonance": 20, "Attack": 1200, "Decay": 2000, "Sustain": 90, "Release": 4000,
-    "Reverb On": 1, "Reverb Style": 5, "Reverb Decay": 9, "Reverb Mix": 40, "Space On": 1, "Space Z": 70, "Space Orbit": 6, "Space Rate": 5, "Space Size": 60, "Space Room": 70 }, 0, "PAD"],
+    "Reverb On": 1, "Reverb Style": 5, "Reverb Decay": 9, "Reverb Mix": 40, "Space On": 1, "Space Z": 70, "Space Orbit": 6, "Space Rate": 7, "Space Size": 60, "Space Room": 70 }, 0, "PAD"],
   ["Elysium Choir", "airy voices that open", { "Table": T("CHOIR"), "Position": 10, "Position Env": 50, "Unison": 5, "Detune": 14, "Spread": 100, "Cutoff": 6000, "Attack": 700, "Decay": 2500, "Sustain": 85, "Release": 2500, "Mod Attack": 1500, "Mod Decay": 4000,
     "Chorus On": 1, "Chorus Mode": 3, "Chorus Mix": 40, "Reverb On": 1, "Reverb Style": 6, "Reverb Decay": 5, "Reverb Mix": 35 }, 0, "PAD"],
   ["Glass Cathedral", "square-number partials, big hall", { "Table": T("GLASS"), "Position": 60, "Unison": 3, "Detune": 8, "Spread": 80, "Cutoff": 9000, "Attack": 300, "Decay": 3000, "Sustain": 60, "Release": 3500,
     "Reverb On": 1, "Reverb Style": 4, "Reverb Decay": 8, "Reverb Mix": 38, "Echo On": 1, "Echo Mode": 2, "Echo Note L": 6, "Echo Note R": 8, "Echo Mix": 18 }, 0, "PAD"],
   ["Halo Rise", "climbs over your head", { "Table": T("ELYSIUM"), "Position": 30, "Position Env": 40, "Unison": 5, "Detune": 16, "Spread": 90, "Cutoff": 5000, "Attack": 900, "Decay": 3000, "Sustain": 80, "Release": 3000, "Mod Attack": 2500, "Mod Decay": 5000,
-    "Reverb On": 1, "Reverb Mix": 30, "Space On": 1, "Space Orbit": 2, "Space Rate": 4, "Space Size": 80, "Space Z": 35, "Space Listen": 1 }, 0, "PAD"],
+    "Reverb On": 1, "Reverb Mix": 30, "Space On": 1, "Space Orbit": 2, "Space Rate": 6, "Space Size": 80, "Space Z": 35, "Space Listen": 1 }, 0, "PAD"],
   ["Nocturne Strings", "soft square into an 'o'", { "Table": T("NOCTURNE"), "Position": 35, "Unison": 4, "Detune": 18, "Spread": 90, "Filter Type": 3, "Cutoff": 3000, "Resonance": 10, "HPF": 2, "Attack": 450, "Decay": 1500, "Sustain": 85, "Release": 1400,
     "LFO3 Shape": 1, "LFO3 Rate": .25, "LFO3 Mode": 1, "Chorus On": 1, "Chorus Mode": 2, "Chorus Mix": 35, "Reverb On": 1, "Reverb Mix": 25, ...R([[6, 1, 15]]) }, 0, "STRINGS"],
   ["Breathing Room", "comes close, drifts away", { "Table": T("WARM SAW"), "Position": 45, "Unison": 5, "Detune": 20, "Spread": 100, "Cutoff": 2200, "Resonance": 15, "Attack": 600, "Decay": 2000, "Sustain": 80, "Release": 2500,
-    "Space On": 1, "Space Orbit": 7, "Space Rate": 3, "Space Size": 70, "Space Room": 60, "Reverb On": 1, "Reverb Mix": 20 }, 0, "SPACE"],
+    "Space On": 1, "Space Orbit": 7, "Space Rate": 5, "Space Size": 70, "Space Room": 60, "Reverb On": 1, "Reverb Mix": 20 }, 0, "MOVEMENT"],
   ["Orbiter", "circles your head every 2 bars", { "Table": T("PHASE DISTORT"), "Position": 40, "Unison": 2, "Detune": 8, "Cutoff": 4000, "Resonance": 20, "Attack": 20, "Decay": 800, "Sustain": 70, "Release": 900,
-    "Space On": 1, "Space Orbit": 1, "Space Rate": 2, "Space Z": 30, "Space Listen": 1, "Echo On": 1, "Echo Mix": 15 }, 0, "SPACE"],
+    "Space On": 1, "Space Orbit": 1, "Space Rate": 4, "Space Z": 30, "Space Listen": 1, "Echo On": 1, "Echo Mix": 15 }, 0, "MOVEMENT"],
   ["Fly-By", "swoops past, Doppler and all", { "Table": T("SAW TO SQUARE"), "Position": 30, "Unison": 3, "Detune": 12, "Cutoff": 5000, "Attack": 10, "Decay": 600, "Sustain": 80, "Release": 700,
-    "Space On": 1, "Space Orbit": 4, "Space Rate": 3, "Space Size": 90, "Space Z": 40 }, 0, "SPACE"],
+    "Space On": 1, "Space Orbit": 4, "Space Rate": 5, "Space Size": 90, "Space Z": 40 }, 0, "MOVEMENT"],
   ["Falling Star", "drops from above, bright to dark", { "Table": T("HARMONIC SWEEP"), "Position": 90, "Position Env": -70, "Cutoff": 9000, "Filter Env": -20, "Attack": 1, "Decay": 2500, "Sustain": 0, "Release": 2500, "Mod Attack": 1, "Mod Decay": 2500,
-    "Space On": 1, "Space Orbit": 3, "Space Rate": 1, "Space Size": 80, "Reverb On": 1, "Reverb Mix": 30 }, 0, "SPACE"],
+    "Space On": 1, "Space Orbit": 3, "Space Rate": 3, "Space Size": 80, "Reverb On": 1, "Reverb Mix": 30 }, 0, "MOVEMENT"],
 
+  // ---------------------------------------------------------------- MOVEMENT: sounds that travel around you (best on headphones)
+  ["Spiral Staircase", "circles you while it climbs", { "Table": T("ELYSIUM"), "Position": 40, "Unison": 5, "Detune": 14, "Spread": 80, "Cutoff": 7000, "Attack": 400, "Decay": 2000, "Sustain": 85, "Release": 2500,
+    "Space On": 1, "Space Orbit": 8, "Space Rate": 5, "Space Size": 95, "Space Amount": 90, "Space Z": 60, "Reverb On": 1, "Reverb Mix": 25 }, 0, "MOVEMENT"],
+  ["Ping-Pong Pluck", "every 1/4 bar, the other ear", { "Table": T("GOLDEN"), "Position": 70, "Position Env": -50, "Cutoff": 7000, "Attack": 1, "Decay": 450, "Sustain": 0, "Release": 450, "Mod Decay": 400,
+    "Space On": 1, "Space Orbit": 9, "Space Rate": 1, "Space Size": 100, "Space Amount": 90, "Space Z": 40, "Echo On": 1, "Echo Mode": 2, "Echo Mix": 15 }, 0, "MOVEMENT"],
+  ["Overhead Jet", "front, over your head, behind", { "Table": T("WARM SAW"), "Position": 70, "Unison": 7, "Detune": 28, "Spread": 60, "Noise": 15, "Cutoff": 6000, "Attack": 300, "Decay": 1000, "Sustain": 100, "Release": 1500,
+    "Space On": 1, "Space Orbit": 11, "Space Rate": 4, "Space Size": 100, "Space Amount": 100, "Space Room": 40 }, 0, "MOVEMENT"],
+  ["Pendulum Keys", "swings in front of you", { "Table": T("FM 1:1"), "Position": 30, "Position Env": -30, "Cutoff": 6000, "Attack": 1, "Decay": 1600, "Sustain": 30, "Release": 700, "Mod Decay": 500, "Velocity": 80,
+    "Space On": 1, "Space Orbit": 10, "Space Rate": 3, "Space Size": 85, "Space Amount": 85, "Chorus On": 1, "Chorus Mix": 25 }, 0, "MOVEMENT"],
+  ["Tumbling Bells", "a new place for every step", { "Table": T("GLASS"), "Position": 80, "Position Env": -40, "Cutoff": 12000, "Attack": 1, "Decay": 2500, "Sustain": 0, "Release": 2500, "Mod Decay": 1500,
+    "Space On": 1, "Space Orbit": 13, "Space Rate": 4, "Space Size": 90, "Space Amount": 90, "Space Room": 60, "Reverb On": 1, "Reverb Mix": 22 }, 0, "MOVEMENT"],
+  ["The Approach", "from far away right up to you", { "Table": T("UNDERWORLD"), "Position": 30, "Scan": 3, "Scan Speed": .3, "Unison": 3, "Detune": 12, "Sub": 30, "Cutoff": 2500, "Attack": 1500, "Decay": 2000, "Sustain": 95, "Release": 3000,
+    "Space On": 1, "Space Orbit": 12, "Space Rate": 6, "Space Size": 100, "Space Amount": 100, "Space Room": 70 }, 0, "MOVEMENT"],
+  ["Twin Orbit", "two of it, circling opposite each other", { "Table": T("PHASE DISTORT"), "Position": 45, "Unison": 2, "Detune": 8, "Cutoff": 4500, "Resonance": 20, "Attack": 20, "Decay": 900, "Sustain": 75, "Release": 1000,
+    "Space On": 1, "Space Mirror": 1, "Space Orbit": 1, "Space Rate": 4, "Space Amount": 90, "Space Z": 70 }, 0, "MOVEMENT"],
+  ["Rise and Fall", "one climbs while its twin sinks", { "Table": T("CHOIR"), "Position": 30, "Unison": 4, "Detune": 12, "Spread": 90, "Cutoff": 7000, "Attack": 600, "Decay": 2000, "Sustain": 90, "Release": 2500,
+    "Space On": 1, "Space Mirror": 1, "Space Orbit": 2, "Space Rate": 5, "Space Size": 100, "Space Amount": 95, "Space Listen": 1, "Reverb On": 1, "Reverb Mix": 25 }, 0, "MOVEMENT"],
+  ["Behind You", "just over your shoulder, breathing", { "Table": T("NOCTURNE"), "Position": 50, "Unison": 3, "Detune": 10, "Cutoff": 3500, "Attack": 800, "Decay": 2000, "Sustain": 85, "Release": 2500,
+    "Space On": 1, "Space X": 35, "Space Z": -80, "Space Orbit": 7, "Space Rate": 5, "Space Size": 50, "Space Amount": 95 }, 0, "MOVEMENT"],
+  ["Swarm", "a cloud of dust buzzing all around", { "Table": T("DIGITAL DUST"), "Position": 50, "Unison": 7, "Detune": 35, "Spread": 100, "Cutoff": 5000, "Resonance": 25, "Attack": 200, "Decay": 1000, "Sustain": 90, "Release": 1200,
+    "Space On": 1, "Space Mirror": 1, "Space Orbit": 6, "Space Rate": 2, "Space Size": 100, "Space Amount": 100 }, 0, "MOVEMENT"],
+  ["Helicopter", "a low throb spinning round your head", { "Table": T("FM 1:1"), "Position": 60, "Sub": 40, "Cutoff": 1500, "Resonance": 25, "Attack": 200, "Decay": 500, "Sustain": 100, "Release": 800,
+    "Space On": 1, "Space Orbit": 1, "Space Rate": 1, "Space Amount": 90, "Space Z": 40, "Space Room": 30 }, 0, "MOVEMENT"],
   ["FM Growl", "1:2 FM, the index rises with the env", { "Table": T("FM 1:2"), "Position": 10, "Position Env": 55, "Unison": 1, "Sub": 50, "Filter Type": 1, "Cutoff": 900, "Resonance": 25, "Filter Env": 40, "Filter Drive": 8, "Attack": 1, "Decay": 350, "Sustain": 50, "Release": 150, "Mod Attack": 1, "Mod Decay": 400, "Drive": 3 }, 0, "BASS"],
   ["Reese Darkness", "detuned saws, slow phase drift", { "Table": T("WARM SAW"), "Position": 80, "Unison": 4, "Detune": 22, "Spread": 30, "Sub": 40, "Filter Type": 1, "Cutoff": 700, "Resonance": 20, "Attack": 2, "Decay": 500, "Sustain": 90, "Release": 200,
     "LFO3 Rate": .15, "LFO3 Mode": 1, "Drive": 2.5, ...R([[6, 1, 10], [6, 3, 8]]) }, 0, "BASS"],
@@ -1290,7 +1343,7 @@ const PRESETS = [
 
   ["Vowel Morph", "A-E-I-O-U on the mod wheel", { "Table": T("VOWELS LOW"), "Position": 0, "Unison": 3, "Detune": 8, "Cutoff": 8000, "Attack": 20, "Decay": 800, "Sustain": 90, "Release": 600, ...R([[10, 1, 100]]) }, 0, "VOX"],
   ["Choir of Ghosts", "high voices, wandering in space", { "Table": T("VOWELS HIGH"), "Position": 40, "Scan": 3, "Scan Speed": .25, "Unison": 5, "Detune": 15, "Spread": 100, "Cutoff": 7000, "Attack": 800, "Decay": 2000, "Sustain": 85, "Release": 2500,
-    "Reverb On": 1, "Reverb Mix": 35, "Space On": 1, "Space Orbit": 6, "Space Rate": 4, "Space Size": 50, "Space Z": 50 }, 0, "VOX"],
+    "Reverb On": 1, "Reverb Mix": 35, "Space On": 1, "Space Orbit": 6, "Space Rate": 6, "Space Size": 50, "Space Z": 50 }, 0, "VOX"],
 
   ["Styx Sequence", "1/16 filter steps over FM fold", { "Table": T("STYX"), "Position": 35, "Cutoff": 1500, "Resonance": 45, "Filter Type": 2, "Attack": 1, "Decay": 200, "Sustain": 60, "Release": 120,
     "LFO4 Shape": 5, "LFO4 Sync": 1, "LFO4 Note": 14, "LFO4 Mode": 1, "Echo On": 1, "Echo Note L": 6, "Echo Mix": 22, ...R([[7, 3, 35], [7, 1, 20]]) }, 0, "SEQ"],
@@ -1298,9 +1351,9 @@ const PRESETS = [
     "LFO3 Shape": 4, "LFO3 Sync": 1, "LFO3 Note": 11, "LFO3 Mode": 1, "Pump On": 1, "Pump Rate": 3, "Pump Depth": 60, ...R([[6, 1, 25]]) }, 0, "SEQ"],
 
   ["Static Rain", "vinyl noise through a comb, far away", { "Table": T("DIGITAL DUST"), "Osc A Level": 30, "Noise": 70, "Noise Color": 3, "Filter Type": 4, "Cutoff": 800, "Resonance": 60, "Attack": 1500, "Decay": 3000, "Sustain": 80, "Release": 4000,
-    "Reverb On": 1, "Reverb Style": 5, "Reverb Mix": 45, "Space On": 1, "Space Z": 80, "Space Orbit": 6, "Space Rate": 5 }, 0, "FX"],
+    "Reverb On": 1, "Reverb Style": 5, "Reverb Mix": 45, "Space On": 1, "Space Z": 80, "Space Orbit": 6, "Space Rate": 7 }, 0, "FX"],
   ["Riser", "climbs for 4 bars and leaves above", { "Table": T("HARMONIC SWEEP"), "Position": 0, "Unison": 7, "Detune": 30, "Spread": 100, "Noise": 25, "Cutoff": 600, "Attack": 4000, "Decay": 100, "Sustain": 100, "Release": 1500,
-    "Env3 Attack": 8000, "Env3 Sustain": 100, "Space On": 1, "Space Orbit": 2, "Space Rate": 3, "Space Size": 100, "Reverb On": 1, "Reverb Mix": 30, ...R([[3, 1, 100], [3, 3, 80], [3, 2, 12]]) }, 0, "FX"],
+    "Env3 Attack": 8000, "Env3 Sustain": 100, "Space On": 1, "Space Orbit": 2, "Space Rate": 5, "Space Size": 100, "Reverb On": 1, "Reverb Mix": 30, ...R([[3, 1, 100], [3, 3, 80], [3, 2, 12]]) }, 0, "FX"],
   ["Vowel Lead", "the voice at the end of the table", { "Position": 85, "Position Env": -20, "Unison": 3, "Detune": 10, "Spread": 50, "Cutoff": 6000, "Resonance": 15, "Filter Env": 10, "Attack": 5, "Decay": 300, "Sustain": 90, "Release": 250, "Mod Decay": 800, "Drive": 3 }],
 ];
 let cur = 0;
@@ -1430,6 +1483,7 @@ knob($("#spaceK"), { name: "Space Y", label: "BELOW · ABOVE", min: -100, max: 1
 knob($("#spaceK"), { name: "Space Z", label: "BEHIND · FRONT", min: -100, max: 100, size: 50, color: SPACE_COL, fmt: v => (v > 0 ? "F " : v < 0 ? "B " : "") + Math.abs(Math.round(v)) + "%" });
 knob($("#spaceK"), { name: "Space Size", label: "ORBIT SIZE", min: 0, max: 100, size: 44, color: SPACE_COL, fmt: pct });
 knob($("#spaceK"), { name: "Space Room", label: "ROOM", min: 0, max: 100, size: 44, color: SPACE_COL, fmt: pct });
+knob($("#spaceK"), { name: "Space Amount", label: "AMOUNT", min: 0, max: 100, size: 44, color: SPACE_COL, fmt: v => v < 35 ? "SUBTLE " + Math.round(v) : v < 65 ? "NATURAL " + Math.round(v) : "DRAMATIC " + Math.round(v) });
 knob($("#morphK"), { name: "Morph X", label: "ACROSS", min: 0, max: 100, size: 40, color: MORPH_COL, fmt: pct });
 knob($("#morphK"), { name: "Morph Y", label: "UP", min: 0, max: 100, size: 40, color: MORPH_COL, fmt: pct });
 const PAD_CHOICES = () => Object.keys(DEST_OF).concat(["Macro 1", "Macro 2", "Macro 3", "Macro 4", "Macro 5", "Macro 6", "Macro 7", "Macro 8"]).filter(n => K[n]);

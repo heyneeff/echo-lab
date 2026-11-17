@@ -55,7 +55,7 @@ int main() {
         check(tf < tn * 0.3, "distance: far darker (high/low ratio far/near)", tf / tn);
     }
     { // orbit: Circle goes all the way round in 2 bars at 120 BPM (4 s)
-        Params p = base; p.orbit = kCircle; p.rate = 2; SpatialEngine e; e.prepare(SR); e.update(p);
+        Params p = base; p.orbit = kCircle; p.rate = 4; SpatialEngine e; e.prepare(SR); e.update(p);
         std::vector<float> L(256, 0.1f), R = L; double mn = 999, mx = -999; const double bps = 120.0 / 60 / SR;
         for (int b = 0; b < (int)(4.2 * SR / 256); ++b) { auto l = L, r = R; e.process(l.data(), r.data(), 256, b * 256 * bps, bps); mn = std::min(mn, (double)e.viewAz); mx = std::max(mx, (double)e.viewAz); }
         check(mx - mn > 300, "orbit circle: the angle sweeps the whole way (deg)", mx - mn);
