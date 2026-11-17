@@ -8,6 +8,7 @@
 #include <string>
 
 #include "../../dsp/Modulation.h"
+#include "../../dsp/WavetableSynth.h"
 
 namespace echolab {
 namespace wtsynth {
@@ -33,11 +34,14 @@ enum ParamId : int {
     kMacro1, kMacro2, kMacro3, kMacro4, kMacro5, kMacro6,
     kMacro7, kMacro8, kModWheel, kPitchBend, kAftertouch, kBendRange,
     kVoiceMode, kGlide,
+    // v0.6: oscillator B, warp, noise
+    kOscALevel, kTableB, kPositionB, kOctB, kSemiB, kFineB, kOscBLevel, kWarpA, kWarpAmtA, kWarpB, kWarpAmtB, kNoise, kNoiseColor,
     kNumParams
 };
 constexpr int kModBase = kMod1Src;  // slot s (0-based): source kModBase + 3s, destination +1, amount +2
 constexpr int kLfoBase = kLfo1Shape; // LFO q (0-based): shape kLfoBase + 5q, rate +1, sync +2, note +3, mode +4
 inline const char* const kVoiceModeNames[] = {"Poly", "Mono", "Legato"};
+inline const char* const kNoiseColorNames[] = {"White", "Pink", "Brown", "Vinyl"};
 inline const char* const kFilterTypeNames[] = {"SVF", "Ladder", "Diode", "OTA", "Comb", "Formant"};
 inline const char* const kHpfNames[] = {"Boost", "Flat", "Low", "High"};
 inline const char* const kTableNames[] = {"ORPHEO", "MOOG", "PWM", "SYNC", "JUNO", "GROWN"};
@@ -159,6 +163,19 @@ inline const ParamDef kParams[kNumParams] = {
     {kBendRange, "Bend Range", "st", 0, 24, 2, Map::List},
     {kVoiceMode, "Voice Mode", "", 0, 2, 0, Map::List},
     {kGlide, "Glide", "ms", 1, 3000, 0, Map::LogOffLow},
+    {kOscALevel, "Osc A Level", "%", 0, 100, 100, Map::Linear},
+    {kTableB, "Table B", "", 0, 5, 0, Map::List},
+    {kPositionB, "Position B", "%", 0, 100, 40, Map::Linear},
+    {kOctB, "Octave B", "", -3, 3, 0, Map::List},
+    {kSemiB, "Semi B", "st", -12, 12, 0, Map::List},
+    {kFineB, "Fine B", "ct", -100, 100, 0, Map::Linear},
+    {kOscBLevel, "Osc B Level", "%", 0, 100, 0, Map::Linear},
+    {kWarpA, "Warp A", "", 0, wt::kNumWarps - 1, 0, Map::List},
+    {kWarpAmtA, "Warp A Amount", "%", 0, 100, 0, Map::Linear},
+    {kWarpB, "Warp B", "", 0, wt::kNumWarps - 1, 0, Map::List},
+    {kWarpAmtB, "Warp B Amount", "%", 0, 100, 0, Map::Linear},
+    {kNoise, "Noise", "%", 0, 100, 0, Map::Linear},
+    {kNoiseColor, "Noise Color", "", 0, 3, 0, Map::List},
 };
 inline const int kDisplayOrder[kNumParams] = {
     kTable, kPosition, kScan, kScanSpeed, kPosEnv, kUnison, kDetune, kSpread, kSub,
@@ -179,6 +196,7 @@ inline const int kDisplayOrder[kNumParams] = {
     kMacro1, kMacro2, kMacro3, kMacro4, kMacro5, kMacro6,
     kMacro7, kMacro8, kModWheel, kPitchBend, kAftertouch, kBendRange,
     kVoiceMode, kGlide,
+    kOscALevel, kTableB, kPositionB, kOctB, kSemiB, kFineB, kOscBLevel, kWarpA, kWarpAmtA, kWarpB, kWarpAmtB, kNoise, kNoiseColor,
 };
 
 inline int stepCount(const ParamDef& p) { return p.map == Map::List ? (int)(p.max - p.min) : 0; }
@@ -237,6 +255,11 @@ inline std::string toText(const ParamDef& p, double n) {
         }
     }
     if (p.id == kVoiceMode) return kVoiceModeNames[std::clamp((int)v, 0, 2)];
+    if (p.id == kTableB) return kTableNames[std::clamp((int)v, 0, 5)];
+    if (p.id == kWarpA || p.id == kWarpB) return wt::kWarpNames[std::clamp((int)v, 0, wt::kNumWarps - 1)];
+    if (p.id == kNoiseColor) return kNoiseColorNames[std::clamp((int)v, 0, 3)];
+    if (p.id == kOctB) { std::snprintf(buf, sizeof buf, "%+.0f oct", v); return buf; }
+    if (p.id == kSemiB) { std::snprintf(buf, sizeof buf, "%+.0f st", v); return buf; }
     if (p.id == kBendRange) { std::snprintf(buf, sizeof buf, "%.0f st", v); return buf; }
     if (p.id == kHpf) return kHpfNames[std::clamp((int)v, 0, 3)];
     if (p.id == kScanSpeed) { std::snprintf(buf, sizeof buf, "%.2fx", v); return buf; }

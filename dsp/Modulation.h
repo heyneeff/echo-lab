@@ -34,11 +34,16 @@ enum ModDest {
     kDstLevel,        // +100% (0 = silent at -100%)
     kDstPan,          // full right
     kDstScanSpeed,    // x4 (two octaves of speed)
+    kDstPositionB,    // +1 = the whole table (OSC B)
+    kDstLevelB,       // +100%
+    kDstWarpA,        // +100% warp amount
+    kDstWarpB,
+    kDstNoise,        // +100% noise level
     kNumDests
 };
 inline const char* const kDestNames[kNumDests] = {
     "None", "Position", "Pitch", "Cutoff", "Resonance", "Filter Morph", "Filter Drive",
-    "Detune", "Spread", "Sub", "Level", "Pan", "Scan Speed"};
+    "Detune", "Spread", "Sub", "Level", "Pan", "Scan Speed", "Position B", "Level B", "Warp A", "Warp B", "Noise"};
 
 constexpr int kModSlots = 16;
 struct ModSlot { int src = kSrcNone, dst = kDstNone; double amt = 0; };  // amt -1..1

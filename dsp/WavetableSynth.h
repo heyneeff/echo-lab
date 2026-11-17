@@ -211,7 +211,19 @@ struct Params {
     double bendRange = 2;                     // semitones
     int voiceMode = 0;                        // 0 poly, 1 mono, 2 legato (overlapping notes slide, no retrigger)
     double glide = 0;                         // seconds
+    // oscillator B, warp, noise (M3)
+    double levelA = 1, levelB = 0;            // 0..1; B at 0 is off (nothing computed)
+    double positionB = 0.4;
+    int octB = 0, semiB = 0;
+    double fineB = 0;                         // cents
+    int warpA = 0, warpB = 0;                 // WarpMode
+    double warpAmtA = 0, warpAmtB = 0;        // 0..1
+    double noise = 0;                         // 0..1
+    int noiseColor = 0;                       // 0 white, 1 pink, 2 brown, 3 vinyl
 };
+// Warp: reshapes how an oscillator reads its table. FM and Ring take the other oscillator.
+enum WarpMode { kWarpOff = 0, kWarpSync, kWarpBendUp, kWarpBendDown, kWarpMirror, kWarpAsym, kWarpQuantize, kWarpFm, kWarpRing, kNumWarps };
+inline const char* const kWarpNames[kNumWarps] = {"Off", "Sync", "Bend+", "Bend-", "Mirror", "Asym", "Quantize", "FM", "Ring"};
 enum VoiceMode { kPoly = 0, kMono, kLegato };
 
 // ------------------------------------------------------------------ envelope
@@ -237,6 +249,40 @@ struct Env {
     }
 };
 
+// ------------------------------------------------------------------ 2x decimator
+// Warped oscillators (Sync, Bend, Mirror, Asym) run at twice the sample rate; this brings them back
+// down: a 63-tap Blackman-windowed half-band low-pass (pass to 0.45 x the output rate).
+struct Decim2 {
+    static constexpr int kTaps = 63;
+    static const std::array<double, kTaps>& coef() {
+        static const std::array<double, kTaps> h = [] {
+            std::array<double, kTaps> c{};
+            double sum = 0;
+            for (int n = 0; n < kTaps; ++n) {
+                const double m = n - (kTaps - 1) / 2.0, x = 0.5 * m;  // cutoff at a quarter of the 2x rate
+                const double sinc = std::abs(m) < 1e-9 ? 1.0 : std::sin(kPi * x) / (kPi * x);
+                const double w = 0.42 - 0.5 * std::cos(2 * kPi * n / (kTaps - 1)) + 0.08 * std::cos(4 * kPi * n / (kTaps - 1));
+                c[n] = sinc * w; sum += c[n];
+            }
+            for (auto& v : c) v /= sum;
+            return c;
+        }();
+        return h;
+    }
+    std::array<double, 2 * kTaps> buf{};  // doubled ring: a contiguous window without wrapping
+    int pos = 0;
+    void reset() { buf.fill(0); pos = 0; }
+    double push(double a, double b) {
+        const auto& h = coef();
+        for (double x : {a, b}) { buf[pos] = buf[pos + kTaps] = x; pos = (pos + 1) % kTaps; }
+        double y = 0;
+        const double* w = &buf[pos];  // oldest .. newest
+        for (int n = 0; n < kTaps; n += 2) y += h[n] * w[n];  // half-band: odd taps (but the centre) are ~0
+        y += h[(kTaps - 1) / 2] * w[(kTaps - 1) / 2];
+        return y;
+    }
+};
+
 // ------------------------------------------------------------------ voice
 constexpr int kMaxUnison = 7;
 
@@ -258,6 +304,10 @@ struct Voice {
     double pitch = 60;          // sounding pitch in semitones (glides toward note)
     double ratio = 1;           // last pitch ratio from modulation + bend + glide (for band-limiting)
     double modDetune = 0, modSpread = 0;  // last block's modulation of the per-block settings
+    std::array<double, kMaxUnison> phaseB{}, lastA{}, lastB{};  // OSC B phases; last outputs (for FM / Ring)
+    double nz[7]{}, brown = 0, hiss = 0, crackle = 0;   // noise colour states
+    double dcx[2]{}, dcy[2]{};  // DC blocker after the oscillators (warps shift a wave's average)
+    Decim2 dec[2];              // 2x oversampling for warped oscillators
     bool active() const { return amp.stage != Env::Idle; }
 };
 
@@ -265,11 +315,12 @@ class Synth {
 public:
     static constexpr int kVoices = 16;
 
-    Synth() : combMem((size_t)kVoices * 2 * kCombLen, 0.f) { setTable(nullptr); wireCombs(); }
+    Synth() : combMem((size_t)kVoices * 2 * kCombLen, 0.f) { setTable(nullptr); setTableB(nullptr); wireCombs(); }
 
     // Play from another table (nullptr = the ORPHEO table). The caller keeps it alive until it
     // has been replaced and at least one more block has run.
     void setTable(const Wavetable* t) { current.store(t ? t : &factoryTable(0), std::memory_order_release); }
+    void setTableB(const Wavetable* t) { currentB.store(t ? t : &factoryTable(0), std::memory_order_release); }
 
     void prepare(double sampleRate) { sr = sampleRate; reset(); hpf.set(p.hpf, sr); }
     void reset() {
@@ -348,7 +399,8 @@ private:
     // Knob moves arrive once per host block; stepping the table position or the cutoff that coarsely
     // is audible as static. These glide sample by sample (~12 ms) instead.
     static constexpr int kChunk = 64;
-    struct Smooth { double pos = -1, cut = 0, res = 0, sub = 0, out = 0, morph = 0, drive = 0, wheel = 0, bend = 0, at = 0; std::array<double, 8> mac{}; } sm;
+    struct Smooth { double pos = -1, cut = 0, res = 0, sub = 0, out = 0, morph = 0, drive = 0, wheel = 0, bend = 0, at = 0; std::array<double, 8> mac{};
+                    double posB = 0, lvlA = 1, lvlB = 0, wA = 0, wB = 0, noise = 0; } sm;
 
     void processChunk(float* L, float* R, int n) {
         const Wavetable& table = *current.load(std::memory_order_acquire);
@@ -357,9 +409,11 @@ private:
         if (sm.pos < 0) {  // first block: start on target
             sm = {p.position, tCut, p.resonance, p.sub, tOut, p.filterMorph, p.filterDriveDb};
             sm.wheel = p.modWheel; sm.bend = p.pitchBend; sm.at = p.aftertouch; sm.mac = p.macro;
+            sm.posB = p.positionB; sm.lvlA = p.levelA; sm.lvlB = p.levelB; sm.wA = p.warpAmtA; sm.wB = p.warpAmtB; sm.noise = p.noise;
         }
         double sPos[kChunk], sCut[kChunk], sRes[kChunk], sSub[kChunk], sOut[kChunk], sMorph[kChunk], sDrive[kChunk];
         double sWheel[kChunk], sBend[kChunk], sAt[kChunk], sMac[8][kChunk];
+        double sPosB[kChunk], sLvlA[kChunk], sLvlB[kChunk], sWA[kChunk], sWB[kChunk], sNoise[kChunk];
         for (int i = 0; i < n; ++i) {
             sm.pos += (p.position - sm.pos) * k; sPos[i] = sm.pos;
             sm.cut += (tCut - sm.cut) * k;       sCut[i] = sm.cut;
@@ -372,14 +426,22 @@ private:
             sm.bend += (p.pitchBend - sm.bend) * k;  sBend[i] = sm.bend;
             sm.at += (p.aftertouch - sm.at) * k;     sAt[i] = sm.at;
             for (int q = 0; q < 8; ++q) { sm.mac[q] += (p.macro[q] - sm.mac[q]) * k; sMac[q][i] = sm.mac[q]; }
+            sm.posB += (p.positionB - sm.posB) * k; sPosB[i] = sm.posB;
+            sm.lvlA += (p.levelA - sm.lvlA) * k;    sLvlA[i] = sm.lvlA;
+            sm.lvlB += (p.levelB - sm.lvlB) * k;    sLvlB[i] = sm.lvlB;
+            sm.wA += (p.warpAmtA - sm.wA) * k;      sWA[i] = sm.wA;
+            sm.wB += (p.warpAmtB - sm.wB) * k;      sWB[i] = sm.wB;
+            sm.noise += (p.noise - sm.noise) * k;   sNoise[i] = sm.noise;
         }
         // the routes that do something this block
         ModSlot act[kModSlots];
         int nAct = 0;
         bool useLfo[kLfos] = {};
+        double modReach[kNumDests] = {};  // the most each destination can be pushed by routes (all sources are within -1..1)
         for (const auto& sl : p.slots)
             if (sl.src > kSrcNone && sl.src < kNumSources && sl.dst > kDstNone && sl.dst < kNumDests && std::abs(sl.amt) > 1e-5) {
                 act[nAct++] = sl;
+                modReach[sl.dst] += std::abs(sl.amt);
                 if (sl.src >= kSrcLfo1 && sl.src <= kSrcLfo4) useLfo[sl.src - kSrcLfo1] = true;
             }
         // LFO clocks: the free-running ones are shared by every voice (and follow the host's beat when synced)
@@ -421,16 +483,32 @@ private:
             const double detune = std::max(0.0, p.detuneCents + v.modDetune * 100);
             const double spread = std::clamp(p.spread + v.modSpread, 0.0, 1.0);
             double inc[kMaxUnison], gl[kMaxUnison], gr[kMaxUnison];
-            int lev[kMaxUnison];
             for (int u = 0; u < uni; ++u) {
                 const double x = uni == 1 ? 0.0 : (2.0 * u / (uni - 1) - 1);  // -1..1
                 const double f = f0 * std::pow(2.0, x * detune / 2 / 1200);
                 inc[u] = f / sr;
-                lev[u] = levelFor(f * std::max(1.0, v.ratio) * 1.06);  // headroom for pitch moving within the block
                 const double pan = x * spread * 0.5 + 0.5;  // 0 = left
                 gl[u] = std::cos(pan * kPi / 2) * uniGain * 1.41421356;
                 gr[u] = std::sin(pan * kPi / 2) * uniGain * 1.41421356;
             }
+            const Wavetable& tableB = *currentB.load(std::memory_order_acquire);
+            const double ratioB0 = std::exp2(p.octB + p.semiB / 12.0 + p.fineB / 1200.0);
+            const bool needA = p.levelA > 0 || modReach[kDstLevel] > 0 || p.warpB == kWarpFm || p.warpB == kWarpRing;
+            const bool needB = p.levelB > 0 || modReach[kDstLevelB] > 0 || p.warpA == kWarpFm || p.warpA == kWarpRing;
+            // band-limit levels: each warp reads at the level for its fastest pass through the table
+            const double wMaxA = std::clamp(p.warpAmtA + modReach[kDstWarpA], 0.0, 1.0), wMaxB = std::clamp(p.warpAmtB + modReach[kDstWarpB], 0.0, 1.0);
+            int levA[kMaxUnison], levB[kMaxUnison];
+            double incB[kMaxUnison];
+            const bool osOn = needsOs(p.warpA) || needsOs(p.warpB);
+            const int os = osOn ? 2 : 1;
+            for (int u = 0; u < uni; ++u) {
+                const double f = inc[u] * sr * std::max(1.0, v.ratio) * 1.06 / os;  // at 2x, twice the harmonics fit
+                incB[u] = inc[u] * ratioB0;
+                levA[u] = levelFor(f * warpSpeed(p.warpA, wMaxA, ratioB0));
+                levB[u] = levelFor(f * ratioB0 * warpSpeed(p.warpB, wMaxB, 1 / ratioB0));
+            }
+            const bool dcBlock = p.warpA != kWarpOff || p.warpB != kWarpOff;
+            const double dcR = 1 - 2 * kPi * 5 / sr;
             const double subInc = f0 * 0.5 / sr;
             const double scanInc = p.scanSpeed / ((table.seconds > 0 ? table.seconds : 2.0) * sr);
             const double velGain = 1 - p.velocity + p.velocity * v.vel;
@@ -475,14 +553,37 @@ private:
                 const double pos = std::clamp(base + p.posEnv * m + mods[kDstPosition], 0.0, 1.0) * (table.frames - 1);
                 const int f0i = std::min((int)pos, table.frames - 2);
                 const double ff = pos - f0i;
-                double sl = 0, sr_ = 0;
-                for (int u = 0; u < uni; ++u) {
-                    const double s = read(table, f0i, ff, lev[u], v.phase[u]);
-                    sl += s * gl[u];
-                    sr_ += s * gr[u];
-                    v.phase[u] += inc[u] * ratio;
-                    if (v.phase[u] >= 1) v.phase[u] -= std::floor(v.phase[u]);
+                const double posB = std::clamp(sPosB[i] + mods[kDstPositionB], 0.0, 1.0) * (tableB.frames - 1);
+                const int f0iB = std::min((int)posB, tableB.frames - 2);
+                const double ffB = posB - f0iB;
+                const Warp wa = warpOf(p.warpA, std::clamp(sWA[i] + mods[kDstWarpA], 0.0, 1.0));
+                const Warp wb = warpOf(p.warpB, std::clamp(sWB[i] + mods[kDstWarpB], 0.0, 1.0));
+                const double lvlA = std::clamp(sLvlA[i], 0.0, 1.0), lvlB = std::clamp(sLvlB[i] + mods[kDstLevelB], 0.0, 1.0);
+                double accL[2] = {0, 0}, accR[2] = {0, 0};
+                for (int k2 = 0; k2 < os; ++k2) {
+                    for (int u = 0; u < uni; ++u) {
+                        const double ia = inc[u] * ratio / os, ib = incB[u] * ratio / os;
+                        const double sA = needA ? osc(table, wa, f0i, ff, levA[u], v.phase[u], ia, v.lastB[u]) : 0.0;
+                        const double sB = needB ? osc(tableB, wb, f0iB, ffB, levB[u], v.phaseB[u], ib, v.lastA[u]) : 0.0;
+                        v.lastA[u] = sA;
+                        v.lastB[u] = sB;
+                        const double s = sA * lvlA + sB * lvlB;
+                        accL[k2] += s * gl[u];
+                        accR[k2] += s * gr[u];
+                        v.phase[u] += ia;
+                        if (v.phase[u] >= 1) v.phase[u] -= std::floor(v.phase[u]);
+                        v.phaseB[u] += ib;
+                        if (v.phaseB[u] >= 1) v.phaseB[u] -= std::floor(v.phaseB[u]);
+                    }
                 }
+                double sl = accL[0], sr_ = accR[0];
+                if (os == 2) { sl = v.dec[0].push(accL[0], accL[1]); sr_ = v.dec[1].push(accR[0], accR[1]); }
+                if (dcBlock) {  // ~5 Hz one-pole high-pass: removes the offset a warp adds, keeps the bass
+                    const double yl = sl - v.dcx[0] + dcR * v.dcy[0], yr = sr_ - v.dcx[1] + dcR * v.dcy[1];
+                    v.dcx[0] = sl; v.dcx[1] = sr_; v.dcy[0] = yl; v.dcy[1] = yr; sl = yl; sr_ = yr;
+                }
+                const double nLvl = std::clamp(sNoise[i] + mods[kDstNoise], 0.0, 1.0);
+                if (nLvl > 1e-4) { const double nz = noiseSample(v, p.noiseColor) * nLvl * 0.5; sl += nz; sr_ += nz; }
                 const double subLvl = std::clamp(sSub[i] + mods[kDstSub], 0.0, 1.0);
                 if (subLvl > 1e-4) {
                     const double s = std::sin(2 * kPi * v.subPhase) * subLvl;
@@ -509,6 +610,7 @@ private:
                     views[vi].pos.store((float)(pos / (table.frames - 1)), std::memory_order_relaxed);
                     views[vi].amp.store((float)a, std::memory_order_relaxed);
                     views[vi].mod.store((float)m, std::memory_order_relaxed);
+                    views[vi].posB.store((float)(posB / (tableB.frames - 1)), std::memory_order_relaxed);
                     if (v.age == newest)
                         for (int q = 0; q < kLfos; ++q) if (p.lfo[q].mode != kLfoFree && useLfo[q]) {
                             lfoView[q].store((float)src[kSrcLfo1 + q], std::memory_order_relaxed);
@@ -520,11 +622,89 @@ private:
         }
     }
 
+    // ---- warp: per-sample settings, how fast it can sweep the table, and the oscillator read
+    struct Warp { int mode = kWarpOff; double amt = 0, k = 1, w = 0.5, steps = 2048, r = 1; };
+    static Warp warpOf(int mode, double amt) {
+        Warp w; w.mode = amt > 1e-4 ? mode : kWarpOff; w.amt = amt;
+        switch (w.mode) {
+            case kWarpBendUp: w.k = std::exp2(-amt * 2.5); break;
+            case kWarpBendDown: w.k = std::exp2(amt * 2.5); break;
+            case kWarpAsym: w.w = 0.5 - 0.45 * amt; break;
+            case kWarpQuantize: w.steps = std::max(4.0, std::round(std::exp2(11 - amt * 9))); break;
+            case kWarpSync: w.r = 1 + amt * 7; break;
+        }
+        return w;
+    }
+    // the most a warp speeds up the read through the table (picks a band-limit level that keeps it clean)
+    static double warpSpeed(int mode, double amt, double otherRatio) {
+        switch (mode) {
+            case kWarpSync: return 1 + amt * 7;
+            case kWarpBendUp: case kWarpBendDown: return std::exp2(amt * 2.5);
+            case kWarpMirror: return amt > 0 ? 2 : 1;
+            case kWarpAsym: return 0.5 / (0.5 - 0.45 * amt);
+            case kWarpFm: return 1 + amt * 2 * kPi * otherRatio;
+            case kWarpRing: return 1 + otherRatio * amt;
+        }
+        return 1;
+    }
+    static double frac(double x) { return x - std::floor(x); }
+    static bool needsOs(int mode) { return mode == kWarpSync || mode == kWarpBendUp || mode == kWarpBendDown || mode == kWarpMirror || mode == kWarpAsym; }
+    static double osc(const Wavetable& t, const Warp& w, int f, double ff, int lev, double ph, double inc, double other) {
+        switch (w.mode) {
+            case kWarpOff: return read(t, f, ff, lev, ph);
+            case kWarpSync: {  // slave restarts with the master: PolyBLEP smooths the jump
+                double s = read(t, f, ff, lev, frac(ph * w.r));
+                if (ph < inc || ph > 1 - inc) {
+                    const double J = read(t, f, ff, lev, 0.0) - read(t, f, ff, lev, frac(w.r * (1 - 1e-9)));
+                    if (ph < inc) { const double x = ph / inc; s += 0.5 * J * (2 * x - x * x - 1); }
+                    else { const double x = (ph - 1) / inc; s += 0.5 * J * (x * x + 2 * x + 1); }
+                }
+                return s;
+            }
+            case kWarpBendUp: case kWarpBendDown: return read(t, f, ff, lev, ph / (ph + w.k * (1 - ph)));
+            case kWarpMirror: {  // blend with the wave played forward then back (both seamless, so the mix is too)
+                const double mr = ph < 0.5 ? 2 * ph : 2 - 2 * ph;
+                return read(t, f, ff, lev, ph) * (1 - w.amt) + read(t, f, ff, lev, std::min(0.999999, mr)) * w.amt;
+            }
+            case kWarpAsym: return read(t, f, ff, lev, ph < w.w ? 0.5 * ph / w.w : 0.5 + 0.5 * (ph - w.w) / (1 - w.w));
+            case kWarpQuantize: return read(t, f, ff, lev, std::floor(ph * w.steps) / w.steps);
+            case kWarpFm: return read(t, f, ff, lev, frac(ph + w.amt * other));
+            case kWarpRing: return read(t, f, ff, lev, ph) * ((1 - w.amt) + w.amt * other);
+        }
+        return 0;
+    }
+    // noise: white, pink (Kellet), brown, vinyl (filtered hiss + random crackle)
+    double noiseSample(Voice& v, int color) {
+        const double w = rand01() * 2 - 1;
+        switch (color) {
+            case 1: {
+                double* b = v.nz;
+                b[0] = 0.99886 * b[0] + w * 0.0555179; b[1] = 0.99332 * b[1] + w * 0.0750759; b[2] = 0.96900 * b[2] + w * 0.1538520;
+                b[3] = 0.86650 * b[3] + w * 0.3104856; b[4] = 0.55000 * b[4] + w * 0.5329522; b[5] = -0.7616 * b[5] - w * 0.0168980;
+                const double y = (b[0] + b[1] + b[2] + b[3] + b[4] + b[5] + b[6] + w * 0.5362) * 0.11;
+                b[6] = w * 0.115926;
+                return y;
+            }
+            case 2: v.brown = (v.brown + 0.02 * w) / 1.02; return v.brown * 3.5;
+            case 3: {
+                v.hiss += (w - v.hiss) * 0.12;
+                if (rand01() < 6.0 / sr) v.crackle = (rand01() < 0.5 ? -1 : 1) * (0.4 + 0.6 * rand01());
+                v.crackle *= 0.86;
+                return v.hiss * 0.35 + v.crackle;
+            }
+        }
+        return w;
+    }
+
     // ---- notes
     void startVoice(Voice& v, int note, double velocity, double fromPitch) {
         v.amp.v = 0; v.mod.v = 0; v.env3.v = 0;
-        for (int u = 0; u < kMaxUnison; ++u) v.phase[u] = u == 0 ? 0.0 : rand01();
+        for (int u = 0; u < kMaxUnison; ++u) { v.phase[u] = u == 0 ? 0.0 : rand01(); v.phaseB[u] = u == 0 ? 0.0 : rand01(); v.lastA[u] = v.lastB[u] = 0; }
         v.subPhase = 0;
+        for (double& z : v.nz) z = 0;
+        v.dcx[0] = v.dcx[1] = v.dcy[0] = v.dcy[1] = 0;
+        v.dec[0].reset(); v.dec[1].reset();
+        v.brown = v.hiss = v.crackle = 0;
         v.filt.reset();
         v.pitch = fromPitch;
         v.ratio = 1;
@@ -570,7 +750,7 @@ public:
     }
 
     // per-voice view for the editor: note (-1 = idle), effective table position, amp and mod levels
-    struct View { std::atomic<int> note{-1}; std::atomic<float> pos{0}, amp{0}, mod{0}; };
+    struct View { std::atomic<int> note{-1}; std::atomic<float> pos{0}, amp{0}, mod{0}, posB{0}; };
     std::array<View, kVoices> views;
 
     int activeVoices() const { int c = 0; for (auto& v : voices) c += v.active(); return c; }
@@ -596,7 +776,7 @@ private:
     }
     double rand01() { seed = seed * 6364136223846793005ULL + 1442695040888963407ULL; return (seed >> 11) * (1.0 / 9007199254740992.0); }
 
-    std::atomic<const Wavetable*> current{nullptr};
+    std::atomic<const Wavetable*> current{nullptr}, currentB{nullptr};
     std::vector<float> combMem;  // comb-filter delay lines, 2 x kCombLen per voice (allocated once)
     HpfStep hpf;
     std::array<LfoState, kLfos> lfoG{};  // free-running LFO clocks (shared)

@@ -1,7 +1,10 @@
 #include "plugin.h"
 #include "b64.h"
+#include "WavetableFile.h"
 
 #include <cctype>
+#include <cstdlib>
+#include <filesystem>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -137,8 +140,21 @@ void SynthPlugin::applyParams() {
     p.bendRange = plain(kBendRange);
     p.voiceMode = (int)plain(kVoiceMode);
     p.glide = plain(kGlide) / 1000;
+    p.levelA = plain(kOscALevel) / 100;
+    p.levelB = plain(kOscBLevel) / 100;
+    p.positionB = plain(kPositionB) / 100;
+    p.octB = (int)plain(kOctB);
+    p.semiB = (int)plain(kSemiB);
+    p.fineB = plain(kFineB);
+    p.warpA = (int)plain(kWarpA);
+    p.warpAmtA = plain(kWarpAmtA) / 100;
+    p.warpB = (int)plain(kWarpB);
+    p.warpAmtB = plain(kWarpAmtB) / 100;
+    p.noise = plain(kNoise) / 100;
+    p.noiseColor = (int)plain(kNoiseColor);
     synth.update(p);
     synth.setTable(pickTable((int)plain(kTable)));
+    synth.setTableB(pickTable((int)plain(kTableB)));
     DriveParams d;
     d.drive = plain(kDrive);
     d.autoGain = true;
@@ -247,6 +263,29 @@ void SynthPlugin::onEditorMessage(const std::string& type, const std::string& na
             growTable(std::move(audio), sr, name);
             growing = false;
         });
+    } else if (type == "wavetable" && !data.empty() && value >= 16) {  // {name, data: base64 float32 cycles, value: cycle length}
+        if (growing.exchange(true)) return;
+        if (worker.joinable()) worker.join();
+        worker = std::thread([this, audio = decodeFloats(data), cycle = (int)value, name]() mutable {
+            auto spectra = wt::cyclesToSpectra(audio.data(), (int)audio.size(), cycle);
+            if (spectra.size() >= 2) {
+                char buf[64];
+                std::snprintf(buf, sizeof buf, "WAVETABLE %d FRAMES", (int)spectra.size());
+                const auto dot = name.find_last_of('.');
+                installTable(std::move(spectra), upper(dot == std::string::npos ? name : name.substr(0, dot)).substr(0, 28), buf, audio.size() / 48000.0);
+            }
+            growing = false;
+        });
+    } else if (type == "export") {  // write the table OSC A is playing as a .wav wavetable
+        const char* home = std::getenv("HOME");
+        const std::string dir = std::string(home ? home : "/tmp") + "/Music/Morpheus/Tables";
+        std::string nm = name.empty() ? "MORPHEUS TABLE" : name;
+        for (auto& c : nm) if (!std::isalnum((unsigned char)c) && c != ' ' && c != '-') c = '_';
+        std::error_code ec;
+        std::filesystem::create_directories(dir, ec);
+        const bool ok = !ec && wt::writeWavetableWav(dir + "/" + nm + ".wav", wt::tableToCycles(synth.wavetable()));
+        std::lock_guard<std::mutex> lock(tableMx);
+        exportNote = ok ? "SAVED " + nm + ".WAV IN MUSIC/MORPHEUS/TABLES" : "COULDN'T SAVE THE TABLE";
     } else if (type == "factory") {
         useFactoryTable();
     }
@@ -279,6 +318,7 @@ void SynthPlugin::installTable(std::vector<wt::Spectrum> spectra, std::string na
     tableInfo = std::move(info);
     tableDirty = true;  // the audio thread re-picks the table at its next block
     if ((int)toPlain(kParams[kTable], getParamNormalized(kTable)) == kTableGrown) synth.setTable(custom.get());
+    if ((int)toPlain(kParams[kTableB], getParamNormalized(kTableB)) == kTableGrown) synth.setTableB(custom.get());
 }
 
 void SynthPlugin::useFactoryTable() {
@@ -291,6 +331,7 @@ void SynthPlugin::useFactoryTable() {
     tableInfo = "FACTORY";
     tableDirty = true;
     synth.setTable(pickTable((int)toPlain(kParams[kTable], getParamNormalized(kTable))));
+    synth.setTableB(pickTable((int)toPlain(kParams[kTableB], getParamNormalized(kTableB))));
 }
 
 IPlugView* PLUGIN_API SynthPlugin::createView(FIDString name) {
@@ -313,6 +354,7 @@ void SynthPlugin::setFromEditor(const std::string& name, double plain) {
         // switching tables is an atomic pointer swap, safe from here: don't wait for the audio thread
         // (a sleeping device in Live, or a host without audio, would otherwise never switch)
         if (id == kTable) synth.setTable(pickTable((int)toPlain(kParams[kTable], nv)));
+        if (id == kTableB) synth.setTableB(pickTable((int)toPlain(kParams[kTableB], nv)));
         return;
     }
 }
@@ -350,6 +392,7 @@ std::string SynthPlugin::feedJson() {
                 if (shown == &wt::factoryTable(i)) { tn = wt::kFactoryNames[i]; std::snprintf(buf, sizeof buf, "BUILT-IN %d FRAMES", shown->frames); ti = buf; }
         }
         s += ",\"tn\":\"" + tn + "\",\"ti\":\"" + ti + "\",\"grown\":\"" + (custom ? tableName : std::string()) + "\"";
+        if (!exportNote.empty()) { s += ",\"note\":\"" + exportNote + "\""; exportNote.clear(); }
     }
     if (sendTable.exchange(false) || shown != lastShown) {  // frames x 128 points, from a smooth (64-harmonic) level
         lastShown = shown;
