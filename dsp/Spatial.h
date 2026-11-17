@@ -25,16 +25,25 @@ inline const char* const kRateNames[] = {"1/2 Bar", "1 Bar", "2 Bars", "4 Bars",
 inline const double kRateBeats[] = {2, 4, 8, 16, 32, 64};
 constexpr int kNumRates = 6;
 
+// The sound's place in a cube around the listener (who sits at the centre, facing +z):
+// x -1 left .. +1 right, y -1 below .. +1 above, z -1 behind .. +1 in front. Distance grows toward the corners.
 struct Params {
-    double around = 0;     // degrees, -180..180 (0 = in front, +90 = right)
-    double height = 0;     // -1 (below) .. 1 (above)
-    double distance = 0.2; // 0 (at your ear) .. 1 (far away)
+    double x = 0, y = 0, z = 0.5;
+    bool mirror = false;   // also play it at the opposite point (-x, -y, -z)
     int orbit = kStill;
     int rate = 2;          // index into kRateBeats
     double size = 0.7;     // how far an orbit travels, 0..1
     double room = 0.5;     // how much space the distance brings, 0..1
     bool headphones = false;
 };
+// cube position <-> the hearing cues' coordinates (around, height, distance)
+inline void toPolar(double x, double y, double z, double& az, double& el, double& d) {
+    az = std::atan2(x, z); el = std::clamp(y, -1.0, 1.0); d = std::clamp(std::sqrt(x * x + y * y + z * z) / 1.7320508, 0.0, 1.0);
+}
+inline void toCube(double az, double el, double d, double& x, double& y, double& z) {
+    y = el; const double r = d * 1.7320508, rh = std::sqrt(std::max(0.0, r * r - y * y));
+    x = std::clamp(rh * std::sin(az), -1.0, 1.0); z = std::clamp(rh * std::cos(az), -1.0, 1.0);
+}
 
 struct Biquad {
     double b0 = 1, b1 = 0, b2 = 0, a1 = 0, a2 = 0, z1 = 0, z2 = 0;
@@ -69,9 +78,9 @@ public:
     void reset() {
         std::fill(buf.begin(), buf.end(), 0.0);
         for (auto& r : room) std::fill(r.begin(), r.end(), 0.0);
-        w = rw = 0; airZ = 0; shZ[0] = shZ[1] = 0; backZ[0] = backZ[1] = 0; rdamp.fill(0);
-        prox = Biquad{}; for (auto& b : notch) b = Biquad{}; for (auto& b : tilt) b = Biquad{};
-        sAz = p.around * kPi / 180; sEl = p.height; sDist = p.distance; first = true; count = 0;
+        w = rw = 0; airZ = 0; rdamp.fill(0);
+        prox = Biquad{}; src[0] = Src{}; src[1] = Src{};
+        first = true; count = 0;
     }
     void update(const Params& np) { p = np; }
 
@@ -81,13 +90,17 @@ public:
         const double hp = p.headphones ? 1.0 : 0.5;
         const double cyc = kRateBeats[std::clamp(p.rate, 0, kNumRates - 1)];
         const double dopplerScale = p.orbit == kSwoop ? 1.0 : 0.25;
+        double baseAz, baseEl, baseD;
+        toPolar(p.x, p.y, p.z, baseAz, baseEl, baseD);
+        const int nsrc = p.mirror ? 2 : 1;
+        const double srcGain = p.mirror ? 0.72 : 1.0;
         for (int i = 0; i < n; ++i) {
             // ---- where the sound is now: the base position plus the orbit
-            double az = p.around * kPi / 180, el = p.height, d = p.distance;
+            double az = baseAz, el = baseEl, d = baseD;
             if (p.orbit != kStill) {
                 const double b = beat + i * beatsPerSample, u = b / cyc - std::floor(b / cyc), s = p.size, tw = 2 * kPi * u;
                 switch (p.orbit) {
-                    case kCircle: az += 2 * kPi * u; break;
+                    case kCircle: az += 2 * kPi * u; d = std::max(d, 0.35); break;
                     case kRise: el = std::clamp(el + s * (2 * u - 1) * 1.6, -1.0, 1.0); az += 0.6 * s * std::sin(tw); break;
                     case kFall: el = std::clamp(el + s * (1 - 2 * u) * 1.6, -1.0, 1.0); az -= 0.6 * s * std::sin(tw); break;
                     case kSwoop: az += s * kPi * (u - 0.5) * 1.6; d = std::clamp(d + s * 0.85 * (std::cos(tw) * 0.5 + 0.5) - 0.2 * s, 0.0, 1.0); break;
@@ -98,33 +111,36 @@ public:
                 }
             }
             if (first) { sAz = az; sEl = el; sDist = d; first = false; }
-            // glide the angle the short way round
-            double da = az - sAz; da -= 2 * kPi * std::floor((da + kPi) / (2 * kPi));
+            double da = az - sAz; da -= 2 * kPi * std::floor((da + kPi) / (2 * kPi));  // glide the angle the short way round
             sAz += da * smooth; sEl += (el - sEl) * smooth; sDist += (d - sDist) * smooth;
-            if ((count++ & 31) == 0) coeffs(hp);
+            if ((count++ & 31) == 0) coeffs(hp, nsrc);
 
-            // ---- the source: mono at its position; its width shrinks with distance
+            // ---- the source: mono, its width shrinks with distance
             const double mid = 0.5 * ((double)L[i] + R[i]), side = 0.5 * ((double)L[i] - R[i]);
             double x = prox.run(mid);                  // proximity bass
             airZ += (x - airZ) * airK; x = airZ;       // air absorption
             buf[w] = x;
-            const double sinA = std::sin(sAz), cosA = std::cos(sAz);
-            const double lat = std::asin(std::clamp(sinA, -1.0, 1.0));            // lateral angle (front/back folded)
-            const double itd = 0.000255 * (std::abs(lat) + std::abs(sinA)) * sr;   // Woodworth, in samples
             const double base = 2 + dopplerScale * (0.5 + 19.5 * sDist * sDist) / 343.0 * sr;
-            double ear[2] = {read(base + (sinA > 0 ? itd : 0)), read(base + (sinA < 0 ? itd : 0))};  // the far ear hears later
-            const double shade = std::abs(sinA);
-            for (int c = 0; c < 2; ++c) {
-                const bool far = (c == 0) == (sinA > 0);
-                double y = ear[c];
-                shZ[c] += (y - shZ[c]) * (far ? shK : nearK);  // head shadow: the far ear loses highs and level
-                y = shZ[c] * (far ? 1 - 0.3 * shade : 1 + 0.12 * shade);
-                if (cosA < 0) { backZ[c] += (y - backZ[c]) * backK; y += (backZ[c] - y) * (-cosA) * 0.45; }  // behind: darker
-                y = tilt[c].run(notch[c].run(y));     // height
-                ear[c] = y;
+            double outL = 0, outR = 0;
+            for (int k = 0; k < nsrc; ++k) {  // k = 1: the mirror, at the opposite point
+                const double a = sAz + k * kPi, sinA = std::sin(a), cosA = std::cos(a);
+                const double lat = std::asin(std::clamp(sinA, -1.0, 1.0));
+                const double itd = 0.000255 * (std::abs(lat) + std::abs(sinA)) * sr;  // Woodworth, in samples
+                double ear[2] = {read(base + (sinA > 0 ? itd : 0)), read(base + (sinA < 0 ? itd : 0))};  // the far ear hears later
+                const double shade = std::abs(sinA);
+                Src& S = src[k];
+                for (int c = 0; c < 2; ++c) {
+                    const bool far = (c == 0) == (sinA > 0);
+                    double y = ear[c];
+                    S.shZ[c] += (y - S.shZ[c]) * (far ? shK : nearK);  // head shadow: the far ear loses highs and level
+                    y = S.shZ[c] * (far ? 1 - 0.3 * shade : 1 + 0.12 * shade);
+                    if (cosA < 0) { S.backZ[c] += (y - S.backZ[c]) * backK; y += (S.backZ[c] - y) * (-cosA) * 0.45; }  // behind: darker
+                    ear[c] = S.tilt[c].run(S.notch[c].run(y));  // height
+                }
+                outL += ear[0] * srcGain; outR += ear[1] * srcGain;
             }
-            const double g = 1 / (1 + 2.2 * sDist), keepSide = 0.8 * (1 - sDist);
-            double outL = (ear[0] + side * keepSide) * g, outR = (ear[1] - side * keepSide) * g;
+            const double g = 1 / (1 + 2.2 * sDist), keepSide = p.mirror ? 0.0 : 0.8 * (1 - sDist);
+            outL = (outL + side * keepSide) * g; outR = (outR - side * keepSide) * g;
             // ---- the room: farther = more of it (a small 4-line feedback network, Householder mix)
             const double send = mid * p.room * (0.15 + 0.85 * sDist) * 0.6;
             double o[4];
@@ -139,15 +155,16 @@ public:
             w = (w + 1) & mask;
             ++rw;
         }
+        double vx, vy, vz;
+        toCube(sAz, sEl, sDist, vx, vy, vz);
+        viewX.store((float)vx, std::memory_order_relaxed); viewY.store((float)vy, std::memory_order_relaxed); viewZ.store((float)vz, std::memory_order_relaxed);
         viewAz.store((float)(std::remainder(sAz, 2 * kPi) * 180 / kPi), std::memory_order_relaxed);
-        viewEl.store((float)sEl, std::memory_order_relaxed);
-        viewDist.store((float)sDist, std::memory_order_relaxed);
     }
 
-    std::atomic<float> viewAz{0}, viewEl{0}, viewDist{0.2f};  // for the face
+    std::atomic<float> viewAz{0}, viewX{0}, viewY{0}, viewZ{0.5f};  // for the face (where the sound is, in the cube)
 
 private:
-    void coeffs(double hp) {
+    void coeffs(double hp, int nsrc) {
         const double shade = std::abs(std::sin(sAz));
         shK = 1 - std::exp(-2 * kPi * std::min(0.45 * sr, 20000 - 17000 * shade) / sr);
         nearK = 1 - std::exp(-2 * kPi * std::min(0.45 * sr, 20000.0) / sr);
@@ -155,10 +172,13 @@ private:
         airK = 1 - std::exp(-2 * kPi * std::min(0.45 * sr, 20000 * std::pow(0.12, sDist)) / sr);
         rdK = 1 - std::exp(-2 * kPi * 5000 / sr);
         prox.shelf(sr, 180, 4.0 * std::max(0.0, 1 - sDist / 0.2), false);
-        const double f = std::min(0.45 * sr, 6000 + 4500 * sEl);  // the pinna notch climbs with height
-        for (int c = 0; c < 2; ++c) {
-            notch[c].peak(sr, f, 2.2, -10 * hp * (0.5 + 0.5 * std::abs(sEl)));
-            tilt[c].peak(sr, std::min(0.45 * sr, 8000.0), 0.9, 8 * hp * sEl);  // Blauert's 'above' band: ~8 kHz up = above, cut = below
+        for (int k = 0; k < nsrc; ++k) {
+            const double el = k ? -sEl : sEl;  // the mirror is below when the sound is above
+            const double f = std::min(0.45 * sr, 6000 + 4500 * el);  // the pinna notch climbs with height
+            for (int c = 0; c < 2; ++c) {
+                src[k].notch[c].peak(sr, f, 2.2, -10 * hp * (0.5 + 0.5 * std::abs(el)));
+                src[k].tilt[c].peak(sr, std::min(0.45 * sr, 8000.0), 0.9, 8 * hp * el);  // Blauert's 'above' band
+            }
         }
     }
     double read(double d) const {  // d samples behind the newest, linear
@@ -177,8 +197,10 @@ private:
     std::array<int, 4> rlen{}, rmask{};
     std::array<double, 4> rdamp{};
     unsigned rw = 0;
-    double airZ = 0, shZ[2]{}, backZ[2]{}, shK = 1, nearK = 1, backK = 1, airK = 1, rdK = 1;
-    Biquad prox, notch[2], tilt[2];
+    struct Src { double shZ[2]{}, backZ[2]{}; Biquad notch[2], tilt[2]; };  // one per position (the mirror is the second)
+    Src src[2];
+    double airZ = 0, shK = 1, nearK = 1, backK = 1, airK = 1, rdK = 1;
+    Biquad prox;
 };
 
 }  // namespace space

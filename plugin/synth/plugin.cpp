@@ -210,9 +210,10 @@ void SynthPlugin::applyParams() {
     fx::FxParams fp;
     fp.order = (int)plain(kFxOrder);
     space::Params sp;
-    sp.around = plain(kSpaceAround);
-    sp.height = plain(kSpaceHeight) / 100;
-    sp.distance = plain(kSpaceDistance) / 100;
+    sp.x = plain(kSpaceX) / 100;
+    sp.y = plain(kSpaceY) / 100;
+    sp.z = plain(kSpaceZ) / 100;
+    sp.mirror = plain(kSpaceMirror) > 0.5;
     sp.orbit = (int)plain(kSpaceOrbit);
     sp.rate = (int)plain(kSpaceRate);
     sp.size = plain(kSpaceSize) / 100;
@@ -629,7 +630,7 @@ std::string SynthPlugin::feedJson() {
         s += ",\"ut\":[";
         for (size_t i = 0; i < userTables.size(); ++i) { s += i ? ",\"" : "\""; s += userTables[i]; s += "\""; }
         s += "]";
-        std::snprintf(buf, sizeof buf, ",\"sp\":[%.1f,%.3f,%.3f]", spatial.viewAz.load(), spatial.viewEl.load(), spatial.viewDist.load());
+        std::snprintf(buf, sizeof buf, ",\"sp\":[%.3f,%.3f,%.3f]", spatial.viewX.load(), spatial.viewY.load(), spatial.viewZ.load());
         s += buf;
         s += ",\"sn\":[";
         for (int c = 0; c < 4; ++c) { s += c ? "," : ""; s += hasSnap[c].load() ? "1" : "0"; }

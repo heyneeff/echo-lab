@@ -308,8 +308,8 @@ html.host body { background: #080606; }
 .padpanel .lbl2 { font: 9px var(--vec); letter-spacing: .08em; color: var(--dim); }
 .padpanel #padMode button { padding: 5px 8px; }
 .spacerow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.spacerow .mon { font: 600 11px var(--cond); letter-spacing: .1em; color: #b9a896; background: #0d0a09; border: 1px solid #4a3324; border-radius: 3px; padding: 5px 8px; cursor: pointer; }
-.spacerow .mon.on { color: #04130f; background: #6ff0d6; border-color: #6ff0d6; box-shadow: 0 0 12px #6ff0d688; }
+.spacepanel .mon, .spacerow .mon { font: 600 11px var(--cond); letter-spacing: .1em; color: #b9a896; background: #0d0a09; border: 1px solid #4a3324; border-radius: 3px; padding: 5px 8px; cursor: pointer; }
+.spacepanel .mon.on, .spacerow .mon.on { color: #04130f; background: #6ff0d6; border-color: #6ff0d6; box-shadow: 0 0 12px #6ff0d688; }
 .spacerow .seg button { padding: 5px 6px; font-size: 10px; }
 .morphrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 /* FINISH: one-click recipes (routes + FX + settings), stackable, click again to undo */
@@ -390,8 +390,8 @@ html.host body { background: #080606; }
     <div class="pg" id="pgFx"></div>
     <div class="pg" id="pgStage"><div id="stageSlot"></div>
       <div class="stageR">
-        <div class="panel padpanel spacepanel"><h4 style="color:#6ff0d6">SPACE<span class="sp"></span><button class="mon" id="spOn">ON</button></h4>
-          <div class="lbl2">place the whole sound around you: left and right, above and below, close and far. Drag the field: across = around, up / down = height, scroll = distance.</div>
+        <div class="panel padpanel spacepanel"><h4 style="color:#6ff0d6">SPACE<span class="sp"></span><button class="mon" id="spMirror" title="also play it at the opposite point">MIRROR</button><button class="mon" id="spOn">ON</button></h4>
+          <div class="lbl2">place the whole sound inside the cube around you. Drag the orb to move it, drag anywhere else to turn the cube, scroll to bring it nearer or push it away. MIRROR plays it at the opposite point too.</div>
           <div class="spacerow"><span class="slbl">LISTEN ON</span><div class="seg" id="spListen"><button>SPEAKERS</button><button>HEADPHONES</button></div></div>
           <div class="krow" id="spaceK"></div>
           <div class="spacerow"><span class="slbl">ORBIT</span><button class="selbtn" id="spOrbit"></button><button class="selbtn" id="spRate"></button></div>
@@ -433,7 +433,7 @@ Object.assign(DEF, { "Drive Style": 6, "Drive Mix": 100, "Chorus On": 0, "Chorus
   "Echo On": 0, "Echo Style": 7, "Echo Mode": 1, "Echo Sync": 1, "Echo Note L": 3, "Echo Note R": 5, "Echo Time L": 188, "Echo Time R": 250, "Echo Feedback": 25, "Echo Mix": 28,
   "Reverb On": 0, "Reverb Style": 6, "Reverb Decay": 2.8, "Reverb Size": 100, "Reverb Mix": 25,
   "Pump On": 0, "Pump Mode": 0, "Pump Rate": 2, "Pump Depth": 45, "Pump Mix": 100, "FX Order": 0, "Morph On": 0, "Morph X": 50, "Morph Y": 50,
-  "Space On": 0, "Space Around": 0, "Space Height": 0, "Space Distance": 20, "Space Orbit": 0, "Space Rate": 2, "Space Size": 70, "Space Room": 50, "Space Listen": 0 });
+  "Space On": 0, "Space X": 0, "Space Y": 0, "Space Z": 50, "Space Mirror": 0, "Space Orbit": 0, "Space Rate": 2, "Space Size": 70, "Space Room": 50, "Space Listen": 0 });
 Object.assign(P, DEF);
 
 let NF = 64;  // frames in the table being played (6 .. 64)
@@ -562,40 +562,86 @@ const spaceOn = () => P["Space On"] > .5;
 function setPadMode(m) { PADMODE = m; renderPadMode(); }
 function renderPadMode() {
   const sp = $("#spOn"); if (sp) sp.classList.toggle("on", spaceOn());
+  if ($("#spMirror")) $("#spMirror").classList.toggle("on", P["Space Mirror"] > .5);
   if ($("#spListen")) $("#spListen").querySelectorAll("button").forEach((b, i) => b.classList.toggle("on", i === Math.round(P["Space Listen"])));
   if ($("#spOrbit")) { $("#spOrbit").textContent = "ORBIT " + ORBITS[Math.round(P["Space Orbit"])] + " ▾"; $("#spRate").textContent = SRATES[Math.round(P["Space Rate"])] + " ▾"; }
   $("#hero").classList.toggle("morphing", morphOn() || PADMODE === "space");
 }
 $("#spOn").onclick = () => { putP("Space On", spaceOn() ? 0 : 1); renderPadMode(); };
+$("#spMirror").onclick = () => { putP("Space Mirror", P["Space Mirror"] > .5 ? 0 : 1); if (!spaceOn()) putP("Space On", 1); renderPadMode(); };
 $("#spListen").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; putP("Space Listen", [...b.parentNode.children].indexOf(b)); renderPadMode(); });
 $("#spOrbit").onclick = e => openMenu(e.currentTarget, ORBITS.map((n, i) => [n, ORBIT_D[i]]), Math.round(P["Space Orbit"]), i => { putP("Space Orbit", i); if (!spaceOn()) putP("Space On", 1); renderPadMode(); });
 $("#spRate").onclick = e => openMenu(e.currentTarget, SRATES.map(n => [n, "one orbit"]), Math.round(P["Space Rate"]), i => { putP("Space Rate", i); renderPadMode(); });
-function spaceTo(e) {  // across = around (-180..180), up/down = height
-  const h = $("#hero"), r = h.getBoundingClientRect();
-  K["Space Around"].setN((e.clientX - r.left) / r.width); K["Space Height"].setN(1 - (e.clientY - r.top) / r.height);
+// The SPACE cube: the listener sits in the middle facing FRONT; the orb is where the sound is. Drag the orb to move it
+// (in the plane you are looking at), drag anywhere else to turn the cube, scroll to push the orb away from you or pull it
+// closer. MIRROR adds the opposite point. Double-click resets the view.
+const CAM = { yaw: -0.55, pitch: 0.38 };
+const spP = () => [P["Space X"] / 100, P["Space Y"] / 100, P["Space Z"] / 100];
+function camRot([x, y, z]) {  // world -> camera (yaw about y, then pitch about x)
+  const cy = Math.cos(CAM.yaw), sy = Math.sin(CAM.yaw), cp = Math.cos(CAM.pitch), sp = Math.sin(CAM.pitch);
+  const x1 = cy * x + sy * z, z1 = -sy * x + cy * z;
+  return [x1, cp * y - sp * z1, sp * y + cp * z1];
 }
-$("#hero").addEventListener("wheel", e => { if (PADMODE !== "space") return; e.preventDefault(); K["Space Distance"].setN(K["Space Distance"].norm() + e.deltaY / 900); }, { passive: false });
-function drawSpace(g, W, H) {  // a listener on a floor of distance rings; the sound is the orb (stem = height)
-  const cx = W / 2, cy = H * .6, RX = W * .36, RY = H * .17;
-  const live = SP && spaceOn() && performance.now() - spLive < 600;  // the engine's position (orbits), else the knobs
-  const az = (live ? SP[0] : P["Space Around"]) * Math.PI / 180, el = live ? SP[1] : P["Space Height"] / 100, d = live ? SP[2] : P["Space Distance"] / 100;
-  g.lineWidth = 1;
-  for (const r of [.25, .5, .75, 1]) { g.strokeStyle = rgba(SPACE_COL, r === 1 ? .28 : .14); g.beginPath(); g.ellipse(cx, cy, RX * r, RY * r, 0, 0, 7); g.stroke(); }
-  g.strokeStyle = rgba(SPACE_COL, .1); g.beginPath(); g.moveTo(cx - RX, cy); g.lineTo(cx + RX, cy); g.moveTo(cx, cy - RY); g.lineTo(cx, cy + RY); g.stroke();
-  text(g, "FRONT", cx, cy - RY - 8, rgba(SPACE_COL, .55), 10, "center"); text(g, "BEHIND", cx, cy + RY + 16, rgba(SPACE_COL, .35), 10, "center");
-  text(g, "L", cx - RX - 14, cy + 4, rgba(SPACE_COL, .45), 11, "center"); text(g, "R", cx + RX + 14, cy + 4, rgba(SPACE_COL, .45), 11, "center");
-  // the listener
-  glow(g, "#eadfce", 6); g.lineWidth = 1.5; g.beginPath(); g.arc(cx, cy, 9, 0, 7); g.stroke(); g.beginPath(); g.moveTo(cx, cy - 9); g.lineTo(cx, cy - 15); g.stroke(); g.shadowBlur = 0;
-  // the sound
-  const rr = .12 + .88 * d, fx = cx + Math.sin(az) * RX * rr, fy = cy - Math.cos(az) * RY * rr, oy = fy - el * H * .3;
-  spTrail.push([fx, oy]); if (spTrail.length > 60) spTrail.shift();
-  for (let k = 1; k < spTrail.length; k++) { g.strokeStyle = rgba(SPACE_COL, .35 * k / spTrail.length); g.lineWidth = 2 * k / spTrail.length; g.beginPath(); g.moveTo(...spTrail[k - 1]); g.lineTo(...spTrail[k]); g.stroke(); }
-  g.strokeStyle = rgba(SPACE_COL, .45); g.setLineDash([2, 4]); g.lineWidth = 1; g.beginPath(); g.moveTo(fx, fy); g.lineTo(fx, oy); g.stroke(); g.setLineDash([]);
-  g.fillStyle = rgba(SPACE_COL, .25); g.beginPath(); g.ellipse(fx, fy, 7, 2.5, 0, 0, 7); g.fill();
-  const size = 5 + 9 * (1 - d);
-  glow(g, SPACE_COL, 18); g.beginPath(); g.arc(fx, oy, size, 0, 7); g.lineWidth = 2; g.stroke(); g.beginPath(); g.arc(fx, oy, size * .35, 0, 7); g.fill(); g.shadowBlur = 0;
-  const deg = Math.round(az * 180 / Math.PI), side = Math.abs(deg) < 8 ? "FRONT" : Math.abs(deg) > 172 ? "BEHIND" : (deg > 0 ? "RIGHT " : "LEFT ") + Math.abs(deg) + "°";
-  text(g, `${spaceOn() ? "SPACE" : "SPACE OFF"} · ${side} · ${el > .05 ? "ABOVE" : el < -.05 ? "BELOW" : "LEVEL"} ${Math.round(Math.abs(el) * 100)}% · ${d < .15 ? "CLOSE" : d > .7 ? "FAR" : "MID"} ${Math.round(d * 100)}%`, 28, 32, SPACE_COL, 11);
+function camInv([x, y, z]) {  // camera -> world
+  const cy = Math.cos(CAM.yaw), sy = Math.sin(CAM.yaw), cp = Math.cos(CAM.pitch), sp = Math.sin(CAM.pitch);
+  const y1 = cp * y + sp * z, z1 = -sp * y + cp * z;
+  return [cy * x1Fix(x) - sy * z1, y1, sy * x + cy * z1];
+}
+const x1Fix = x => x;
+function cubeGeom(W, H) { return { cx: W / 2, cy: H * .5, f: Math.min(W, H) * 1.45, D: 7.5 }; }  // a long lens: little distortion
+function proj(v, W, H) { const G = cubeGeom(W, H), c = camRot(v), z = c[2] + G.D; return [G.cx + G.f * c[0] / z, G.cy - G.f * c[1] / z, z]; }
+function spaceSet(v) { const cl = x => Math.max(-1, Math.min(1, x)); K["Space X"].set(cl(v[0]) * 100); K["Space Y"].set(cl(v[1]) * 100); K["Space Z"].set(cl(v[2]) * 100);
+  setParam("Space X", P["Space X"] = cl(v[0]) * 100); setParam("Space Y", P["Space Y"] = cl(v[1]) * 100); setParam("Space Z", P["Space Z"] = cl(v[2]) * 100); }
+function spaceDown(e) {  // grab the orb, or turn the cube
+  const h = $("#hero"), r = h.getBoundingClientRect(), W = h.clientWidth, H = h.clientHeight;
+  const mx = (e.clientX - r.left) / r.width * W, my = (e.clientY - r.top) / r.height * H;
+  const [ox, oy] = proj(spP(), W, H);
+  padDrag.orb = Math.hypot(mx - ox, my - oy) < 26; padDrag.p0 = spP(); padDrag.yaw = CAM.yaw; padDrag.pitch = CAM.pitch; padDrag.sc = r.width / W;
+}
+function spaceMove(e) {
+  const dx = (e.clientX - padDrag.x) / padDrag.sc, dy = (e.clientY - padDrag.y) / padDrag.sc;
+  if (!padDrag.orb) { CAM.yaw = padDrag.yaw + dx * .008; CAM.pitch = Math.max(-1.2, Math.min(1.2, padDrag.pitch + dy * .008)); return; }
+  const h = $("#hero"), G = cubeGeom(h.clientWidth, h.clientHeight), depth = camRot(padDrag.p0)[2] + G.D, k = depth / G.f;
+  const d = camInv([dx * k, -dy * k, 0]);
+  spaceSet([padDrag.p0[0] + d[0], padDrag.p0[1] + d[1], padDrag.p0[2] + d[2]]);
+}
+$("#hero").addEventListener("wheel", e => { if (PADMODE !== "space") return; e.preventDefault(); const f = camInv([0, 0, 1]), p = spP(), a = e.deltaY * .002;
+  spaceSet([p[0] + f[0] * a, p[1] + f[1] * a, p[2] + f[2] * a]); }, { passive: false });
+$("#hero").addEventListener("dblclick", () => { if (PADMODE === "space") { CAM.yaw = -.55; CAM.pitch = .38; } });
+function drawSpace(g, W, H) {
+  const live = SP && spaceOn() && performance.now() - spLive < 600;   // the engine's position (orbits), else the knobs
+  const p = live ? SP : spP(), mir = P["Space Mirror"] > .5;
+  const V = []; for (const x of [-1, 1]) for (const y of [-1, 1]) for (const z of [-1, 1]) V.push([x, y, z]);
+  // floor grid
+  for (let k = -1; k <= 1.001; k += .5) for (const [a, b] of [[[k, -1, -1], [k, -1, 1]], [[-1, -1, k], [1, -1, k]]]) {
+    const A = proj(a, W, H), B = proj(b, W, H); g.strokeStyle = rgba(SPACE_COL, .07); g.lineWidth = 1; g.beginPath(); g.moveTo(A[0], A[1]); g.lineTo(B[0], B[1]); g.stroke(); }
+  // the cube's edges, nearer = brighter
+  for (let i = 0; i < 8; i++) for (let j = i + 1; j < 8; j++) {
+    const diff = V[i].reduce((n, v, k) => n + (v !== V[j][k]), 0); if (diff !== 1) continue;
+    const A = proj(V[i], W, H), B = proj(V[j], W, H), near = 1 - Math.min(1, ((A[2] + B[2]) / 2 - 6.5) / 2);
+    g.strokeStyle = rgba(SPACE_COL, .14 + .4 * near); g.lineWidth = .8 + near; g.beginPath(); g.moveTo(A[0], A[1]); g.lineTo(B[0], B[1]); g.stroke();
+  }
+  // face labels
+  for (const [n, v] of [["FRONT", [0, 0, 1]], ["BEHIND", [0, 0, -1]], ["LEFT", [-1, 0, 0]], ["RIGHT", [1, 0, 0]], ["ABOVE", [0, 1, 0]], ["BELOW", [0, -1, 0]]]) {
+    const q = proj(v, W, H); text(g, n, q[0], q[1] + 4, rgba(SPACE_COL, Math.max(.15, .65 - (q[2] - 6.5) * .3)), 10, "center"); }
+  // the listener, facing front
+  const L0 = proj([0, 0, 0], W, H), L1 = proj([0, 0, .22], W, H);
+  glow(g, "#eadfce", 6); g.lineWidth = 1.5; g.beginPath(); g.arc(L0[0], L0[1], 8, 0, 7); g.stroke(); g.beginPath(); g.moveTo(L0[0], L0[1]); g.lineTo(L1[0], L1[1]); g.stroke(); g.shadowBlur = 0;
+  const orb = (v, a, main) => {
+    const O = proj(v, W, H), F = proj([v[0], -1, v[2]], W, H), size = (main ? 11 : 8) * 7.5 / O[2];
+    g.strokeStyle = rgba(SPACE_COL, .35 * a); g.setLineDash([2, 4]); g.lineWidth = 1; g.beginPath(); g.moveTo(F[0], F[1]); g.lineTo(O[0], O[1]); g.stroke(); g.setLineDash([]);
+    g.fillStyle = rgba(SPACE_COL, .22 * a); g.beginPath(); g.ellipse(F[0], F[1], size, size * .35, 0, 0, 7); g.fill();
+    glow(g, rgba(SPACE_COL, a), main ? 18 : 10); g.lineWidth = 2; g.beginPath(); g.arc(O[0], O[1], size, 0, 7); g.stroke(); g.beginPath(); g.arc(O[0], O[1], size * .35, 0, 7); g.fill(); g.shadowBlur = 0;
+    return O;
+  };
+  const O = proj(p, W, H); spTrail.push([O[0], O[1]]); if (spTrail.length > 50) spTrail.shift();
+  for (let k = 1; k < spTrail.length; k++) { g.strokeStyle = rgba(SPACE_COL, .3 * k / spTrail.length); g.lineWidth = 2 * k / spTrail.length; g.beginPath(); g.moveTo(...spTrail[k - 1]); g.lineTo(...spTrail[k]); g.stroke(); }
+  if (mir) { const M = proj([-p[0], -p[1], -p[2]], W, H); g.strokeStyle = rgba(SPACE_COL, .25); g.setLineDash([3, 5]); g.beginPath(); g.moveTo(O[0], O[1]); g.lineTo(M[0], M[1]); g.stroke(); g.setLineDash([]); orb([-p[0], -p[1], -p[2]], .55, false); }
+  orb(p, 1, true);
+  const word = (v, a, b) => v > .12 ? a : v < -.12 ? b : "";
+  const where = [word(p[2], "FRONT", "BEHIND"), word(p[0], "RIGHT", "LEFT"), word(p[1], "ABOVE", "BELOW")].filter(Boolean).join(" · ") || "AT YOUR HEAD";
+  text(g, `${spaceOn() ? "SPACE" : "SPACE OFF"} · ${where}${mir ? " · + MIRROR" : ""}`, 28, 32, SPACE_COL, 11);
+  text(g, "drag the orb to move it · drag elsewhere to turn the cube · scroll = nearer / farther", 28, H - 22, rgba(SPACE_COL, .45), 10);
 }
 
 // ===================================================================== FINISH: one-click recipes that make a sound feel done
@@ -963,7 +1009,7 @@ const PAD = { x: "Position", y: "Cutoff" };
 try { const v = JSON.parse(localStorage.getItem("morpheus.pad") || "null"); if (v && v.x && v.y) Object.assign(PAD, v); } catch (e) {}
 function drawLand(now) {
   const c = $("#land"), [g, W, H] = fit(c);
-  if (PADMODE === "space") g.globalAlpha = .16;  // on the SPACE page the landscape is only a backdrop
+  if (PADMODE === "space") g.globalAlpha = .07;  // on the SPACE page the landscape is only a backdrop
   // centred in the window, with more depth between frames so each ridge reads as its own line
   const DX = W * .27, DY = H * .5, ww = W * .48, amp_ = 28, span = 63 / Math.max(1, NF - 1);
   const ox = (W - ww - DX) / 2, oy = H / 2 + (DY - 6) / 2 + 4, dx = DX / 63 * span, dy = DY / 63 * span;   // frame f sits at (ox + f*dx, oy - f*dy)
@@ -1033,11 +1079,11 @@ $("#hero").addEventListener("pointerdown", e => { if (e.target.closest(".tbtns")
   e.preventDefault(); padDrag = { x: e.clientX, y: e.clientY, p: K[PAD.x].norm(), c: K[PAD.y].norm(), morph: PADMODE === "morph" || (PADMODE !== "space" && morphOn()), space: PADMODE === "space" };
   if (padDrag.morph && !morphOn()) { putP("Morph On", 1); renderMorph(); }
   if (padDrag.space && !spaceOn()) { putP("Space On", 1); renderPadMode(); }
-  $("#hero").setPointerCapture(e.pointerId); if (padDrag.space) spaceTo(e); else if (padDrag.morph) morphTo(e); });
+  $("#hero").setPointerCapture(e.pointerId); if (padDrag.space) spaceDown(e); else if (padDrag.morph) morphTo(e); });
 function morphTo(e) {  // the puck follows the pointer; the corner boxes sit 46 px in from the edges
   const h = $("#hero"), r = h.getBoundingClientRect(), W = h.clientWidth, H = h.clientHeight, f = MR(W, H);
   K["Morph X"].setN(((e.clientX - r.left) / r.width * W - f.l) / (f.r - f.l)); K["Morph Y"].setN((f.b - (e.clientY - r.top) / r.height * H) / (f.b - f.t)); renderMorph(); }
-$("#hero").addEventListener("pointermove", e => { if (!padDrag) return; if (padDrag.space) return spaceTo(e); if (padDrag.morph) return morphTo(e); const s = scaleNow();
+$("#hero").addEventListener("pointermove", e => { if (!padDrag) return; if (padDrag.space) return spaceMove(e); if (padDrag.morph) return morphTo(e); const s = scaleNow();
   K[PAD.x].setN(padDrag.p + (e.clientX - padDrag.x) / s / 420);
   K[PAD.y].setN(padDrag.c + (padDrag.y - e.clientY) / s / 300); });
 $("#hero").addEventListener("pointerup", () => padDrag = null); $("#hero").addEventListener("lostpointercapture", () => padDrag = null);
@@ -1194,21 +1240,21 @@ const PRESETS = [
     "Voice Mode": 2, "Glide": 90, "Attack": 1, "Decay": 260, "Sustain": 45, "Release": 80, "Mod Attack": 1, "Mod Decay": 200, "Velocity": 70, ...R([[8, 3, 30]]) }],
   // ---------------------------------------------------------------- the Morpheus bank (our own designs: TableForge, warps, FX, SPACE)
   ["Underworld Drone", "dark table, slow drift, far away", { "Table": T("UNDERWORLD"), "Position": 20, "Scan": 3, "Scan Speed": .3, "Unison": 3, "Detune": 12, "Spread": 90, "Sub": 30, "Cutoff": 1400, "Resonance": 20, "Attack": 1200, "Decay": 2000, "Sustain": 90, "Release": 4000,
-    "Reverb On": 1, "Reverb Style": 5, "Reverb Decay": 9, "Reverb Mix": 40, "Space On": 1, "Space Distance": 70, "Space Orbit": 6, "Space Rate": 5, "Space Size": 60, "Space Room": 70 }, 0, "PAD"],
+    "Reverb On": 1, "Reverb Style": 5, "Reverb Decay": 9, "Reverb Mix": 40, "Space On": 1, "Space Z": 70, "Space Orbit": 6, "Space Rate": 5, "Space Size": 60, "Space Room": 70 }, 0, "PAD"],
   ["Elysium Choir", "airy voices that open", { "Table": T("CHOIR"), "Position": 10, "Position Env": 50, "Unison": 5, "Detune": 14, "Spread": 100, "Cutoff": 6000, "Attack": 700, "Decay": 2500, "Sustain": 85, "Release": 2500, "Mod Attack": 1500, "Mod Decay": 4000,
     "Chorus On": 1, "Chorus Mode": 3, "Chorus Mix": 40, "Reverb On": 1, "Reverb Style": 6, "Reverb Decay": 5, "Reverb Mix": 35 }, 0, "PAD"],
   ["Glass Cathedral", "square-number partials, big hall", { "Table": T("GLASS"), "Position": 60, "Unison": 3, "Detune": 8, "Spread": 80, "Cutoff": 9000, "Attack": 300, "Decay": 3000, "Sustain": 60, "Release": 3500,
     "Reverb On": 1, "Reverb Style": 4, "Reverb Decay": 8, "Reverb Mix": 38, "Echo On": 1, "Echo Mode": 2, "Echo Note L": 6, "Echo Note R": 8, "Echo Mix": 18 }, 0, "PAD"],
   ["Halo Rise", "climbs over your head", { "Table": T("ELYSIUM"), "Position": 30, "Position Env": 40, "Unison": 5, "Detune": 16, "Spread": 90, "Cutoff": 5000, "Attack": 900, "Decay": 3000, "Sustain": 80, "Release": 3000, "Mod Attack": 2500, "Mod Decay": 5000,
-    "Reverb On": 1, "Reverb Mix": 30, "Space On": 1, "Space Orbit": 2, "Space Rate": 4, "Space Size": 80, "Space Distance": 35, "Space Listen": 1 }, 0, "PAD"],
+    "Reverb On": 1, "Reverb Mix": 30, "Space On": 1, "Space Orbit": 2, "Space Rate": 4, "Space Size": 80, "Space Z": 35, "Space Listen": 1 }, 0, "PAD"],
   ["Nocturne Strings", "soft square into an 'o'", { "Table": T("NOCTURNE"), "Position": 35, "Unison": 4, "Detune": 18, "Spread": 90, "Filter Type": 3, "Cutoff": 3000, "Resonance": 10, "HPF": 2, "Attack": 450, "Decay": 1500, "Sustain": 85, "Release": 1400,
     "LFO3 Shape": 1, "LFO3 Rate": .25, "LFO3 Mode": 1, "Chorus On": 1, "Chorus Mode": 2, "Chorus Mix": 35, "Reverb On": 1, "Reverb Mix": 25, ...R([[6, 1, 15]]) }, 0, "STRINGS"],
   ["Breathing Room", "comes close, drifts away", { "Table": T("WARM SAW"), "Position": 45, "Unison": 5, "Detune": 20, "Spread": 100, "Cutoff": 2200, "Resonance": 15, "Attack": 600, "Decay": 2000, "Sustain": 80, "Release": 2500,
     "Space On": 1, "Space Orbit": 7, "Space Rate": 3, "Space Size": 70, "Space Room": 60, "Reverb On": 1, "Reverb Mix": 20 }, 0, "SPACE"],
   ["Orbiter", "circles your head every 2 bars", { "Table": T("PHASE DISTORT"), "Position": 40, "Unison": 2, "Detune": 8, "Cutoff": 4000, "Resonance": 20, "Attack": 20, "Decay": 800, "Sustain": 70, "Release": 900,
-    "Space On": 1, "Space Orbit": 1, "Space Rate": 2, "Space Distance": 30, "Space Listen": 1, "Echo On": 1, "Echo Mix": 15 }, 0, "SPACE"],
+    "Space On": 1, "Space Orbit": 1, "Space Rate": 2, "Space Z": 30, "Space Listen": 1, "Echo On": 1, "Echo Mix": 15 }, 0, "SPACE"],
   ["Fly-By", "swoops past, Doppler and all", { "Table": T("SAW TO SQUARE"), "Position": 30, "Unison": 3, "Detune": 12, "Cutoff": 5000, "Attack": 10, "Decay": 600, "Sustain": 80, "Release": 700,
-    "Space On": 1, "Space Orbit": 4, "Space Rate": 3, "Space Size": 90, "Space Distance": 40 }, 0, "SPACE"],
+    "Space On": 1, "Space Orbit": 4, "Space Rate": 3, "Space Size": 90, "Space Z": 40 }, 0, "SPACE"],
   ["Falling Star", "drops from above, bright to dark", { "Table": T("HARMONIC SWEEP"), "Position": 90, "Position Env": -70, "Cutoff": 9000, "Filter Env": -20, "Attack": 1, "Decay": 2500, "Sustain": 0, "Release": 2500, "Mod Attack": 1, "Mod Decay": 2500,
     "Space On": 1, "Space Orbit": 3, "Space Rate": 1, "Space Size": 80, "Reverb On": 1, "Reverb Mix": 30 }, 0, "SPACE"],
 
@@ -1244,7 +1290,7 @@ const PRESETS = [
 
   ["Vowel Morph", "A-E-I-O-U on the mod wheel", { "Table": T("VOWELS LOW"), "Position": 0, "Unison": 3, "Detune": 8, "Cutoff": 8000, "Attack": 20, "Decay": 800, "Sustain": 90, "Release": 600, ...R([[10, 1, 100]]) }, 0, "VOX"],
   ["Choir of Ghosts", "high voices, wandering in space", { "Table": T("VOWELS HIGH"), "Position": 40, "Scan": 3, "Scan Speed": .25, "Unison": 5, "Detune": 15, "Spread": 100, "Cutoff": 7000, "Attack": 800, "Decay": 2000, "Sustain": 85, "Release": 2500,
-    "Reverb On": 1, "Reverb Mix": 35, "Space On": 1, "Space Orbit": 6, "Space Rate": 4, "Space Size": 50, "Space Distance": 50 }, 0, "VOX"],
+    "Reverb On": 1, "Reverb Mix": 35, "Space On": 1, "Space Orbit": 6, "Space Rate": 4, "Space Size": 50, "Space Z": 50 }, 0, "VOX"],
 
   ["Styx Sequence", "1/16 filter steps over FM fold", { "Table": T("STYX"), "Position": 35, "Cutoff": 1500, "Resonance": 45, "Filter Type": 2, "Attack": 1, "Decay": 200, "Sustain": 60, "Release": 120,
     "LFO4 Shape": 5, "LFO4 Sync": 1, "LFO4 Note": 14, "LFO4 Mode": 1, "Echo On": 1, "Echo Note L": 6, "Echo Mix": 22, ...R([[7, 3, 35], [7, 1, 20]]) }, 0, "SEQ"],
@@ -1252,7 +1298,7 @@ const PRESETS = [
     "LFO3 Shape": 4, "LFO3 Sync": 1, "LFO3 Note": 11, "LFO3 Mode": 1, "Pump On": 1, "Pump Rate": 3, "Pump Depth": 60, ...R([[6, 1, 25]]) }, 0, "SEQ"],
 
   ["Static Rain", "vinyl noise through a comb, far away", { "Table": T("DIGITAL DUST"), "Osc A Level": 30, "Noise": 70, "Noise Color": 3, "Filter Type": 4, "Cutoff": 800, "Resonance": 60, "Attack": 1500, "Decay": 3000, "Sustain": 80, "Release": 4000,
-    "Reverb On": 1, "Reverb Style": 5, "Reverb Mix": 45, "Space On": 1, "Space Distance": 80, "Space Orbit": 6, "Space Rate": 5 }, 0, "FX"],
+    "Reverb On": 1, "Reverb Style": 5, "Reverb Mix": 45, "Space On": 1, "Space Z": 80, "Space Orbit": 6, "Space Rate": 5 }, 0, "FX"],
   ["Riser", "climbs for 4 bars and leaves above", { "Table": T("HARMONIC SWEEP"), "Position": 0, "Unison": 7, "Detune": 30, "Spread": 100, "Noise": 25, "Cutoff": 600, "Attack": 4000, "Decay": 100, "Sustain": 100, "Release": 1500,
     "Env3 Attack": 8000, "Env3 Sustain": 100, "Space On": 1, "Space Orbit": 2, "Space Rate": 3, "Space Size": 100, "Reverb On": 1, "Reverb Mix": 30, ...R([[3, 1, 100], [3, 3, 80], [3, 2, 12]]) }, 0, "FX"],
   ["Vowel Lead", "the voice at the end of the table", { "Position": 85, "Position Env": -20, "Unison": 3, "Detune": 10, "Spread": 50, "Cutoff": 6000, "Resonance": 15, "Filter Env": 10, "Attack": 5, "Decay": 300, "Sustain": 90, "Release": 250, "Mod Decay": 800, "Drive": 3 }],
@@ -1379,9 +1425,9 @@ $("#pages").addEventListener("click", e => { const b = e.target.closest("[data-p
   const hero = $("#hero"); if (b.dataset.pg === "pgStage") $("#stageSlot").appendChild(hero); else if (hero.parentNode.id === "stageSlot") $(".col.center").prepend(hero);
   setPadMode(b.dataset.pg === "pgStage" ? "space" : "knobs"); spTrail = []; });
 // STAGE: big macros (the same parameters as the deck's), pad axes, panic
-knob($("#spaceK"), { name: "Space Around", label: "AROUND", min: -180, max: 180, size: 54, color: SPACE_COL, fmt: v => (v > 0 ? "R " : v < 0 ? "L " : "") + Math.abs(Math.round(v)) + "°" });
-knob($("#spaceK"), { name: "Space Height", label: "HEIGHT", min: -100, max: 100, size: 54, color: SPACE_COL, fmt: v => (v > 0 ? "▲ " : v < 0 ? "▼ " : "") + Math.abs(Math.round(v)) + "%" });
-knob($("#spaceK"), { name: "Space Distance", label: "DISTANCE", min: 0, max: 100, size: 54, color: SPACE_COL, fmt: pct });
+knob($("#spaceK"), { name: "Space X", label: "LEFT · RIGHT", min: -100, max: 100, size: 50, color: SPACE_COL, fmt: v => (v > 0 ? "R " : v < 0 ? "L " : "") + Math.abs(Math.round(v)) + "%" });
+knob($("#spaceK"), { name: "Space Y", label: "BELOW · ABOVE", min: -100, max: 100, size: 50, color: SPACE_COL, fmt: v => (v > 0 ? "▲ " : v < 0 ? "▼ " : "") + Math.abs(Math.round(v)) + "%" });
+knob($("#spaceK"), { name: "Space Z", label: "BEHIND · FRONT", min: -100, max: 100, size: 50, color: SPACE_COL, fmt: v => (v > 0 ? "F " : v < 0 ? "B " : "") + Math.abs(Math.round(v)) + "%" });
 knob($("#spaceK"), { name: "Space Size", label: "ORBIT SIZE", min: 0, max: 100, size: 44, color: SPACE_COL, fmt: pct });
 knob($("#spaceK"), { name: "Space Room", label: "ROOM", min: 0, max: 100, size: 44, color: SPACE_COL, fmt: pct });
 knob($("#morphK"), { name: "Morph X", label: "ACROSS", min: 0, max: 100, size: 40, color: MORPH_COL, fmt: pct });
