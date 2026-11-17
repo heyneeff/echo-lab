@@ -88,6 +88,40 @@ int main() {
         check(fin && pk > 0.05 && pk < 1.0, "round trip: grown table plays, peak", pk);
         s.setTable(nullptr);
     }
+    // 7. sweeping a grown table must not crackle: a breathy vowel with vibrato (noisy frame to frame),
+    //    played while Position sweeps the table; energy between the harmonics vs the same note held still
+    {
+        std::mt19937 rng(3); std::normal_distribution<float> g(0, 1);
+        const int n = (int)(2.5 * SR); std::vector<float> x(n); double ph = 0;
+        for (int i = 0; i < n; ++i) {
+            const double t = (double)i / n, f = 196 * std::pow(2.0, 15.0 / 1200 * std::sin(2 * kPi * 5.5 * i / SR));
+            ph += f / SR; double s = 0;
+            for (int h = 1; h * f < 8000; ++h) { const double fh = h * f, f1 = 600 + 300 * t, f2 = 1100 + 900 * t;
+                s += (std::exp(-std::pow((fh - f1) / 160, 2)) + 0.7 * std::exp(-std::pow((fh - f2) / 220, 2)) + 0.03) * std::sin(2 * kPi * h * ph); }
+            x[i] = (float)(0.2 * s + 0.01 * g(rng));
+        }
+        Wavetable t; t.build(resynthesize(x.data(), n, SR, info));
+        auto play = [&](bool sweep, bool factory = false) {
+            Synth s; s.prepare(SR); if (!factory) s.setTable(&t);
+            Params p; p.cutoffHz = 20000; p.ampA = 0.001; p.ampS = 1; p.velocity = 0; p.position = 0.5; s.update(p);
+            const int N = 32768 + 4800; std::vector<float> l(N), r(N);
+            s.noteOn(45, 1.0);
+            for (int i = 0; i < N; i += 256) { if (sweep) { p.position = 0.1 + 0.8 * (double)i / N; s.update(p); } s.process(&l[i], &r[i], std::min(256, N - i)); }
+            return l;
+        };
+        auto between = [&](const std::vector<float>& y) {  // energy away from 110 Hz harmonics, dB re harmonics
+            const int N = 32768; std::vector<std::complex<double>> a(N);
+            for (int i = 0; i < N; ++i) { const double u = 2 * kPi * i / (N - 1);
+                a[i] = y[y.size() - N + i] * (0.35875 - 0.48829 * std::cos(u) + 0.14128 * std::cos(2 * u) - 0.01168 * std::cos(3 * u)); }
+            fft(a); double hm = 0, ot = 0;
+            for (int k = 1; k < N / 2; ++k) { const double f = k * SR / N, hh = f / 110, d = std::abs(hh - std::round(hh)) * 110;
+                (d < 6 * SR / N && std::round(hh) >= 1 ? hm : ot) += std::norm(a[k]); }
+            return 10 * std::log10(ot / hm + 1e-30);
+        };
+        const double held = between(play(false)), swept = between(play(true)), fac = between(play(true, true));
+        std::printf("     between-harmonic energy: grown held %.1f dB, grown swept %.1f dB, factory swept %.1f dB\n", held, swept, fac);
+        check(swept < fac + 3, "grown table sweeps as cleanly as the factory one (dB over)", swept - fac);
+    }
     // 6. the face -> plugin hand-off: base64 of little-endian float32 (reference made with Python struct/base64)
     {
         auto v = echolab::decodeFloats("AACAPwAAAL8AAIA+0A9JQG8Sg7o=");

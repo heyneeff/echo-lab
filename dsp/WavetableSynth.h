@@ -171,6 +171,7 @@ public:
 
     void prepare(double sampleRate) { sr = sampleRate; reset(); }
     void reset() {
+        sm.pos = -1;
         for (auto& v : voices) v = Voice{};
         held.fill(false);
     }
@@ -207,8 +208,28 @@ public:
 
     // add n samples into L/R (caller clears)
     void process(float* L, float* R, int n) {
+        for (int off = 0; off < n; off += kChunk) processChunk(L + off, R + off, std::min(kChunk, n - off));
+    }
+
+private:
+    // Knob moves arrive once per host block; stepping the table position or the cutoff that coarsely
+    // is audible as static. These glide sample by sample (~12 ms) instead.
+    static constexpr int kChunk = 64;
+    struct Smooth { double pos = -1, cut = 0, res = 0, sub = 0, out = 0; } sm;
+
+    void processChunk(float* L, float* R, int n) {
         const Wavetable& table = *current.load(std::memory_order_acquire);
-        const double out = std::pow(10.0, p.outputDb / 20);
+        const double k = 1 - std::exp(-1.0 / (0.012 * sr));
+        const double tCut = std::log2(std::max(20.0, p.cutoffHz)), tOut = std::pow(10.0, p.outputDb / 20);
+        if (sm.pos < 0) sm = {p.position, tCut, p.resonance, p.sub, tOut};  // first block: start on target
+        double sPos[kChunk], sCut[kChunk], sRes[kChunk], sSub[kChunk], sOut[kChunk];
+        for (int i = 0; i < n; ++i) {
+            sm.pos += (p.position - sm.pos) * k; sPos[i] = sm.pos;
+            sm.cut += (tCut - sm.cut) * k;       sCut[i] = sm.cut;
+            sm.res += (p.resonance - sm.res) * k; sRes[i] = sm.res;
+            sm.sub += (p.sub - sm.sub) * k;       sSub[i] = sm.sub;
+            sm.out += (tOut - sm.out) * k;        sOut[i] = sm.out;
+        }
         const int uni = std::clamp(p.unison, 1, kMaxUnison);
         const double uniGain = 1.0 / std::sqrt((double)uni);
         for (int vi = 0; vi < kVoices; ++vi) {
@@ -235,7 +256,7 @@ public:
                 const double a = v.amp.next(), m = v.mod.next();
                 if (!v.active()) break;
                 // table position with the mod envelope, frames interpolated
-                const double pos = std::clamp(p.position + p.posEnv * m, 0.0, 1.0) * (table.frames - 1);
+                const double pos = std::clamp(sPos[i] + p.posEnv * m, 0.0, 1.0) * (table.frames - 1);
                 const int f0i = std::min((int)pos, table.frames - 2);
                 const double ff = pos - f0i;
                 double sl = 0, sr_ = 0;
@@ -246,16 +267,16 @@ public:
                     v.phase[u] += inc[u];
                     if (v.phase[u] >= 1) v.phase[u] -= 1;
                 }
-                if (p.sub > 0) {
-                    const double s = std::sin(2 * kPi * v.subPhase) * p.sub;
+                if (sSub[i] > 1e-4) {
+                    const double s = std::sin(2 * kPi * v.subPhase) * sSub[i];
                     sl += s; sr_ += s;
                     v.subPhase += subInc;
                     if (v.subPhase >= 1) v.subPhase -= 1;
                 }
                 // SVF low-pass (TPT), cutoff follows the mod envelope
-                const double fc = std::clamp(p.cutoffHz * std::pow(2.0, p.filterEnv * 6 * m), 20.0, sr * 0.45);
-                if (fc < sr * 0.449 || p.resonance > 0.01) {
-                    const double g = std::tan(kPi * fc / sr), k = 2 - 1.9 * p.resonance;
+                const double fc = std::clamp(std::exp2(sCut[i] + p.filterEnv * 6 * m), 20.0, sr * 0.45);
+                if (fc < sr * 0.449 || sRes[i] > 0.01) {
+                    const double g = std::tan(kPi * fc / sr), k = 2 - 1.9 * sRes[i];
                     const double a1 = 1 / (1 + g * (g + k)), a2 = g * a1, a3 = g * a2;
                     double* ch[2] = {&sl, &sr_};
                     for (int c = 0; c < 2; ++c) {
@@ -266,7 +287,7 @@ public:
                         *ch[c] = v2;
                     }
                 }
-                const double g = a * velGain * out * 0.35;
+                const double g = a * velGain * sOut[i] * 0.35;
                 L[i] += (float)(sl * g);
                 R[i] += (float)(sr_ * g);
                 if (i == n - 1) {
@@ -278,6 +299,8 @@ public:
             views[vi].note.store(v.active() ? v.note : -1, std::memory_order_relaxed);
         }
     }
+
+public:
 
     // Master safety: transparent below kKnee, then rounds off smoothly towards 1.0 (never hard clips).
     static constexpr double kKnee = 0.8;
@@ -306,6 +329,8 @@ private:
         while (level < kLevels - 1 && (kMaxHarm >> level) > maxH) ++level;
         return level;
     }
+    // Linear within a frame (the table is 4x oversampled) and between frames. (A Catmull-Rom curve
+    // across four frames was measured: no cleaner sweeps, twice the reads.)
     static double read(const Wavetable& table, int f, double ff, int level, double ph) {
         const double x = ph * kTableSize;
         const int i = (int)x;

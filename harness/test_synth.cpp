@@ -118,6 +118,26 @@ int main(int argc, char** argv) {
     for (int i = 0; i < (int)tail.size(); i += 256) s.process(&tail[i], &tr[i], 256);
     check(s.activeVoices() == 0, "voices left 2 s after release", s.activeVoices());
 
+    // static: sweep Position through the table the way a host does (one value per 512-sample block)
+    // and compare the energy *between* the note's harmonics with the same sweep updated every sample.
+    // Clicks from stepping are broadband, so they land between the harmonics.
+    {
+        auto sweep = [&](int every) {
+            wt::Synth z; z.prepare(SR);
+            wt::Params q; q.cutoffHz = 20000; q.ampA = 0.001; q.ampS = 1; q.velocity = 0; q.position = 0; z.update(q);
+            const int N = 32768 + 4800; std::vector<float> l(N), r(N);
+            z.noteOn(45, 1.0);  // 110 Hz: plenty of room between harmonics
+            for (int i = 0; i < N; i += every) {
+                q.position = 0.15 + 0.7 * (double)i / N; z.update(q);
+                z.process(&l[i], &r[i], std::min(every, N - i));
+            }
+            return l;
+        };
+        const double stepped = aliasDb(sweep(512), 110), ideal = aliasDb(sweep(1), 110);
+        std::printf("     between-harmonic energy: host-stepped %.1f dB, per-sample %.1f dB\n", stepped, ideal);
+        check(stepped - ideal < 3, "static from host-stepped Position (dB over ideal)", stepped - ideal);
+    }
+
     // demo: a slow position sweep with the mod envelope on a little progression
     {
         wt::Synth d; d.prepare(SR);

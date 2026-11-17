@@ -3,8 +3,8 @@
 //   pitched sound (voice, synth, bass, strings):
 //     find the pitch (YIN), then at 64 points across the sound measure each harmonic's amplitude and
 //     phase over four periods (tracking the local pitch, so vibrato and glides stay clean), and
-//     time-align every frame so its fundamental starts in sine phase: neighbouring frames line up
-//     and the morph between them is smooth.
+//     time-align every frame so its fundamental starts in sine phase. Then every frame keeps its own
+//     harmonic levels but shares one set of phases, so sweeping through the table never crackles.
 //   unpitched sound (drums, noise, textures):
 //     slice raw 2048-sample cycles at 64 points (the sound's own grain becomes the table).
 //
@@ -90,8 +90,11 @@ inline std::vector<Spectrum> resynthesize(const float* x, int n, double sr, Resy
 
     if (info.pitched) {
         const double P = sr / info.f0;
-        const int L = (int)std::round(4 * P);            // analysis window: four periods
-        const int margin = L / 2 + (int)(1.2 * P) + 2;   // room for the window and the local pitch search
+        // analysis window: at least four periods, and long enough to cover the stretch between
+        // neighbouring frames (averages out breath and noise), capped so glides stay sharp
+        const double spacing = (double)len / kFrames;
+        const int L = (int)std::round(std::clamp(2 * spacing, 4 * P, 16 * P));
+        const int margin = std::min(L / 2 + (int)(1.2 * P) + 2, std::max(1, len / 2 - 1));  // room for the window + pitch search
         const int a0 = start + margin, a1 = std::max(a0, end - margin);
         std::vector<double> w(L);
         double wsum = 0;
@@ -140,6 +143,22 @@ inline std::vector<Spectrum> resynthesize(const float* x, int n, double sr, Resy
     for (int k = 0; k < kFrames; ++k) emax = std::max(emax, energy(k));
     for (int k = 1; k < kFrames; ++k) if (energy(k) < emax * 1e-8) out[k] = out[k - 1];
     for (int k = kFrames - 2; k >= 0; --k) if (energy(k) < emax * 1e-8) out[k] = out[k + 1];
+    // Phase coherence. Each frame keeps its own harmonic *levels* (the tone colour), but every frame
+    // takes its harmonic *phases* from one reference frame (the loudest). Otherwise vibrato, breath
+    // and measurement noise give each frame slightly different phases, and sweeping Position spins
+    // them around at random, which you hear as static. Levels are also smoothed lightly across
+    // neighbouring frames so measurement noise doesn't jitter the tone.
+    int ref = 0;
+    for (int k = 1; k < kFrames; ++k) if (energy(k) > energy(ref)) ref = k;
+    std::vector<std::array<double, kMaxHarm + 1>> mag(kFrames);
+    for (int k = 0; k < kFrames; ++k) for (int h = 0; h <= kMaxHarm; ++h) mag[k][h] = std::abs(out[k][h]);
+    std::array<std::complex<double>, kMaxHarm + 1> unit;
+    for (int h = 0; h <= kMaxHarm; ++h) unit[h] = std::abs(out[ref][h]) > 1e-15 ? out[ref][h] / std::abs(out[ref][h]) : std::complex<double>(0, -1);
+    for (int k = 0; k < kFrames; ++k) {
+        const int i0 = std::max(0, k - 2), i1 = std::max(0, k - 1), i3 = std::min(kFrames - 1, k + 1), i4 = std::min(kFrames - 1, k + 2);
+        for (int h = 1; h <= kMaxHarm; ++h)
+            out[k][h] = unit[h] * ((mag[i0][h] + 4 * mag[i1][h] + 6 * mag[k][h] + 4 * mag[i3][h] + mag[i4][h]) / 16);
+    }
     return out;
 }
 
