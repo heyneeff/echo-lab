@@ -1,5 +1,7 @@
 #include "plugin.h"
 
+#include <cmath>
+#include <cstdio>
 #include <cstring>
 
 #include "base/source/fstreamer.h"
@@ -134,6 +136,12 @@ tresult PLUGIN_API DriveLabPlugin::process(ProcessData& data) {
     out.silenceFlags = 0;
     if (toPlain(kParams[kBypass], norm[kBypass]) > 0.5) return kResultOk;
 
+    {  // editor: input level + the raw input samples (they ride the transfer curve on screen)
+        int p = scopePos.load(std::memory_order_relaxed); double sq = 0;
+        for (int i = 0; i < n; ++i) { scope[p] = L[i]; p = (p + 1) % kScope; sq += (double)L[i] * L[i]; }
+        scopePos.store(p, std::memory_order_relaxed);
+        float r = (float)std::sqrt(sq / n); if (r > mIn.load(std::memory_order_relaxed)) mIn.store(r, std::memory_order_relaxed);
+    }
     engine.process(L, R, n);
 
     // --- host tempo/beat for the pump (free-running at the last tempo when stopped)
@@ -178,7 +186,55 @@ tresult PLUGIN_API DriveLabPlugin::process(ProcessData& data) {
         }
     }
     if (!playing) freeBeat = std::fmod(beat + n * beatsPerSample, 4096.0);
+    {
+        double sq = 0; for (int i = 0; i < n; ++i) sq += (double)L[i] * L[i];
+        float r = (float)std::sqrt(sq / n); if (r > mOut.load(std::memory_order_relaxed)) mOut.store(r, std::memory_order_relaxed);
+        if (pumpDepth > 0) {
+            double ph = std::fmod((beat + n * beatsPerSample) * perBeat, 1.0); if (ph < 0) ph += 1.0;
+            mPump.store((float)(1.0 - pumpDepth * (1.0 - (1.0 - std::pow(1.0 - std::min(ph / 0.85, 1.0), 2.2)))), std::memory_order_relaxed);
+        } else mPump.store(1.0f, std::memory_order_relaxed);
+    }
     return kResultOk;
+}
+
+IPlugView* PLUGIN_API DriveLabPlugin::createView(FIDString name) {
+    if (!FIDStringsEqual(name, ViewType::kEditor)) return nullptr;
+    WebEditor::Hooks h;
+    h.unit = "drive";
+    h.feed = [this] { return feedJson(); };
+    h.setParam = [this](const std::string& n, double v) { setFromEditor(n, v); };
+    return new WebEditor(std::move(h), 1060, 640);
+}
+
+void DriveLabPlugin::setFromEditor(const std::string& name, double plain) {
+    for (int id = 0; id < kNumParams; ++id) {
+        if (name != kParams[id].name) continue;
+        double nv = toNorm(kParams[id], plain);
+        beginEdit(id); performEdit(id, nv); setParamNormalized(id, nv); endEdit(id);
+        return;
+    }
+}
+
+std::string DriveLabPlugin::feedJson() {
+    std::string s = "{\"p\":{";
+    char buf[128];
+    for (int id = 0; id < kNumParams; ++id) {
+        std::snprintf(buf, sizeof buf, "%s\"%s\":%.5g", id ? "," : "", kParams[id].name, toPlain(kParams[id], getParamNormalized(id)));
+        s += buf;
+    }
+    s += "},\"names\":[";
+    for (int i = 0; i < kNumDriveVoices; ++i) { s += i ? ",\"" : "\""; s += kDriveVoices[i].name; s += "\""; }
+    // the true transfer curve of the current voice at the current drive (normalised to its peak)
+    double g = engine.inputGain(), ys[129], peak = 1e-9;
+    for (int i = 0; i <= 128; ++i) { ys[i] = engine.clip((i / 64.0 - 1.0) * g); peak = std::max(peak, std::abs(ys[i])); }
+    s += "],\"curve\":[";
+    for (int i = 0; i <= 128; ++i) { std::snprintf(buf, sizeof buf, "%s%.4f", i ? "," : "", ys[i] / peak); s += buf; }
+    s += "],\"pre\":[";
+    int p = scopePos.load(std::memory_order_relaxed);
+    for (int i = 0; i < kScope; ++i) { std::snprintf(buf, sizeof buf, "%s%.4f", i ? "," : "", scope[(p + i) % kScope]); s += buf; }
+    std::snprintf(buf, sizeof buf, "],\"inL\":%.5g,\"out\":%.5g,\"pump\":%.4f}", mIn.exchange(0), mOut.exchange(0), mPump.load());
+    s += buf;
+    return s;
 }
 
 tresult PLUGIN_API DriveLabPlugin::setState(IBStream* state) {

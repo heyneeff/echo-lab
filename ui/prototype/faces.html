@@ -62,6 +62,9 @@ body.dragging .drop { display: grid; }
 /* knobs: Portal-style dark cap inside a glowing arc */
 .knob { display: grid; justify-items: center; gap: 3px; user-select: none; -webkit-user-select: none; touch-action: none; }
 .knob .dial { position: relative; cursor: ns-resize; }
+.grid4 .knob .val { font-size: 9px; } .grid4 { gap: 2px 4px; }
+.grid4.g6 { grid-template-columns: repeat(6, 1fr); gap: 6px 0; padding: 0 6px; }
+.grid4.g6 .knob .name { font-size: 8px; letter-spacing: .14em; }
 .knob svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .knob .cap { position: absolute; inset: 24%; border-radius: 50%; background: radial-gradient(circle at 40% 30%, #6b6b72, #36363c 55%, #1d1d21);
   box-shadow: 0 6px 12px -2px #000c, 0 0 0 3px #141417, 0 0 0 4px #ffffff0d; }
@@ -108,6 +111,9 @@ body.dragging .drop { display: grid; }
 .pun:active .pcap { transform: scale(.97); }
 @keyframes pspin { to { transform: rotate(360deg); } }
 @keyframes pblink { 50% { opacity: .35; } }
+html.host .bar { display: none; }
+html.host #stage { top: 0; }
+html.host body { background: #0b0b0d; }
 </style>
 </head>
 <body>
@@ -136,7 +142,7 @@ body.dragging .drop { display: grid; }
       <div class="preset"><span class="nm" id="eStyleName"></span><div class="pbtn" id="ePrev">◁</div><div class="pbtn" id="eNext">▷</div></div>
       <div class="row" id="eBig"></div>
       <div class="minis"><div class="mini"><canvas id="ladder"></canvas></div><div class="mini"><canvas id="duckScope"></canvas></div></div>
-      <div class="grid4" id="eSmall"></div>
+      <div class="grid4 g6" id="eSmall"></div>
       <div class="mix" id="eMix"><span>DRY</span><div class="trk"><canvas></canvas><div class="hd"></div></div><span>WET</span></div>
       <div class="foot"><div><div class="seg" id="eModes"></div></div><div class="wm">OREAD<small>ECHO · ΗΧΩ</small></div><div class="meters"><canvas id="mE"></canvas></div></div>
     </div>
@@ -163,6 +169,15 @@ body.dragging .drop { display: grid; }
 </div></div>
 <div class="drop">DROP AUDIO TO RUN IT THROUGH</div>
 <script>
+// ===================================================================== plugin or browser?
+// Inside the plugin (WKWebView) the page talks to the real DSP: window.__host(json) brings meters,
+// curves and parameter values; edits go back via webkit.messageHandlers.lab.postMessage.
+const HOST = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.lab);
+const UNIT = window.__UNIT || null;
+let userEdit = 0, H = null, hostReady = false;
+// WebKit doesn't fire animation frames inside a plugin window, so the plugin face runs on a timer
+const nextFrame = f => HOST ? setTimeout(f, 16) : requestAnimationFrame(f);
+if (HOST) document.documentElement.classList.add("host");
 // ===================================================================== helpers
 const $ = s => document.querySelector(s);
 const ms = v => v >= 1000 ? (v / 1000).toFixed(2) + " s" : v.toFixed(0) + " ms";
@@ -170,7 +185,7 @@ const dB = v => (v > 0 ? "+" : "") + v.toFixed(1) + " dB";
 const hz = v => v < 1000 ? v.toFixed(0) + " Hz" : (v / 1000).toFixed(1) + " kHz";
 const COL = { amber: "#ffc93c", orange: "#ff8a1f", red: "#ff4a2b", teal: "#2fd6a8", violet: "#a98bff", white: "#e9e6e1" };
 // Portal-style knob: dark cap, dotted scale, glowing value arc in the knob's colour
-function knob(parent, { name, min, max, value, fmt, size = 52, log, color = COL.amber, onchange }) {
+function knob(parent, { name, min, max, value, fmt, size = 44, log, color = COL.amber, onchange }) {
   const el = document.createElement("div"); el.className = "knob" + (size > 70 ? " big" : "");
   el.innerHTML = `<div class="dial" style="width:${size}px;height:${size}px"><svg viewBox="0 0 100 100"></svg><div class="cap"><div class="ptr"></div></div></div><div class="name" style="color:${color};text-shadow:0 0 10px ${color}55">${name}</div><div class="val"></div>`;
   parent.appendChild(el);
@@ -190,12 +205,12 @@ function knob(parent, { name, min, max, value, fmt, size = 52, log, color = COL.
   };
   const dial = el.querySelector(".dial");
   dial.addEventListener("pointerdown", e => { drag = { y: e.clientY, n }; dial.setPointerCapture(e.pointerId); });
-  dial.addEventListener("pointermove", e => { if (!drag) return; n = Math.min(1, Math.max(0, drag.n + (drag.y - e.clientY) / (e.shiftKey ? 700 : 200))); paint(); });
+  dial.addEventListener("pointermove", e => { if (!drag) return; userEdit = performance.now(); n = Math.min(1, Math.max(0, drag.n + (drag.y - e.clientY) / (e.shiftKey ? 700 : 200))); paint(); });
   dial.addEventListener("pointerup", () => drag = null);
   dial.addEventListener("dblclick", () => { n = toN(value); paint(); });
   dial.addEventListener("wheel", e => { e.preventDefault(); n = Math.min(1, Math.max(0, n - e.deltaY / 900)); paint(); }, { passive: false });
   paint();
-  return { set(v) { n = Math.min(1, Math.max(0, toN(v))); paint(); }, norm: () => n };
+  return { set(v, silent) { n = Math.min(1, Math.max(0, toN(v))); paint(silent); }, norm: () => n };
 }
 function seg(parent, names, cur, onpick) {
   parent.innerHTML = names.map((nm, i) => `<button class="${i === cur ? "on" : ""}" data-i="${i}">${nm}</button>`).join("");
@@ -206,17 +221,17 @@ function mixSlider(root, value, color, onchange) {
   const trk = root.querySelector(".trk"), hd = root.querySelector(".hd"), cv = root.querySelector("canvas"); let v = value / 100;
   const paint = () => { hd.style.left = (8 + v * (trk.clientWidth - 16)) + "px"; onchange(v * 100); };
   let drag = false;
-  const at = e => { const r = trk.getBoundingClientRect(), sc = r.width / trk.clientWidth; v = Math.min(1, Math.max(0, ((e.clientX - r.left) / sc - 8) / (trk.clientWidth - 16))); paint(); };
+  const at = e => { userEdit = performance.now(); const r = trk.getBoundingClientRect(), sc = r.width / trk.clientWidth; v = Math.min(1, Math.max(0, ((e.clientX - r.left) / sc - 8) / (trk.clientWidth - 16))); paint(); };
   trk.addEventListener("pointerdown", e => { drag = true; trk.setPointerCapture(e.pointerId); at(e); });
   trk.addEventListener("pointermove", e => drag && at(e)); trk.addEventListener("pointerup", () => drag = false);
-  requestAnimationFrame(paint);
+  nextFrame(paint);
   const dots = Array.from({ length: 70 }, () => [Math.random(), Math.random(), Math.random()]);
-  return { draw(now, energy) { const [g, W, H] = fit(cv); const x1 = 8 + v * (W - 16);
+  return { set(x) { v = x / 100; hd.style.left = (8 + v * (trk.clientWidth - 16)) + "px"; }, draw(now, energy) { const [g, W, H] = fit(cv); const x1 = 8 + v * (W - 16);
     for (const [x, y, s] of dots) { const px = 4 + ((x + now * .03 * (s + .3)) % 1) * (W - 8); if (px > x1) continue; g.fillStyle = color; g.globalAlpha = .25 + .6 * s * Math.min(1, .3 + energy * 4); g.fillRect(px, 6 + y * (H - 12), 1.6, 1.6); }
     g.globalAlpha = 1; } };
 }
 function fit(c) { const d = devicePixelRatio || 1, W = c.clientWidth, H = c.clientHeight; if (c.width !== Math.round(W * d) || c.height !== Math.round(H * d)) { c.width = Math.round(W * d); c.height = Math.round(H * d); } const g = c.getContext("2d"); g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, W, H); return [g, W, H]; }
-function scaleUnits() { const s = Math.min(innerWidth / 1090, (innerHeight - 52) / 660, 1.35); $("#units").style.transform = `scale(${s})`; }
+function scaleUnits() { const s = HOST ? Math.min(innerWidth / 1060, innerHeight / 640) : Math.min(innerWidth / 1090, (innerHeight - 52) / 660, 1.35); $("#units").style.transform = `scale(${s})`; }
 addEventListener("resize", scaleUnits); scaleUnits();
 const VF = "'Share Tech Mono', ui-monospace, monospace";
 function glow(g, col, blur = 10) { g.strokeStyle = col; g.fillStyle = col; g.shadowColor = col; g.shadowBlur = blur; }
@@ -244,7 +259,7 @@ const DSTY = [
   { n: "TAPE", knee: .8, asym: .05, bias: 0, track: .1 }, { n: "DESK", knee: .35, asym: .18, bias: .06, track: .5 },
   { n: "IRON", knee: .55, asym: .1, bias: .03, track: .3 }, { n: "TUBE", knee: .7, asym: .3, bias: .08, track: .6 },
   { n: "PENTODE", knee: .25, asym: .4, bias: .1, track: .9 }, { n: "CRUSH", knee: .02, asym: .02, bias: 0, track: 0 }];
-function shape(x) { // DriveEngine-shaped clipper: pre-gain, knee, asymmetric ceiling, level-following bias
+function localShape(x) { // DriveEngine-shaped clipper: pre-gain, knee, asymmetric ceiling, level-following bias
   const s = DSTY[D.style], gain = Math.pow(10, (D.drive * 3.3 + (D.punish ? 18 : 0) - 3) / 20);
   const lvl = Math.abs(x) * gain, u = x * gain + s.bias + s.track * 0.12 * Math.min(1, lvl);
   const ceil = 1 + (u > 0 ? s.asym : -s.asym) * 0.6, k = Math.max(0.02, s.knee), a = Math.abs(u) / ceil;
@@ -278,7 +293,7 @@ function updateDrive() {
 const STYLES = [
   { n: "STUDIO", lp: 21000, hp: 12, wob: 0 }, { n: "SPACE TAPE", lp: 2689, hp: 123, wob: 9.5 }, { n: "PLEX", lp: 8971, hp: 42, wob: 3.8 }, { n: "MEMORY", lp: 7225, hp: 42, wob: 21.8 },
   { n: "DARK ANALOG", lp: 2739, hp: 54, wob: 0 }, { n: "DIGITAL", lp: 21000, hp: 46, wob: 0 }, { n: "RADIO", lp: 6387, hp: 76, wob: 0 }, { n: "ORPHEO", lp: 12000, hp: 40, wob: 4 }];
-const E = { time: 375, fb: 55, mix: 35, sat: 4, lo: 20, hi: 20000, wob: 100, duck: 60, rel: 250, width: 100, out: 0, style: 1, mode: 0, on: true };
+const E = { time: 375, fb: 55, mix: 35, sat: 4, lo: 20, hi: 20000, wob: 100, duck: 60, rel: 250, width: 100, out: 0, style: 1, mode: 0, on: true, throw: 0, age: 0, space: 0, warp: 1 };
 const TAPE = 2.2;
 const eIn = N("GainNode"), eDry = N("GainNode"), eWetSum = N("GainNode"), duckG = N("GainNode"), eWet = N("GainNode"), eOut = N("GainNode");
 const anEIn = N("AnalyserNode", { fftSize: 2048 }), anWrite = N("AnalyserNode", { fftSize: 1024, smoothingTimeConstant: 0 }), anWet = N("AnalyserNode", { fftSize: 2048 });
@@ -357,13 +372,18 @@ K.time = knob($("#eBig"), { name: "TIME", min: 10, max: 2000, value: E.time, log
 K.fb = knob($("#eBig"), { name: "FEEDBACK", min: 0, max: 110, value: E.fb, size: 84, color: COL.amber, fmt: v => v.toFixed(0) + " %", onchange: v => { E.fb = v; updateEcho(); } });
 K.duck = knob($("#eBig"), { name: "DUCK", min: 0, max: 100, value: E.duck, size: 84, color: COL.violet, fmt: v => v.toFixed(0) + " %", onchange: v => E.duck = v });
 const eS = $("#eSmall");
-knob(eS, { name: "SATURATE", min: -12, max: 24, value: E.sat, color: COL.orange, fmt: dB, onchange: v => { E.sat = v; updateEcho(); } });
-knob(eS, { name: "WOBBLE", min: 0, max: 200, value: E.wob, color: COL.orange, fmt: v => v.toFixed(0) + " %", onchange: v => { E.wob = v; updateEcho(); } });
-knob(eS, { name: "DUCK REL", min: 20, max: 2000, value: E.rel, log: true, color: COL.violet, fmt: ms, onchange: v => E.rel = v });
-knob(eS, { name: "WIDTH", min: 0, max: 100, value: 100, color: COL.white, fmt: v => v.toFixed(0) + " %", onchange: v => { E.width = v; updateEcho(); } });
-knob(eS, { name: "LOW CUT", min: 20, max: 1000, value: 20, log: true, color: COL.white, fmt: v => v < 21 ? "OFF" : hz(v), onchange: v => { E.lo = v; updateEcho(); } });
-knob(eS, { name: "HIGH CUT", min: 1000, max: 20000, value: 20000, log: true, color: COL.white, fmt: v => v > 19900 ? "OFF" : hz(v), onchange: v => { E.hi = v; updateEcho(); } });
-knob(eS, { name: "OUTPUT", min: -24, max: 12, value: 0, color: COL.white, fmt: dB, onchange: v => { E.out = v; updateEcho(); } });
+K.sat = knob(eS, { name: "SATURATE", min: -12, max: 24, value: E.sat, color: COL.orange, fmt: dB, onchange: v => { E.sat = v; updateEcho(); } });
+K.wob = knob(eS, { name: "WOBBLE", min: 0, max: 200, value: E.wob, color: COL.orange, fmt: v => v.toFixed(0) + " %", onchange: v => { E.wob = v; updateEcho(); } });
+K.rel = knob(eS, { name: "DUCK REL", min: 20, max: 2000, value: E.rel, log: true, color: COL.violet, fmt: ms, onchange: v => E.rel = v });
+K.width = knob(eS, { name: "WIDTH", min: 0, max: 100, value: 100, color: COL.white, fmt: v => v.toFixed(0) + " %", onchange: v => { E.width = v; updateEcho(); } });
+K.lo = knob(eS, { name: "LOW CUT", min: 20, max: 1000, value: 20, log: true, color: COL.white, fmt: v => v < 21 ? "OFF" : hz(v), onchange: v => { E.lo = v; updateEcho(); } });
+K.hi = knob(eS, { name: "HIGH CUT", min: 1000, max: 20000, value: 20000, log: true, color: COL.white, fmt: v => v > 19900 ? "OFF" : hz(v), onchange: v => { E.hi = v; updateEcho(); } });
+K.eout = knob(eS, { name: "OUTPUT", min: -24, max: 12, value: 0, color: COL.white, fmt: dB, onchange: v => { E.out = v; updateEcho(); } });
+const eM = eS; // macros share the small-knob grid
+K.throw = knob(eM, { name: "THROW", min: 0, max: 100, value: 0, color: COL.red, fmt: v => v.toFixed(0) + " %", onchange: v => E.throw = v });
+K.age = knob(eM, { name: "AGE", min: 0, max: 100, value: 0, color: COL.orange, fmt: v => v.toFixed(0) + " %", onchange: v => E.age = v });
+K.space = knob(eM, { name: "SPACE", min: 0, max: 100, value: 0, color: COL.teal, fmt: v => v.toFixed(0) + " %", onchange: v => E.space = v });
+K.warp = knob(eM, { name: "WARP", min: .5, max: 2, value: 1, log: true, color: COL.violet, fmt: v => v.toFixed(2) + "×", onchange: v => E.warp = v });
 const eMix = mixSlider($("#eMix"), E.mix, COL.teal, v => { E.mix = v; updateEcho(); });
 const setEStyle = i => { E.style = (i + STYLES.length) % STYLES.length; $("#eStyleName").textContent = STYLES[E.style].n; updateEcho(); };
 $("#ePrev").onclick = () => setEStyle(E.style - 1); $("#eNext").onclick = () => setEStyle(E.style + 1); setEStyle(E.style);
@@ -374,9 +394,9 @@ K.pump = knob($("#dBig"), { name: "PUMP", min: 0, max: 100, value: 0, size: 84, 
 $("#dBig").insertAdjacentHTML("beforeend", `<div class="pun" id="punish"><div class="pdial"><svg class="ring" viewBox="0 0 100 100"><circle cx="50" cy="50" r="39" class="ring-track"/><circle cx="50" cy="50" r="39" class="ring-on"/><g class="pdots"><circle cx="50.00" cy="1.00" r="1.6"/><circle cx="74.50" cy="7.56" r="1.6"/><circle cx="92.44" cy="25.50" r="1.6"/><circle cx="99.00" cy="50.00" r="1.6"/><circle cx="92.44" cy="74.50" r="1.6"/><circle cx="74.50" cy="92.44" r="1.6"/><circle cx="50.00" cy="99.00" r="1.6"/><circle cx="25.50" cy="92.44" r="1.6"/><circle cx="7.56" cy="74.50" r="1.6"/><circle cx="1.00" cy="50.00" r="1.6"/><circle cx="7.56" cy="25.50" r="1.6"/><circle cx="25.50" cy="7.56" r="1.6"/></g></svg><div class="pcap"><svg viewBox="0 0 100 100"><path class="flame" d="M50 14 C62 32 74 42 70 62 C67 78 58 86 50 86 C40 86 30 78 31 62 C32 52 39 46 40 34 C47 42 50 50 48 60 C56 54 58 34 50 14Z"/><path class="flame-core" d="M50 52 C56 60 58 66 56 72 C54 78 46 78 44 72 C42 66 46 60 50 52Z"/></svg></div></div><div class="name">PUNISH</div><div class="val" id="punState">SAFE</div></div>`);
 const dS = $("#dSmall");
 K.tone = knob(dS, { name: "TONE", min: -12, max: 12, value: 0, color: COL.amber, fmt: dB, onchange: v => { D.tone = v; updateDrive(); } });
-knob(dS, { name: "FILTER", min: 80, max: 20000, value: 20000, log: true, color: COL.orange, fmt: v => v > 19900 ? "OFF" : hz(v), onchange: v => { D.filter = v > 19900 ? 20000 : v; updateDrive(); } });
-knob(dS, { name: "RESO", min: 0, max: 100, value: 20, color: COL.orange, fmt: v => v.toFixed(0) + " %", onchange: v => { D.res = v; updateDrive(); } });
-knob(dS, { name: "OUTPUT", min: -24, max: 12, value: 0, color: COL.white, fmt: dB, onchange: v => { D.out = v; updateDrive(); } });
+K.filter = knob(dS, { name: "FILTER", min: 80, max: 20000, value: 20000, log: true, color: COL.orange, fmt: v => v > 19900 ? "OFF" : hz(v), onchange: v => { D.filter = v > 19900 ? 20000 : v; updateDrive(); } });
+K.res = knob(dS, { name: "RESO", min: 0, max: 100, value: 20, color: COL.orange, fmt: v => v.toFixed(0) + " %", onchange: v => { D.res = v; updateDrive(); } });
+K.dout = knob(dS, { name: "OUTPUT", min: -24, max: 12, value: 0, color: COL.white, fmt: dB, onchange: v => { D.out = v; updateDrive(); } });
 const dMix = mixSlider($("#dMix"), D.mix, COL.red, v => { D.mix = v; updateDrive(); });
 const setDStyle = i => { D.style = (i + DSTY.length) % DSTY.length; $("#dStyleName").textContent = DSTY[D.style].n; updateDrive(); };
 $("#dPrev").onclick = () => setDStyle(D.style - 1); $("#dNext").onclick = () => setDStyle(D.style + 1); setDStyle(D.style);
@@ -393,7 +413,7 @@ seg($("#dAuto"), ["AUTO GAIN", "OFF"], 0, i => { D.auto = i === 0; updateDrive()
   paint(); })();
 // the hero displays are X/Y pads, like Portal / Thermal
 function xyPad(el, onxy) { let on = false; const at = e => { const r = el.getBoundingClientRect(); onxy(Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), Math.min(1, Math.max(0, 1 - (e.clientY - r.top) / r.height))); };
-  el.addEventListener("pointerdown", e => { on = true; el.setPointerCapture(e.pointerId); at(e); }); el.addEventListener("pointermove", e => on && at(e)); el.addEventListener("pointerup", () => on = false); }
+  el.addEventListener("pointerdown", e => { userEdit = performance.now(); on = true; el.setPointerCapture(e.pointerId); at(e); }); el.addEventListener("pointermove", e => on && at(e)); el.addEventListener("pointerup", () => on = false); }
 xyPad($("#echoHero"), (x, y) => { K.time.set(10 * Math.pow(200, x)); K.fb.set(y * 110); });
 xyPad($("#driveHero"), (x, y) => { K.drive.set(x * 10); K.tone.set(-12 + y * 24); });
 updateDrive(); updateEcho();
@@ -408,7 +428,7 @@ function brightness() { // spectral centroid of what is being written onto the t
 }
 const NB = 220; const tape = Array.from({ length: NB }, () => ({ t: -9, lvl: 0, h: 0 }));
 let duckEnv = 0, lastT = 0; const levels = { eIn: 0, wet: 0, dIn: 0, dOut: 0 };
-function measure(now, dt) {
+function localMeasure(now, dt) {
   const inL = rms(td(anEIn)), wr = rms(td(anWrite)), wet = rms(td(anWet));
   levels.eIn = Math.max(inL, levels.eIn * Math.exp(-dt / .3)); levels.wet = Math.max(wet, levels.wet * Math.exp(-dt / .3));
   levels.dIn = Math.max(rms(td(anDPre)), levels.dIn * Math.exp(-dt / .3)); levels.dOut = Math.max(rms(td(anDOut)), levels.dOut * Math.exp(-dt / .3));
@@ -480,7 +500,7 @@ function drawRing(now) {
   text(g, "DUCK " + (E.duck > 0 ? duckDb.toFixed(1) + " dB" : "OFF"), W - 40, 136, V.teal, 13, "right");
   glow(g, V.teal, 6); g.lineWidth = 1; g.strokeRect(W - 160, 143, 120, 7); g.fillRect(W - 160, 143, 120 * duckAmt, 7); g.shadowBlur = 0;
   text(g, E.fb >= 100 ? "!! SELF-OSCILLATION" : "", W - 40, 172, V.red, 12, "right");
-  if (!srcNode) text(g, "SOURCE: PRESS DEMO, DROP A FILE, OR MIC", cx, H - 20, V.amber, 11, "center");
+  if (!srcNode && !HOST) text(g, "SOURCE: PRESS DEMO, DROP A FILE, OR MIC", cx, H - 20, V.amber, 11, "center");
   vpuck(g, 40 + K.time.norm() * (W - 80), H - 40 - (E.fb / 110) * (H - 80));
   $("#axTime").textContent = ms(E.time); $("#axFb").textContent = E.fb.toFixed(0) + "%";
 }
@@ -528,7 +548,7 @@ function drawDrive(now, pm) {
   glow(g, V.amber, 10); g.lineWidth = 1.3;
   for (const x of [-0.75, -0.4, 0, 0.4, 0.75]) { const [px, py] = Q(x, shape(x)); g.beginPath(); g.arc(px, py, 6, 0, 7); g.stroke(); g.beginPath(); g.arc(px, py, 2, 0, 7); g.fill(); }
   // the real signal: its latest samples, riding the line
-  anDPre.getFloatTimeDomainData(dpre); anDPost.getFloatTimeDomainData(dpost);
+  if (HOST) hostDriveSamples(); else { anDPre.getFloatTimeDomainData(dpre); anDPost.getFloatTimeDomainData(dpost); }
   const live = rms(dpre) > 1e-3;
   if (live) { let pk = 0; for (let i = 0; i < 2048; i += 8) if (Math.abs(dpre[i]) > Math.abs(pk)) pk = dpre[i];
     trail.push([Math.max(-1, Math.min(1, dpre[2047])), now], [Math.max(-1, Math.min(1, pk)), now]); scopeHold = { pre: dpre.slice(), post: dpost.slice() }; }
@@ -540,7 +560,7 @@ function drawDrive(now, pm) {
   if (P0) { glow(g, V.red, 12); g.lineWidth = 1.5; g.strokeRect(40, 96, 210, 40); g.globalAlpha = .16 + .12 * Math.sin(now * 8); g.fillRect(40, 96, 210, 40); g.globalAlpha = 1; g.shadowBlur = 0;
     text(g, "SYSTEM PUNISH", 50, 115, V.red, 16); text(g, "+18 dB INTO THE CLIPPER", 50, 129, V.orange, 9); }
   if (D.pump > 0) { text(g, "PUMP " + ["1/2", "1/4", "1/8"][D.rate], W - 40, 136, V.teal, 12, "right"); glow(g, V.teal, 8); g.strokeRect(W - 140, 143, 100, 6); g.fillRect(W - 140, 143, 100 * pm.pumpVal, 6); g.shadowBlur = 0; }
-  if (!live && !trail.length) text(g, "NO SIGNAL · PRESS DEMO", W / 2, H - 20, V.amber, 11, "center");
+  if (!live && !trail.length) text(g, HOST ? "NO SIGNAL" : "NO SIGNAL · PRESS DEMO", W / 2, H - 20, V.amber, 11, "center");
   vpuck(g, 40 + D.drive / 10 * (W - 80), H - 40 - (D.tone + 12) / 24 * (H - 80));
   $("#axDrive").textContent = D.drive.toFixed(1) + (P0 ? " +18" : ""); $("#axTone").textContent = dB(D.tone);
   // harmonics (sine test) as wireframe blocks
@@ -560,14 +580,75 @@ function drawDrive(now, pm) {
   wave(sp, "rgba(47,214,168,.6)", 1, [2, 3]); wave(so, lc, 1.5); g.shadowBlur = 0;
 }
 
+// ===================================================================== HOST BRIDGE
+function shape(x) { // in the plugin: the true transfer curve of the current voice (129 points over -1..1)
+  if (!(HOST && H && H.curve)) return localShape(x);
+  const c = H.curve, t = (Math.max(-1, Math.min(1, x)) + 1) * 64, i = Math.min(127, Math.floor(t)), f = t - i; return c[i] + (c[i + 1] - c[i]) * f;
+}
+function measure(now, dt) { return HOST ? hostMeasure(now, dt) : localMeasure(now, dt); }
+function hostMeasure(now, dt) {
+  const h = H || {}, dec = x => x * Math.exp(-dt / .3);
+  if (UNIT === "drive") { levels.dIn = Math.max(h.inL || 0, dec(levels.dIn)); levels.dOut = Math.max(h.out || 0, dec(levels.dOut)); return { ph: .5, pumpVal: h.pump == null ? 1 : h.pump }; }
+  levels.eIn = Math.max(h.inL || 0, dec(levels.eIn)); levels.wet = Math.max(h.wet || 0, dec(levels.wet));
+  const b = tape[Math.floor(((now % TAPE) / TAPE) * NB)]; b.t = now; b.lvl = h.wr || 0;
+  b.h = Math.min(1, Math.max(0, 1 - Math.log(Math.max(h.wf || 2000, 60) / 250) / Math.log(7000 / 250)));
+  duckEnv = E.duck > 0 ? Math.min(1, Math.max(0, (1 - (h.duckGain == null ? 1 : h.duckGain)) / (.94 * E.duck / 100))) : 0;
+  return { ph: .5, pumpVal: 1 };
+}
+function hostDriveSamples() {
+  const pre = H && H.pre; if (!pre) { dpre.fill(0); dpost.fill(0); return; }
+  dpre.set(pre, 0); dpre.set(pre, 1024); for (let i = 0; i < 2048; i++) dpost[i] = shape(dpre[i]);
+}
+// field <-> plugin parameter (plain values); the cut filters use 0 for "off"
+const offLow = { to: v => v < 21 ? 0 : v, from: v => v <= 0 ? 20 : v }, offHigh = { to: v => v > 19900 ? 0 : v, from: v => v <= 0 ? 20000 : v };
+const bool = { to: v => v ? 1 : 0, from: v => v > .5 };
+const MAP = {
+  echo: [[E, "time", "Time"], [E, "fb", "Feedback"], [E, "mix", "Mix"], [E, "sat", "Saturation"], [E, "lo", "Low Cut", offLow], [E, "hi", "High Cut", offHigh],
+         [E, "wob", "Wobble"], [E, "duck", "Duck"], [E, "rel", "Duck Release"], [E, "width", "Width"], [E, "out", "Output"], [E, "style", "Style"], [E, "mode", "Mode"],
+         [E, "throw", "Throw"], [E, "age", "Age"], [E, "space", "Space"], [E, "warp", "Warp"]],
+  drive: [[D, "drive", "Drive"], [D, "style", "Style"], [D, "punish", "Punish", bool], [D, "tone", "Tone"], [D, "mix", "Mix"], [D, "auto", "Auto Gain", bool],
+          [D, "out", "Output"], [D, "pump", "Pump"], [D, "rate", "Pump Rate"], [D, "filter", "Filter", offHigh], [D, "res", "Resonance"]],
+};
+const KEYOF = { echo: { out: "eout" }, drive: { out: "dout" } };
+const sent = {};
+function refreshWidgets() { // put every control in the state the plugin reports, without sending anything back
+  const km = KEYOF[UNIT] || {};
+  for (const [o, f] of MAP[UNIT]) { const k = K[km[f] || f]; if (k && typeof o[f] === "number") k.set(o[f], true); }
+  if (UNIT === "echo") { eMix.set(E.mix); $("#eStyleName").textContent = STYLES[E.style].n; $("#eModes").querySelectorAll("button").forEach((b, i) => b.classList.toggle("on", i === E.mode)); }
+  else { dMix.set(D.mix); $("#dStyleName").textContent = DSTY[D.style] ? DSTY[D.style].n : ""; $("#dRates").querySelectorAll("button").forEach((b, i) => b.classList.toggle("on", i === D.rate));
+    $("#dAuto").querySelectorAll("button").forEach((b, i) => b.classList.toggle("on", i === (D.auto ? 0 : 1))); $("#punish").classList.toggle("on", D.punish); $("#punState").textContent = D.punish ? "+18 dB" : "SAFE"; }
+}
+window.__host = function (h) {
+  H = h; if (!UNIT || !h.p) return;
+  if (UNIT === "drive" && h.names && DSTY.length !== h.names.length) { DSTY.length = 0; h.names.forEach(n => DSTY.push({ n: n.toUpperCase(), knee: .5, asym: 0, bias: 0, track: 0 })); }
+  if (hostReady && performance.now() - userEdit < 400) return; // the user is moving something: don't fight them
+  let changed = false;
+  for (const [o, f, name, conv] of MAP[UNIT]) {
+    const hv = h.p[name]; if (hv == null) continue;
+    if (!hostReady || sent[name] == null || Math.abs(hv - sent[name]) > 1e-4) {
+      const v = conv ? conv.from(hv) : hv; if (o[f] !== v) { o[f] = v; changed = true; } sent[name] = hv; }
+  }
+  if (changed || !hostReady) refreshWidgets();
+  hostReady = true;
+};
+if (HOST) { const host0 = window.__host; window.__host = h => { host0(h); try { tick(); } catch (e) { window.webkit.messageHandlers.lab.postMessage({ type: "log", msg: "tick: " + e.message }); } }; }
+function hostSync() { // send whatever the user changed (never before the plugin's own state has arrived)
+  if (!HOST || !hostReady || !UNIT) return;
+  for (const [o, f, name, conv] of MAP[UNIT]) {
+    if (o[f] == null) continue; const v = conv ? conv.to(o[f]) : +o[f];
+    if (sent[name] == null || Math.abs(v - sent[name]) > 1e-6) { sent[name] = v; window.webkit.messageHandlers.lab.postMessage({ type: "param", name, value: v }); }
+  }
+}
+if (HOST && UNIT) { $("#echo").classList.toggle("show", UNIT === "echo"); $("#drive").classList.toggle("show", UNIT === "drive"); scaleUnits(); }
+
 // ===================================================================== loop
-function tick() {
+function tick() { window.__fr = (window.__fr || 0) + 1; hostSync();
   const now = ctx.state === "running" ? ctx.currentTime : performance.now() / 1000, dt = Math.min(.1, Math.max(.001, now - lastT)); lastT = now;
   const pm = measure(now, dt);
   if ($("#echo").classList.contains("show")) { drawRing(now); drawLadder(); drawDuck(); meters("mE", levels.eIn, levels.wet, "IN", "ECHO"); eMix.draw(now, levels.wet); }
   else { drawDrive(now, pm); meters("mD", levels.dIn, levels.dOut, "IN", "OUT"); dMix.draw(now, levels.dOut); }
-  requestAnimationFrame(tick);
+  if (!HOST) nextFrame(tick);
 }
-requestAnimationFrame(tick);
+if (!HOST) nextFrame(tick); // in the plugin, each window.__host() update draws a frame (see the bridge)
 </script>
 </body></html>

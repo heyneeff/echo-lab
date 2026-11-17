@@ -203,6 +203,7 @@ public:
 
     DriveVoice voice;
     DriveParams params;
+    double inputGain() const { return inGain; }  // for the editor's transfer curve
 
 private:
     static constexpr int kDly = 64;

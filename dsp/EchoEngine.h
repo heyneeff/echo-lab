@@ -300,11 +300,17 @@ public:
             // record head: new input + repeats are saturated together, like tape
             ch[0].buf[ch[0].w] = ch[0].sat.process(inL + fbL);
             ch[1].buf[ch[1].w] = ch[1].sat.process((params.mode == 2 ? 0.0 : inR) + fbR);
+            {  // meter: what the record head writes (level + brightness), and the duck
+                double wv = ch[0].buf[ch[0].w];
+                meter.wr += wv * wv; meter.wrd += (wv - meter.lastW) * (wv - meter.lastW); meter.lastW = wv;
+                meter.in += 0.5 * (inL * inL + inR * inR); meter.duckGain += duckGain;
+            }
             for (auto& c : ch) c.w = (c.w + 1) & mask;
 
             // width (mid/side on the wet), mix, duck
             double m = 0.5 * (wetOut[0] + wetOut[1]), s = 0.5 * (wetOut[0] - wetOut[1]) * params.width;
             double wl = (m + s) * duckGain, wr = (m - s) * duckGain;
+            meter.wet += 0.5 * (wl * wl + wr * wr); meter.n++;
             double dryG = std::cos(params.mix * 0.5 * kPi), wetG = std::sin(params.mix * 0.5 * kPi);
             left[i] = (float)((dryL * dryG + wl * wetG) * outG);
             if (right) right[i] = (float)((dryR * dryG + wr * wetG) * outG);
@@ -313,6 +319,9 @@ public:
 
     Params params;
     Style style;
+    // block meter for the editor: sums since the last take(); the plugin reads and resets it
+    struct Meter { double in = 0, wet = 0, wr = 0, wrd = 0, duckGain = 0, lastW = 0; int n = 0; } meter;
+    double sampleRate() const { return sr; }
 
 private:
     struct Channel {

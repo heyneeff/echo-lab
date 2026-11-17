@@ -1,5 +1,8 @@
 #include "plugin.h"
 
+#include <cmath>
+#include <cstdio>
+
 #include <cstring>
 
 #include "base/source/fstreamer.h"
@@ -175,7 +178,51 @@ tresult PLUGIN_API EchoLabPlugin::process(ProcessData& data) {
     out.silenceFlags = 0;
     if (toPlain(kParams[kBypass], norm[kBypass]) > 0.5) return kResultOk;  // dry passthrough
     engine.process(outL, outR, n);
+    // meters for the editor (peak-held until it reads them)
+    auto& m = engine.meter;
+    if (m.n > 0) {
+        auto up = [](std::atomic<float>& a, float v) { if (v > a.load(std::memory_order_relaxed)) a.store(v, std::memory_order_relaxed); };
+        up(mIn, (float)std::sqrt(m.in / m.n)); up(mWet, (float)std::sqrt(m.wet / m.n)); up(mWr, (float)std::sqrt(m.wr / m.n));
+        if (m.wr > 1e-12) {  // brightness of what is written: frequency estimate from the first-difference ratio
+            double r = std::sqrt(m.wrd / m.wr);
+            mWf.store((float)(std::asin(std::min(1.0, r / 2)) * sampleRate / 3.14159265358979), std::memory_order_relaxed);
+        }
+        float dg = (float)(m.duckGain / m.n);
+        if (dg < mDuck.load(std::memory_order_relaxed)) mDuck.store(dg, std::memory_order_relaxed);
+        double lastW = m.lastW; m = {}; m.lastW = lastW;
+    }
     return kResultOk;
+}
+
+IPlugView* PLUGIN_API EchoLabPlugin::createView(FIDString name) {
+    if (!FIDStringsEqual(name, ViewType::kEditor)) return nullptr;
+    WebEditor::Hooks h;
+    h.unit = "echo";
+    h.feed = [this] { return feedJson(); };
+    h.setParam = [this](const std::string& n, double v) { setFromEditor(n, v); };
+    return new WebEditor(std::move(h), 1060, 640);
+}
+
+void EchoLabPlugin::setFromEditor(const std::string& name, double plain) {
+    for (int id = 0; id < kNumParams; ++id) {
+        if (name != kParams[id].name) continue;
+        double nv = toNorm(kParams[id], plain);
+        beginEdit(id); performEdit(id, nv); setParamNormalized(id, nv); endEdit(id);
+        return;
+    }
+}
+
+std::string EchoLabPlugin::feedJson() {
+    std::string s = "{\"p\":{";
+    char buf[96];
+    for (int id = 0; id < kNumParams; ++id) {
+        std::snprintf(buf, sizeof buf, "%s\"%s\":%.5g", id ? "," : "", kParams[id].name, toPlain(kParams[id], getParamNormalized(id)));
+        s += buf;
+    }
+    std::snprintf(buf, sizeof buf, "},\"inL\":%.5g,\"wet\":%.5g,\"wr\":%.5g,\"wf\":%.5g,\"duckGain\":%.5g}",
+                  mIn.exchange(0), mWet.exchange(0), mWr.exchange(0), mWf.load(), mDuck.exchange(1));
+    s += buf;
+    return s;
 }
 
 tresult PLUGIN_API EchoLabPlugin::setState(IBStream* state) {

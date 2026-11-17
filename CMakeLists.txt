@@ -1,9 +1,11 @@
 cmake_minimum_required(VERSION 3.25)
-project(EchoLab VERSION 0.1.0 LANGUAGES C CXX)
+project(EchoLab VERSION 0.1.0 LANGUAGES C CXX OBJCXX)
 
 # VST3 SDK (MIT) — plugin target only, no examples, no VSTGUI yet
 set(SMTG_ENABLE_VST3_PLUGIN_EXAMPLES OFF CACHE BOOL "" FORCE)
-set(SMTG_ENABLE_VST3_HOSTING_EXAMPLES OFF CACHE BOOL "" FORCE)
+if(NOT LAB_TEST_HOST)  # -DLAB_TEST_HOST=ON builds the SDK editorhost to open the plugin windows outside Live
+    set(SMTG_ENABLE_VST3_HOSTING_EXAMPLES OFF CACHE BOOL "" FORCE)
+endif()
 set(SMTG_ENABLE_VSTGUI_SUPPORT OFF CACHE BOOL "" FORCE)
 set(SMTG_CREATE_PLUGIN_LINK OFF CACHE BOOL "" FORCE)
 set(SMTG_RUN_VST_VALIDATOR ON CACHE BOOL "" FORCE)
@@ -15,11 +17,21 @@ smtg_add_vst3plugin(EchoLab
     third_party/vst3sdk/public.sdk/source/vst/vstsinglecomponenteffect.cpp
     plugin/source/plugin.cpp
     plugin/source/entry.cpp
+    third_party/vst3sdk/public.sdk/source/common/pluginview.cpp
+    plugin/common/WebEditor.mm
 )
 target_compile_features(EchoLab PRIVATE cxx_std_20)
 target_include_directories(EchoLab PRIVATE plugin/source dsp)
 target_link_libraries(EchoLab PRIVATE sdk)
 smtg_target_configure_version_file(EchoLab)
+target_include_directories(EchoLab PRIVATE plugin/common)
+if(SMTG_MAC)
+    # the face: a WKWebView showing ui/prototype/faces.html (bundled into Contents/Resources)
+    target_link_libraries(EchoLab PRIVATE "-framework WebKit" "-framework Cocoa")
+    target_compile_options(EchoLab PRIVATE $<$<COMPILE_LANGUAGE:OBJCXX>:-fobjc-arc>)
+    target_compile_definitions(EchoLab PRIVATE LAB_OBJC_PREFIX=EchoLabFace)
+    smtg_target_add_plugin_resources(EchoLab RESOURCES ui/prototype/faces.html)
+endif()
 if(SMTG_MAC)
     smtg_target_set_bundle(EchoLab
         BUNDLE_IDENTIFIER "local.echolab.echo"
@@ -35,11 +47,21 @@ smtg_add_vst3plugin(DriveLab
     third_party/vst3sdk/public.sdk/source/vst/vstsinglecomponenteffect.cpp
     plugin/drive/plugin.cpp
     plugin/drive/entry.cpp
+    third_party/vst3sdk/public.sdk/source/common/pluginview.cpp
+    plugin/common/WebEditor.mm
 )
 target_compile_features(DriveLab PRIVATE cxx_std_20)
 target_include_directories(DriveLab PRIVATE plugin/drive dsp)
 target_link_libraries(DriveLab PRIVATE sdk)
 smtg_target_configure_version_file(DriveLab)
+target_include_directories(DriveLab PRIVATE plugin/common)
+if(SMTG_MAC)
+    # the face: a WKWebView showing ui/prototype/faces.html (bundled into Contents/Resources)
+    target_link_libraries(DriveLab PRIVATE "-framework WebKit" "-framework Cocoa")
+    target_compile_options(DriveLab PRIVATE $<$<COMPILE_LANGUAGE:OBJCXX>:-fobjc-arc>)
+    target_compile_definitions(DriveLab PRIVATE LAB_OBJC_PREFIX=DriveLabFace)
+    smtg_target_add_plugin_resources(DriveLab RESOURCES ui/prototype/faces.html)
+endif()
 if(SMTG_MAC)
     smtg_target_set_bundle(DriveLab
         BUNDLE_IDENTIFIER "local.echolab.drive"

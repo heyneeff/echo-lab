@@ -1,10 +1,13 @@
 #pragma once
 #include <array>
+#include <atomic>
+#include <string>
 
 #include "public.sdk/source/vst/vstsinglecomponenteffect.h"
 
 #include "../../dsp/EchoEngine.h"
 #include "params.h"
+#include "WebEditor.h"
 
 namespace echolab {
 
@@ -27,6 +30,7 @@ public:
     tresult PLUGIN_API getState(Steinberg::IBStream* state) SMTG_OVERRIDE;
     Steinberg::uint32 PLUGIN_API getLatencySamples() SMTG_OVERRIDE { return 0; }
     Steinberg::uint32 PLUGIN_API getTailSamples() SMTG_OVERRIDE { return Steinberg::Vst::kInfiniteTail; }
+    Steinberg::IPlugView* PLUGIN_API createView(Steinberg::FIDString name) SMTG_OVERRIDE;
 
 private:
     void applyParams();
@@ -34,6 +38,10 @@ private:
     EchoEngine engine;
     int currentStyle = -1;
     double sampleRate = 44100;
+    // editor link: meters written by the audio thread (peak-held), read and reset by the editor
+    std::atomic<float> mIn{0}, mWet{0}, mWr{0}, mWf{0}, mDuck{1};
+    std::string feedJson();
+    void setFromEditor(const std::string& name, double plain);
 };
 
 }  // namespace echolab
