@@ -120,12 +120,18 @@ smtg_add_vst3plugin(Morpheus
     third_party/vst3sdk/public.sdk/source/vst/vstsinglecomponenteffect.cpp
     plugin/synth/plugin.cpp
     plugin/synth/entry.cpp
+    third_party/vst3sdk/public.sdk/source/common/pluginview.cpp
+    plugin/common/WebEditor.mm
 )
 target_compile_features(Morpheus PRIVATE cxx_std_20)
-target_include_directories(Morpheus PRIVATE plugin/synth dsp)
+target_include_directories(Morpheus PRIVATE plugin/synth dsp plugin/common)
 target_link_libraries(Morpheus PRIVATE sdk)
 smtg_target_configure_version_file(Morpheus)
 if(SMTG_MAC)
+    target_link_libraries(Morpheus PRIVATE "-framework WebKit" "-framework Cocoa")
+    target_compile_options(Morpheus PRIVATE $<$<COMPILE_LANGUAGE:OBJCXX>:-fobjc-arc>)
+    target_compile_definitions(Morpheus PRIVATE LAB_OBJC_PREFIX=MorpheusFace)
+    smtg_target_add_plugin_resources(Morpheus RESOURCES ui/prototype/morpheus.html)
     smtg_target_set_bundle(Morpheus
         BUNDLE_IDENTIFIER "local.echolab.morpheus"
         COMPANY_NAME "Echo Lab")
@@ -149,3 +155,7 @@ add_executable(test_synth harness/test_synth.cpp)
 target_compile_features(test_synth PRIVATE cxx_std_20)
 target_include_directories(test_synth PRIVATE dsp)
 add_test(NAME synth_engine COMMAND test_synth ${CMAKE_BINARY_DIR}/synth_demo.wav)
+add_executable(test_resynth harness/test_resynth.cpp)
+target_compile_features(test_resynth PRIVATE cxx_std_20)
+target_include_directories(test_resynth PRIVATE dsp)
+add_test(NAME synth_resynth COMMAND test_resynth)

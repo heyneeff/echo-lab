@@ -28,6 +28,11 @@ using namespace Steinberg;
     if ([type isEqualToString:@"log"]) { NSLog(@"[face] %@", d[@"msg"]); return; }
     if ([type isEqualToString:@"param"] && [d[@"name"] isKindOfClass:[NSString class]] && [d[@"value"] isKindOfClass:[NSNumber class]])
         self.owner->onMessage([d[@"name"] UTF8String], [d[@"value"] doubleValue]);
+    else if ([type isKindOfClass:[NSString class]]) {
+        auto str = [](id v) { return [v isKindOfClass:[NSString class]] ? std::string([(NSString*)v UTF8String]) : std::string(); };
+        double value = [d[@"value"] isKindOfClass:[NSNumber class]] ? [d[@"value"] doubleValue] : 0.0;
+        self.owner->onOther([type UTF8String], str(d[@"name"]), str(d[@"data"]), value);
+    }
 }
 @end
 
@@ -76,9 +81,9 @@ tresult PLUGIN_API WebEditor::attached(void* parent, FIDString type) {
         lv.web.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
         [host addSubview:lv.web];
 
-        // the page ships inside the plugin bundle: Contents/Resources/faces.html
+        // the page ships inside the plugin bundle: Contents/Resources/<page>.html (faces.html by default)
         NSBundle* bundle = [NSBundle bundleForClass:[LabBridge class]];
-        NSURL* page = [bundle URLForResource:@"faces" withExtension:@"html"];
+        NSURL* page = [bundle URLForResource:[NSString stringWithUTF8String:hooks.page.c_str()] withExtension:@"html"];
         if (page) [lv.web loadFileURL:page allowingReadAccessToURL:[page URLByDeletingLastPathComponent]];
         else [lv.web loadHTMLString:@"<body style='background:#0b0b0d;color:#ff8a1f;font:14px monospace;padding:40px'>faces.html missing from the plugin bundle</body>" baseURL:nil];
 

@@ -1,6 +1,9 @@
 #include "plugin.h"
+#include "b64.h"
 
+#include <cctype>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 
 #include "base/source/fstreamer.h"
@@ -38,7 +41,10 @@ private:
     ParamDef def;
 };
 
-constexpr uint32 kStateVersion = 1;
+constexpr uint32 kStateVersion = 2;  // 2: + grown wavetable
+constexpr int kSavedHarmonics = 512;   // per frame, complex, as floats
+
+std::string upper(std::string s) { for (auto& c : s) c = (char)std::toupper((unsigned char)c); return s; }
 
 const DriveVoice& orpheoDrive() {
     for (const auto& v : kDriveVoices) if (!std::strcmp(v.name, "ORPHEO")) return v;
@@ -158,9 +164,128 @@ tresult PLUGIN_API SynthPlugin::process(ProcessData& data) {
     }
     render(L, R, pos, n);
     if (driveOn) drive.process(L, R != L ? R : nullptr, n);
-    for (int i = 0; i < n; ++i) { L[i] = wt::Synth::safety(L[i]); if (R != L) R[i] = wt::Synth::safety(R[i]); }
+    float pk = 0;
+    for (int i = 0; i < n; ++i) {
+        L[i] = wt::Synth::safety(L[i]);
+        if (R != L) R[i] = wt::Synth::safety(R[i]);
+        pk = std::max(pk, std::max(std::abs(L[i]), std::abs(R[i])));
+    }
+    if (pk > mOut.load(std::memory_order_relaxed)) mOut.store(pk, std::memory_order_relaxed);
     out.silenceFlags = synth.activeVoices() == 0 && !driveOn ? 3 : 0;
     return kResultOk;
+}
+
+SynthPlugin::~SynthPlugin() {
+    if (worker.joinable()) worker.join();
+    synth.setTable(nullptr);
+}
+
+void SynthPlugin::onEditorMessage(const std::string& type, const std::string& name, const std::string& data, double value) {
+    if (type == "audio" && !data.empty() && value > 1000) {  // {name: file name, data: base64 float32 mono, value: sample rate}
+        if (growing.exchange(true)) return;  // one at a time
+        if (worker.joinable()) worker.join();
+        worker = std::thread([this, audio = decodeFloats(data), sr = value, name]() mutable {
+            growTable(std::move(audio), sr, name);
+            growing = false;
+        });
+    } else if (type == "factory") {
+        useFactoryTable();
+    }
+}
+
+void SynthPlugin::growTable(std::vector<float> audio, double sr, std::string name) {
+    wt::ResynthInfo info;
+    auto spectra = wt::resynthesize(audio.data(), (int)audio.size(), sr, info);
+    char buf[64];
+    if (info.pitched) std::snprintf(buf, sizeof buf, "PITCHED %.0f HZ", info.f0);
+    else std::snprintf(buf, sizeof buf, "RAW CYCLES");
+    const auto dot = name.find_last_of('.');
+    installTable(std::move(spectra), upper(dot == std::string::npos ? name : name.substr(0, dot)).substr(0, 28), buf);
+}
+
+void SynthPlugin::installTable(std::vector<wt::Spectrum> spectra, std::string name, std::string info) {
+    for (std::string* t : {&name, &info})  // shown in the face as JSON text: keep it plain
+        for (auto& c : *t) if (!std::isalnum((unsigned char)c) && c != ' ' && c != '-' && c != '.') c = ' ';
+    for (auto& s : spectra) for (int h = kSavedHarmonics + 1; h <= wt::kMaxHarm; ++h) s[h] = 0;  // what the state can hold
+    auto t = std::make_unique<wt::Wavetable>();
+    t->build(spectra);
+    std::lock_guard<std::mutex> lock(tableMx);
+    retired = std::move(custom);  // the audio thread may still be finishing a block with it
+    custom = std::move(t);
+    synth.setTable(custom.get());
+    customSpectra = std::move(spectra);
+    tableName = std::move(name);
+    tableInfo = std::move(info);
+    sendTable = true;
+}
+
+void SynthPlugin::useFactoryTable() {
+    std::lock_guard<std::mutex> lock(tableMx);
+    synth.setTable(nullptr);
+    retired = std::move(custom);
+    customSpectra.clear();
+    tableName = "ORPHEO";
+    tableInfo = "FACTORY";
+    sendTable = true;
+}
+
+IPlugView* PLUGIN_API SynthPlugin::createView(FIDString name) {
+    if (!FIDStringsEqual(name, ViewType::kEditor)) return nullptr;
+    sendTable = true;  // a fresh page needs the wavetable once
+    WebEditor::Hooks h;
+    h.unit = "morpheus";
+    h.page = "morpheus";
+    h.feed = [this] { return feedJson(); };
+    h.setParam = [this](const std::string& n, double v) { setFromEditor(n, v); };
+    h.message = [this](const std::string& t, const std::string& n, const std::string& d, double v) { onEditorMessage(t, n, d, v); };
+    return new WebEditor(std::move(h), 1180, 760);
+}
+
+void SynthPlugin::setFromEditor(const std::string& name, double plain) {
+    for (int id = 0; id < kNumParams; ++id) {
+        if (name != kParams[id].name) continue;
+        double nv = toNorm(kParams[id], plain);
+        beginEdit(id); performEdit(id, nv); setParamNormalized(id, nv); endEdit(id);
+        return;
+    }
+}
+
+std::string SynthPlugin::feedJson() {
+    std::string s = "{\"p\":{";
+    char buf[160];
+    for (int id = 0; id < kNumParams; ++id) {
+        std::snprintf(buf, sizeof buf, "%s\"%s\":%.6g", id ? "," : "", kParams[id].name, toPlain(kParams[id], getParamNormalized(id)));
+        s += buf;
+    }
+    s += "},\"v\":[";
+    bool first = true;
+    for (auto& v : synth.views) {
+        const int note = v.note.load(std::memory_order_relaxed);
+        if (note < 0) continue;
+        std::snprintf(buf, sizeof buf, "%s[%d,%.4f,%.4f,%.4f]", first ? "" : ",", note, v.pos.load(std::memory_order_relaxed),
+                      v.amp.load(std::memory_order_relaxed), v.mod.load(std::memory_order_relaxed));
+        s += buf;
+        first = false;
+    }
+    std::snprintf(buf, sizeof buf, "],\"out\":%.5g,\"busy\":%d", mOut.exchange(0), growing.load() ? 1 : 0);
+    s += buf;
+    {
+        std::lock_guard<std::mutex> lock(tableMx);
+        s += ",\"tn\":\"" + tableName + "\",\"ti\":\"" + tableInfo + "\"";
+    }
+    if (sendTable.exchange(false)) {  // 64 frames x 128 points, from a smooth (64-harmonic) level
+        const auto& t = synth.wavetable();
+        s += ",\"wt\":[";
+        for (int f = 0; f < t.frames; ++f) {
+            const float* d = t.at(f, 4);
+            s += f ? ",[" : "[";
+            for (int k = 0; k < 128; ++k) { std::snprintf(buf, sizeof buf, "%s%.3f", k ? "," : "", d[k * wt::kTableSize / 128]); s += buf; }
+            s += "]";
+        }
+        s += "]";
+    }
+    s += "}";
+    return s;
 }
 
 tresult PLUGIN_API SynthPlugin::setState(IBStream* state) {
@@ -173,6 +298,25 @@ tresult PLUGIN_API SynthPlugin::setState(IBStream* state) {
         if (id >= 0 && id < kNumParams) { norm[id] = v; setParamNormalized(id, v); }
     }
     applyParams();
+    int32 hasTable = 0;
+    if (version >= 2 && s.readInt32(hasTable) && hasTable) {
+        int32 nameLen = 0, frames = 0, harm = 0;
+        if (!s.readInt32(nameLen) || nameLen < 0 || nameLen > 256) return kResultFalse;
+        std::string name(nameLen, ' ');
+        for (auto& c : name) { int8 ch; if (!s.readInt8(ch)) return kResultFalse; c = (char)ch; }
+        if (!s.readInt32(frames) || !s.readInt32(harm) || frames != wt::kFrames || harm < 1 || harm > wt::kMaxHarm) return kResultFalse;
+        std::vector<wt::Spectrum> spectra(frames);
+        for (auto& sp : spectra) {
+            sp.fill(0.0);
+            for (int h = 1; h <= harm; ++h) { float re, im; if (!s.readFloat(re) || !s.readFloat(im)) return kResultFalse; sp[h] = {re, im}; }
+        }
+        std::string info;
+        int32 infoLen = 0;
+        if (s.readInt32(infoLen) && infoLen > 0 && infoLen < 256) { info.resize(infoLen); for (auto& c : info) { int8 ch; if (!s.readInt8(ch)) break; c = (char)ch; } }
+        installTable(std::move(spectra), name, info.empty() ? "GROWN" : info);
+    } else if (version >= 2) {
+        useFactoryTable();
+    }
     return kResultOk;
 }
 
@@ -181,6 +325,18 @@ tresult PLUGIN_API SynthPlugin::getState(IBStream* state) {
     s.writeInt32u(kStateVersion);
     s.writeInt32u(kNumParams);
     for (int i = 0; i < kNumParams; ++i) { s.writeInt32(i); s.writeDouble(getParamNormalized(i)); }
+    std::lock_guard<std::mutex> lock(tableMx);
+    s.writeInt32(customSpectra.empty() ? 0 : 1);
+    if (!customSpectra.empty()) {
+        s.writeInt32((int32)tableName.size());
+        for (char c : tableName) s.writeInt8((int8)c);
+        s.writeInt32((int32)customSpectra.size());
+        s.writeInt32(kSavedHarmonics);
+        for (const auto& sp : customSpectra)
+            for (int h = 1; h <= kSavedHarmonics; ++h) { s.writeFloat((float)sp[h].real()); s.writeFloat((float)sp[h].imag()); }
+        s.writeInt32((int32)tableInfo.size());
+        for (char c : tableInfo) s.writeInt8((int8)c);
+    }
     return kResultOk;
 }
 

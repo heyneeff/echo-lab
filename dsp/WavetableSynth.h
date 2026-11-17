@@ -3,6 +3,7 @@
 #pragma once
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cmath>
 #include <complex>
 #include <cstdint>
@@ -42,8 +43,9 @@ inline void fft(std::vector<std::complex<double>>& a) {  // in-place radix-2, e^
     }
 }
 
-// A frame's spectrum: sine amplitude per harmonic, index 1..kMaxHarm (index 0 unused).
-using Spectrum = std::array<double, kMaxHarm + 1>;
+// A frame's spectrum: harmonic h (1..kMaxHarm, index 0 unused) contributes Re(c_h * e^{i 2pi h phase}),
+// i.e. amplitude |c_h| and phase arg(c_h). A sine-phase partial of amplitude a is c = -i a.
+using Spectrum = std::array<std::complex<double>, kMaxHarm + 1>;
 
 struct Wavetable {
     int frames = 0;
@@ -59,12 +61,12 @@ struct Wavetable {
             for (int level = 0; level < kLevels; ++level) {
                 const int top = kMaxHarm >> level;
                 std::fill(buf.begin(), buf.end(), 0.0);
-                for (int h = 1; h <= top; ++h) buf[h] = std::complex<double>(0, -spec[f][h]);  // Re(-i a e^{iθ}) = a sin θ
+                for (int h = 1; h <= top; ++h) buf[h] = spec[f][h];
                 fft(buf);
                 if (level == 0) {  // one gain per frame (from the full-band copy), so levels match
                     double peak = 1e-9;
                     for (auto& c : buf) peak = std::max(peak, std::abs(c.real()));
-                    gain = 1.0 / peak;
+                    gain = peak > 1e-6 ? 1.0 / peak : 0.0;  // a silent frame stays silent
                 }
                 float* d = &data[((size_t)f * kLevels + level) * kStride];
                 for (int i = 0; i < kTableSize; ++i) d[i] = (float)(buf[i].real() * gain);
@@ -97,7 +99,7 @@ inline std::vector<Spectrum> orpheoSpectra() {
                 case 2: a = (1 - t) * saw(h) + t * square(h); break;
                 default: a = (1 - t) * square(h) + t * vowel(h, t); break;
             }
-            out[f][h] = a;
+            out[f][h] = std::complex<double>(0, -a);  // sine phase
         }
         out[f][0] = 0;
     }
@@ -161,7 +163,11 @@ class Synth {
 public:
     static constexpr int kVoices = 16;
 
-    Synth() { table.build(orpheoSpectra()); }
+    Synth() { factory.build(orpheoSpectra()); }
+
+    // Play from another table (nullptr = the factory table). The caller keeps it alive until it
+    // has been replaced and at least one more block has run.
+    void setTable(const Wavetable* t) { current.store(t ? t : &factory, std::memory_order_release); }
 
     void prepare(double sampleRate) { sr = sampleRate; reset(); }
     void reset() {
@@ -201,11 +207,13 @@ public:
 
     // add n samples into L/R (caller clears)
     void process(float* L, float* R, int n) {
+        const Wavetable& table = *current.load(std::memory_order_acquire);
         const double out = std::pow(10.0, p.outputDb / 20);
         const int uni = std::clamp(p.unison, 1, kMaxUnison);
         const double uniGain = 1.0 / std::sqrt((double)uni);
-        for (auto& v : voices) {
-            if (!v.active()) continue;
+        for (int vi = 0; vi < kVoices; ++vi) {
+            auto& v = voices[vi];
+            if (!v.active()) { views[vi].note.store(-1, std::memory_order_relaxed); continue; }
             v.amp.set(sr, p.ampA, p.ampD, p.ampS, p.ampR);
             v.mod.set(sr, p.modA, p.modD, 0, p.ampR);
             const double f0 = 440.0 * std::pow(2.0, (v.note - 69) / 12.0);
@@ -232,7 +240,7 @@ public:
                 const double ff = pos - f0i;
                 double sl = 0, sr_ = 0;
                 for (int u = 0; u < uni; ++u) {
-                    const double s = read(f0i, ff, lev[u], v.phase[u]);
+                    const double s = read(table, f0i, ff, lev[u], v.phase[u]);
                     sl += s * gl[u];
                     sr_ += s * gr[u];
                     v.phase[u] += inc[u];
@@ -261,7 +269,13 @@ public:
                 const double g = a * velGain * out * 0.35;
                 L[i] += (float)(sl * g);
                 R[i] += (float)(sr_ * g);
+                if (i == n - 1) {
+                    views[vi].pos.store((float)(pos / (table.frames - 1)), std::memory_order_relaxed);
+                    views[vi].amp.store((float)a, std::memory_order_relaxed);
+                    views[vi].mod.store((float)m, std::memory_order_relaxed);
+                }
             }
+            views[vi].note.store(v.active() ? v.note : -1, std::memory_order_relaxed);
         }
     }
 
@@ -278,8 +292,12 @@ public:
         if (withSafety) for (int i = 0; i < n; ++i) { L[i] = safety(L[i]); R[i] = safety(R[i]); }
     }
 
+    // per-voice view for the editor: note (-1 = idle), effective table position, amp and mod levels
+    struct View { std::atomic<int> note{-1}; std::atomic<float> pos{0}, amp{0}, mod{0}; };
+    std::array<View, kVoices> views;
+
     int activeVoices() const { int c = 0; for (auto& v : voices) c += v.active(); return c; }
-    const Wavetable& wavetable() const { return table; }
+    const Wavetable& wavetable() const { return *current.load(std::memory_order_acquire); }
 
 private:
     int levelFor(double f) const {  // fewest-cut level whose top harmonic stays under Nyquist
@@ -288,7 +306,7 @@ private:
         while (level < kLevels - 1 && (kMaxHarm >> level) > maxH) ++level;
         return level;
     }
-    double read(int f, double ff, int level, double ph) const {
+    static double read(const Wavetable& table, int f, double ff, int level, double ph) {
         const double x = ph * kTableSize;
         const int i = (int)x;
         const double t = x - i;
@@ -299,7 +317,8 @@ private:
     }
     double rand01() { seed = seed * 6364136223846793005ULL + 1442695040888963407ULL; return (seed >> 11) * (1.0 / 9007199254740992.0); }
 
-    Wavetable table;
+    Wavetable factory;
+    std::atomic<const Wavetable*> current{&factory};
     Params p;
     double sr = 48000;
     std::array<Voice, kVoices> voices{};

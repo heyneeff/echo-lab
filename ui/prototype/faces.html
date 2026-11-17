@@ -14,6 +14,9 @@
   --sans: Montserrat, "Helvetica Neue", Arial, sans-serif;
   --vec: "Share Tech Mono", ui-monospace, monospace;
 }
+/* a control surface, not a document: no text selection, no dragging images around */
+html, body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+img, canvas, svg { -webkit-user-drag: none; user-drag: none; }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: radial-gradient(1200px 800px at 50% 10%, #1a1a1f, #050506); color: var(--txt); font-family: var(--sans); overflow: hidden; }
 .bar { height: 46px; display: flex; align-items: center; gap: 10px; padding: 0 16px; font: 11px var(--vec); color: #9a968f; letter-spacing: .14em; }
@@ -226,6 +229,9 @@ html.host body { background: #0b0b0d; }
 </div></div>
 <div class="drop">DROP AUDIO TO RUN IT THROUGH</div>
 <script>
+// a control surface, not a document: never start a text selection or drag an element out of the face
+document.addEventListener("dragstart", e => e.preventDefault());
+document.addEventListener("selectstart", e => e.preventDefault());
 // ===================================================================== plugin or browser?
 // Inside the plugin (WKWebView) the page talks to the real DSP: window.__host(json) brings meters,
 // curves and parameter values; edits go back via webkit.messageHandlers.lab.postMessage.
@@ -272,9 +278,9 @@ function knob(parent, { name, min, max, value, fmt, size = 44, log, color = COL.
     const v = fromN(n); val.textContent = fmt ? fmt(v) : v.toFixed(0); if (!silent && onchange) onchange(v);
   };
   const dial = el.querySelector(".dial");
-  dial.addEventListener("pointerdown", e => { drag = { y: e.clientY, n }; dial.setPointerCapture(e.pointerId); });
+  dial.addEventListener("pointerdown", e => { e.preventDefault(); drag = { y: e.clientY, n }; dial.setPointerCapture(e.pointerId); });
   dial.addEventListener("pointermove", e => { if (!drag) return; userEdit = performance.now(); n = Math.min(1, Math.max(0, drag.n + (drag.y - e.clientY) / (e.shiftKey ? 700 : 200))); paint(); });
-  dial.addEventListener("pointerup", () => drag = null);
+  dial.addEventListener("pointerup", () => drag = null); dial.addEventListener("pointercancel", () => drag = null); dial.addEventListener("lostpointercapture", () => drag = null);
   dial.addEventListener("dblclick", () => { n = toN(value); paint(); });
   dial.addEventListener("wheel", e => { e.preventDefault(); n = Math.min(1, Math.max(0, n - e.deltaY / 900)); paint(); }, { passive: false });
   paint();
@@ -290,7 +296,7 @@ function mixSlider(root, value, color, onchange) {
   const paint = () => { hd.style.left = (8 + v * (trk.clientWidth - 16)) + "px"; onchange(v * 100); };
   let drag = false;
   const at = e => { userEdit = performance.now(); const r = trk.getBoundingClientRect(), sc = r.width / trk.clientWidth; v = Math.min(1, Math.max(0, ((e.clientX - r.left) / sc - 8) / (trk.clientWidth - 16))); paint(); };
-  trk.addEventListener("pointerdown", e => { drag = true; trk.setPointerCapture(e.pointerId); at(e); });
+  trk.addEventListener("pointerdown", e => { e.preventDefault(); drag = true; trk.setPointerCapture(e.pointerId); at(e); });
   trk.addEventListener("pointermove", e => drag && at(e)); trk.addEventListener("pointerup", () => drag = false);
   nextFrame(paint);
   const dots = Array.from({ length: 70 }, () => [Math.random(), Math.random(), Math.random()]);
@@ -550,7 +556,7 @@ seg($("#dAuto"), ["AUTO GAIN", "OFF"], 0, i => { D.auto = i === 0; updateDrive()
   paint(); })();
 // the hero displays are X/Y pads, like Portal / Thermal
 function xyPad(el, onxy) { let on = false; const at = e => { const r = el.getBoundingClientRect(); onxy(Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), Math.min(1, Math.max(0, 1 - (e.clientY - r.top) / r.height))); };
-  el.addEventListener("pointerdown", e => { userEdit = performance.now(); on = true; el.setPointerCapture(e.pointerId); at(e); }); el.addEventListener("pointermove", e => on && at(e)); el.addEventListener("pointerup", () => on = false); }
+  el.addEventListener("pointerdown", e => { e.preventDefault(); userEdit = performance.now(); on = true; el.setPointerCapture(e.pointerId); at(e); }); el.addEventListener("pointermove", e => on && at(e)); el.addEventListener("pointerup", () => on = false); }
 xyPad($("#echoHero"), (x, y) => { if (E.sync) K.note.set(Math.round(x * 12)); else K.time.set(10 * Math.pow(200, x)); K.fb.set(y * 110); });
 xyPad($("#driveHero"), (x, y) => { K.drive.set(x * 10); K.tone.set(-12 + y * 24); });
 updateDrive(); updateEcho();
