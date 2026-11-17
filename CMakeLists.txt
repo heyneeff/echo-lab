@@ -92,3 +92,25 @@ if(SMTG_MAC)
 endif()
 add_executable(render_verb harness/render_verb.cpp)
 target_compile_features(render_verb PRIVATE cxx_std_20)
+
+# ---------------------------------------------------------------- Charon (pump / duck, sidechain)
+smtg_add_vst3plugin(Charon
+    third_party/vst3sdk/public.sdk/source/vst/vstsinglecomponenteffect.cpp
+    plugin/pump/plugin.cpp
+    plugin/pump/entry.cpp
+    third_party/vst3sdk/public.sdk/source/common/pluginview.cpp
+    plugin/common/WebEditor.mm
+)
+target_compile_features(Charon PRIVATE cxx_std_20)
+target_include_directories(Charon PRIVATE plugin/pump dsp plugin/common)
+target_link_libraries(Charon PRIVATE sdk)
+smtg_target_configure_version_file(Charon)
+if(SMTG_MAC)
+    target_link_libraries(Charon PRIVATE "-framework WebKit" "-framework Cocoa")
+    target_compile_options(Charon PRIVATE $<$<COMPILE_LANGUAGE:OBJCXX>:-fobjc-arc>)
+    target_compile_definitions(Charon PRIVATE LAB_OBJC_PREFIX=CharonFace)
+    smtg_target_add_plugin_resources(Charon RESOURCES ui/prototype/faces.html)
+    smtg_target_set_bundle(Charon
+        BUNDLE_IDENTIFIER "local.echolab.charon"
+        COMPANY_NAME "Echo Lab")
+endif()

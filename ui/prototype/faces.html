@@ -142,9 +142,9 @@ html.host body { background: #0b0b0d; }
   <span class="hint" id="srcName">drop any audio file on the page</span>
   <span class="sp"></span>
   <span>CHAIN</span>
-  <div class="grp"><button id="useDrive" class="on">DRIVE</button><span>→</span><button id="useEcho" class="on">ECHO</button><span>→</span><button id="useVerb" class="on">REVERB</button></div>
+  <div class="grp"><button id="useDrive" class="on">DRIVE</button><span>→</span><button id="useEcho" class="on">ECHO</button><span>→</span><button id="useVerb" class="on">REVERB</button><span>→</span><button id="usePump" class="on">PUMP</button></div>
   <span class="sp"></span>
-  <div class="grp"><button id="showEcho" class="on">ECHO NYMPH</button><button id="showDrive">PROMETHEUS DRIVE</button><button id="showVerb">LETHEVERB</button></div>
+  <div class="grp"><button id="showEcho" class="on">ECHO NYMPH</button><button id="showDrive">PROMETHEUS DRIVE</button><button id="showVerb">LETHEVERB</button><button id="showPump">CHARON</button></div>
 </div>
 <div id="stage"><div id="units">
 
@@ -202,6 +202,25 @@ html.host body { background: #0b0b0d; }
       <div class="grid4 g6" id="vSmall"></div>
       <div class="mix" id="vMix"><span>DRY</span><div class="trk"><canvas></canvas><div class="hd"></div></div><span>WET</span></div>
       <div class="foot"><div><div class="seg" id="vFreeze"><button data-i="0">❄ FREEZE</button></div></div><div class="wm orpheo" title="ORPHEO"></div><div class="meters"><canvas id="mV"></canvas></div></div>
+    </div>
+  </div></section>
+
+  <!-- ============================================================ CHARON -->
+  <section class="unit" id="pump"><div class="chassis">
+    <div class="hero" id="pumpHero">
+      <canvas id="tide"></canvas>
+      <div class="logo">CHARON<small>PUMP · DUCK · THE FERRYMAN'S OAR</small></div>
+      <div class="brk tr"></div><div class="brk bl"></div>
+      <div class="axis y" style="color:#a98bff">DEPTH<b id="axDepth"></b></div>
+      <div class="axis x" style="color:var(--amber)">CURVE<b id="axCurve"></b></div>
+    </div>
+    <div class="rail">
+      <div class="preset"><div class="pbtn pm" id="pPm" title="Presets">☰</div><span class="nm" id="pModeName"></span><span class="pn" id="pPn"></span><div class="pbtn" id="pPrev">◁</div><div class="pbtn" id="pNext">▷</div></div>
+      <div class="row" id="pBig"></div>
+      <div class="minis"><div class="mini"><canvas id="grView"></canvas></div><div class="mini"><canvas id="scView"></canvas></div></div>
+      <div class="grid4 g6" id="pSmall"></div>
+      <div class="mix" id="pMix"><span>DRY</span><div class="trk"><canvas></canvas><div class="hd"></div></div><span>WET</span></div>
+      <div class="foot"><div><div class="seg" id="pModes"></div></div><div class="wm orpheo" title="ORPHEO"></div><div class="meters"><canvas id="mP"></canvas></div></div>
     </div>
   </div></section>
 </div></div>
@@ -302,7 +321,7 @@ const ctx = new (window.AudioContext || window.webkitAudioContext)();
 const N = (type, opts) => new (window[type])(ctx, opts);
 const master = N("GainNode", { gain: 0.9 });
 // inside the plugin the page must never make sound itself: its audio engine is only the browser demo
-if (HOST) { ctx.suspend(); ctx.close && ctx.close(); } else master.connect(ctx.destination);
+if (HOST) { ctx.suspend(); ctx.close && ctx.close(); }
 const input = N("GainNode");          // every source plugs in here
 // ---- DRIVE section
 const D = { drive: 4, style: 4, punish: false, tone: 0, mix: 100, pump: 0, rate: 1, filter: 20000, res: 20, out: 0, auto: true, on: true, bpm: 120 };
@@ -347,6 +366,15 @@ const STYLES = [
   { n: "DARK ANALOG", lp: 2739, hp: 54, wob: 0 }, { n: "DIGITAL", lp: 21000, hp: 46, wob: 0 }, { n: "RADIO", lp: 6387, hp: 76, wob: 0 }, { n: "ORPHEO", lp: 12000, hp: 40, wob: 4 }];
 const E = { sync: false, note: 5, noteR: 6, time: 375, timeR: 500, fb: 55, mix: 35, sat: 4, lo: 20, hi: 20000, wob: 100, duck: 60, rel: 250, width: 100, out: 0, style: 1, mode: 0, on: true, throw: 0, age: 0, space: 0, warp: 1 };
 const TAPE = 2.2;
+// ---- CHARON (pump / duck)
+const RATES = ["1/1", "1/2", "1/4", "1/8", "1/16", "1/2T", "1/4T", "1/8T"], RATE_BEATS = [4, 2, 1, .5, .25, 4 / 3, 2 / 3, 1 / 3];
+const PU = { pmode: 0, pdepth: 60, prate: 2, patk: 5, phold: 0, pcurve: 0, pphase: 0, sthr: -30, satk: 2, srel: 180, pfilt: 20000, pfamt: 0, pres: 20, pmix: 100, pout: 0, on: true };
+function pumpShape(ph) {  // mirrors dsp/PumpEngine.h
+  ph = ph - PU.pphase / 100; ph -= Math.floor(ph);
+  const a = Math.min(.5, PU.patk / 100), h = Math.min(.5, PU.phold / 100);
+  if (ph < a) return a > 0 ? ph / a : 1; if (ph < a + h) return 1;
+  const r = (ph - a - h) / Math.max(1e-6, 1 - a - h), c = Math.pow(2, PU.pcurve / 100 * 2.5); return Math.pow(1 - r, c);
+}
 const NOTES = ["1/32", "1/16T", "1/16", "1/16D", "1/8T", "1/8", "1/8D", "1/4T", "1/4", "1/4D", "1/2", "1/2D", "1/1"];
 const NOTE_BEATS = [.125, 1 / 6, .25, .375, 1 / 3, .5, .75, 2 / 3, 1, 1.5, 2, 3, 4];
 const hostTempo = () => (HOST && H && H.tempo) ? H.tempo : 120;
@@ -381,6 +409,11 @@ const convs = [N("ConvolverNode"), N("ConvolverNode")], convG = [N("GainNode", {
 const anVIn = N("AnalyserNode", { fftSize: 2048 }), anVWet = N("AnalyserNode", { fftSize: 2048 });
 eOut.connect(vIn); vIn.connect(anVIn); vIn.connect(vDry); vDry.connect(master); convs.forEach((c, i) => { vIn.connect(c); c.connect(convG[i]); convG[i].connect(vDuckG); }); vDuckG.connect(vWetG); vWetG.connect(anVWet); vWetG.connect(master);
 let irTimer = null;
+const pIn = N("GainNode"), pGain = N("GainNode"), pDry = N("GainNode"), pWet = N("GainNode"), pFilt = N("BiquadFilterNode", { type: "lowpass", frequency: 20000 });
+const anPIn = N("AnalyserNode", { fftSize: 1024 }), anPOut = N("AnalyserNode", { fftSize: 1024 }), anSC = N("AnalyserNode", { fftSize: 512 });
+master.disconnect(); master.connect(pIn);  // browser chain: ... -> reverb -> CHARON -> speakers
+if (!HOST) { const pOutG = N("GainNode"); pIn.connect(anPIn); pIn.connect(pDry); pIn.connect(pFilt); pFilt.connect(pGain); pGain.connect(pWet); pDry.connect(pOutG); pWet.connect(pOutG); pOutG.connect(anPOut); pOutG.connect(ctx.destination); input.connect(anSC); }
+function updatePump() { const m = PU.on ? PU.pmix / 100 : 0; pWet.gain.value = m; pDry.gain.value = 1 - m; pFilt.Q.value = .7 + PU.pres / 100 * 12; }
 function updateVerb() { // browser stand-in: a stereo noise impulse with the same three-band decay times + early taps
   const m = RV.on ? RV.vmix / 100 : 0;
   vWetG.gain.setTargetAtTime(Math.sin(m * Math.PI / 2) * Math.pow(10, RV.vout / 20) * 0.6, ctx.currentTime, .02); vDry.gain.setTargetAtTime(Math.cos(m * Math.PI / 2), ctx.currentTime, .02);
@@ -454,10 +487,10 @@ addEventListener("dragover", e => { e.preventDefault(); document.body.classList.
 addEventListener("dragleave", e => { if (!e.relatedTarget) document.body.classList.remove("dragging"); });
 addEventListener("drop", e => { e.preventDefault(); document.body.classList.remove("dragging"); const f = e.dataTransfer.files[0]; if (f) loadFile(f); });
 const flip = (id, fn) => $(id).onclick = e => { e.target.classList.toggle("on"); fn(e.target.classList.contains("on")); };
-flip("#useDrive", on => { D.on = on; updateDrive(); }); flip("#useEcho", on => { E.on = on; updateEcho(); }); flip("#useVerb", on => { RV.on = on; updateVerb(); });
-const show = which => { $("#echo").classList.toggle("show", which === "echo"); $("#drive").classList.toggle("show", which === "drive"); $("#verb").classList.toggle("show", which === "verb"); $("#showVerb").classList.toggle("on", which === "verb"); $("#showEcho").classList.toggle("on", which === "echo"); $("#showDrive").classList.toggle("on", which === "drive"); };
-$("#showEcho").onclick = () => show("echo"); $("#showDrive").onclick = () => show("drive"); $("#showVerb").onclick = () => show("verb");
-if (!HOST) { const hv = { "#lethe": "verb", "#reverb": "verb", "#drive": "drive", "#prometheus": "drive", "#echo": "echo" }[location.hash]; if (hv) setTimeout(() => show(hv), 0); }
+flip("#useDrive", on => { D.on = on; updateDrive(); }); flip("#useEcho", on => { E.on = on; updateEcho(); }); flip("#useVerb", on => { RV.on = on; updateVerb(); }); flip("#usePump", on => { PU.on = on; updatePump(); });
+const show = which => { $("#echo").classList.toggle("show", which === "echo"); $("#drive").classList.toggle("show", which === "drive"); $("#verb").classList.toggle("show", which === "verb"); $("#showVerb").classList.toggle("on", which === "verb"); $("#pump").classList.toggle("show", which === "pump"); $("#showPump").classList.toggle("on", which === "pump"); $("#showEcho").classList.toggle("on", which === "echo"); $("#showDrive").classList.toggle("on", which === "drive"); };
+$("#showEcho").onclick = () => show("echo"); $("#showDrive").onclick = () => show("drive"); $("#showVerb").onclick = () => show("verb"); $("#showPump").onclick = () => show("pump");
+if (!HOST) { const hv = { "#charon": "pump", "#pump": "pump", "#lethe": "verb", "#reverb": "verb", "#drive": "drive", "#prometheus": "drive", "#echo": "echo" }[location.hash]; if (hv) setTimeout(() => show(hv), 0); }
 
 // ===================================================================== CONTROLS
 const K = {};
@@ -542,6 +575,27 @@ $("#vPrev").onclick = () => { userEdit = performance.now(); setVStyle(RV.vstyle 
 $("#vFreeze").onclick = () => { userEdit = performance.now(); RV.vfreeze = !RV.vfreeze; $("#vFreeze button").classList.toggle("on", RV.vfreeze); };
 xyPad($("#verbHero"), (x, y) => { K.vsize.set(25 + x * 175); K.vdecay.set(.2 * Math.pow(150, y)); });
 updateVerb();
+{ const pB = $("#pBig"), pS = $("#pSmall"), pct = v => v.toFixed(0) + " %";
+  K.pdepth = knob(pB, { name: "DEPTH", min: 0, max: 100, value: PU.pdepth, size: 84, color: COL.violet, fmt: pct, onchange: v => PU.pdepth = v });
+  K.prate = knob(pB, { name: "RATE", min: 0, max: 7, value: PU.prate, size: 84, color: COL.teal, fmt: v => RATES[Math.round(v)], onchange: v => PU.prate = Math.round(v) });
+  K.pcurve = knob(pB, { name: "CURVE", min: -100, max: 100, value: PU.pcurve, size: 84, color: COL.amber, fmt: v => (v > 0 ? "+" : "") + v.toFixed(0), onchange: v => PU.pcurve = v });
+  K.patk = knob(pS, { name: "ATTACK", min: 0, max: 50, value: PU.patk, color: COL.violet, fmt: pct, onchange: v => PU.patk = v });
+  K.phold = knob(pS, { name: "HOLD", min: 0, max: 50, value: PU.phold, color: COL.violet, fmt: pct, onchange: v => PU.phold = v });
+  K.pphase = knob(pS, { name: "PHASE", min: 0, max: 100, value: PU.pphase, color: COL.violet, fmt: pct, onchange: v => PU.pphase = v });
+  K.sthr = knob(pS, { name: "SC THRESH", min: -60, max: 0, value: PU.sthr, color: COL.teal, fmt: v => v.toFixed(0) + " dB", onchange: v => PU.sthr = v });
+  K.satk = knob(pS, { name: "SC ATTACK", min: .1, max: 50, value: PU.satk, log: true, color: COL.teal, fmt: v => v.toFixed(1) + " ms", onchange: v => PU.satk = v });
+  K.srel = knob(pS, { name: "SC RELEASE", min: 10, max: 1000, value: PU.srel, log: true, color: COL.teal, fmt: ms, onchange: v => PU.srel = v });
+  K.pfilt = knob(pS, { name: "FILTER", min: 200, max: 20000, value: PU.pfilt, log: true, color: COL.orange, fmt: v => v > 19900 ? "OFF" : hz(v), onchange: v => PU.pfilt = v });
+  K.pfamt = knob(pS, { name: "FILTER AMT", min: 0, max: 100, value: PU.pfamt, color: COL.orange, fmt: pct, onchange: v => PU.pfamt = v });
+  K.pres = knob(pS, { name: "RESO", min: 0, max: 100, value: PU.pres, color: COL.orange, fmt: pct, onchange: v => { PU.pres = v; updatePump(); } });
+  K.pout = knob(pS, { name: "OUTPUT", min: -24, max: 12, value: 0, color: COL.white, fmt: dB, onchange: v => PU.pout = v }); }
+const pMix = mixSlider($("#pMix"), PU.pmix, "#a98bff", v => { PU.pmix = v; updatePump(); });
+const PMODES = ["PUMP", "SIDECHAIN", "BOTH"];
+const setPMode = i => { PU.pmode = (i + 3) % 3; $("#pModeName").textContent = PMODES[PU.pmode]; $("#pModes").querySelectorAll("button").forEach((b, k) => b.classList.toggle("on", k === PU.pmode)); };
+seg($("#pModes"), PMODES, PU.pmode, i => { userEdit = performance.now(); setPMode(i); });
+$("#pPrev").onclick = () => { userEdit = performance.now(); setPMode(PU.pmode - 1); }; $("#pNext").onclick = () => { userEdit = performance.now(); setPMode(PU.pmode + 1); }; setPMode(PU.pmode);
+xyPad($("#pumpHero"), (x, y) => { K.pcurve.set(-100 + x * 200); K.pdepth.set(y * 100); });
+updatePump();
 // ===================================================================== MEASURE (what the displays read)
 const bufs = new Map(); const td = an => { let b = bufs.get(an); if (!b) bufs.set(an, b = new Float32Array(an.fftSize)); an.getFloatTimeDomainData(b); return b; };
 const rms = a => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * a[i]; return Math.sqrt(s / a.length); };
@@ -552,8 +606,18 @@ function brightness() { // spectral centroid of what is being written onto the t
   const c = den > 1e-12 ? num / den : 2000; return Math.min(1, Math.max(0, 1 - Math.log(c / 250) / Math.log(7000 / 250)));
 }
 const NB = 150; const tape = Array.from({ length: NB }, () => ({ t: -9, lvl: 0, h: 0 }));
-let duckEnv = 0, lastT = 0, vDuckEnv = 0; const levels = { eIn: 0, wet: 0, dIn: 0, dOut: 0, vIn: 0, vWet: 0, vEr: 0, vDuckGain: 1 };
+let duckEnv = 0, lastT = 0, vDuckEnv = 0; const levels = { eIn: 0, wet: 0, dIn: 0, dOut: 0, vIn: 0, vWet: 0, vEr: 0, vDuckGain: 1, pIn: 0, pOut: 0, pSc: 0, pGain: 1, pBeat: 0, pTempo: 120 };
+let pEnv = 0, pBeatFree = 0;
 function localMeasure(now, dt) {
+  { // CHARON in the browser: the same pump curve, run per frame; the demo's own input stands in as the sidechain
+    const per = RATE_BEATS[PU.prate]; pBeatFree += dt * 2; levels.pBeat = pBeatFree; levels.pTempo = 120;
+    const sc = rms(td(anSC)); const thr = Math.pow(10, PU.sthr / 20); pEnv = sc > pEnv ? sc : pEnv * Math.exp(-dt / (PU.srel / 1000));
+    const over = pEnv > thr ? Math.min(1, 20 * Math.log10(pEnv / thr) / 18) : 0; levels.pSc = sc;
+    const pumpD = PU.pmode !== 1 ? pumpShape((pBeatFree / per) % 1) : 0, duck = PU.pmode === 0 ? pumpD : PU.pmode === 1 ? over : Math.max(pumpD, over);
+    const g = 1 - PU.pdepth / 100 * duck; levels.pGain = g;
+    pGain.gain.setTargetAtTime(PU.on ? g * Math.pow(10, PU.pout / 20) : 1, ctx.currentTime, .004);
+    const fOn = PU.pfilt < 19900 && PU.pfamt > 0; pFilt.frequency.setTargetAtTime(fOn ? 20000 * Math.pow(PU.pfilt / 20000, Math.min(1, duck * PU.pfamt / 100)) : 20000, ctx.currentTime, .004);
+    levels.pIn = Math.max(rms(td(anPIn)), levels.pIn * Math.exp(-dt / .3)); levels.pOut = Math.max(rms(td(anPOut)), levels.pOut * Math.exp(-dt / .3)); }
   { const vi = rms(td(anVIn)), vw = rms(td(anVWet)); levels.vIn = Math.max(vi, levels.vIn * Math.exp(-dt / .3)); levels.vWet = Math.max(vw, levels.vWet * Math.exp(-dt / .3));
     const tg = Math.min(1, vi * 6); vDuckEnv = tg > vDuckEnv ? tg : vDuckEnv * Math.exp(-dt / (RV.vrel / 1000)); levels.vDuckGain = 1 / (1 + RV.vduck / 100 * 10 * vDuckEnv * .5);
     vDuckG.gain.setTargetAtTime(levels.vDuckGain, ctx.currentTime, .01); levels.vEr = vi * (VSTY[RV.vstyle].er * RV.vearly / 100); }
@@ -787,11 +851,66 @@ function drawRefl() { // timeline: pre-delay, the early reflection taps, then wh
   g.shadowBlur = 0; text(g, "L", W - 30, 30, V.amber, 9); text(g, "R", W - 20, 30, V.teal, 9);
 }
 
+// ===================================================================== CHARON DISPLAYS
+const tideRows = []; let tideCur = new Float32Array(64).fill(1), tideLastPh = 0, tideLastBin = -1, grHist = [], scHist = [];
+function drawTide(now) {
+  const [g, W, H] = fit($("#tide")), per = RATE_BEATS[PU.prate], ph = ((levels.pBeat / per) % 1 + 1) % 1, NBIN = 64;
+  vframe(g, W, H, "#a98bff", null, PMODES[PU.pmode] + " · " + RATES[PU.prate] + " · " + levels.pTempo.toFixed(0) + " BPM");
+  // record the real gain into the current cycle; a wrap starts a new row
+  const bin = Math.min(NBIN - 1, Math.floor(ph * NBIN)), gv = levels.pGain;
+  const fill = (from, to, a, b) => { for (let i = from; i <= to; i++) tideCur[i] = a + (b - a) * (to > from ? (i - from) / (to - from) : 1); };
+  if (ph < tideLastPh - .5) {  // wrapped: finish this cycle, start a new row
+    if (tideLastBin >= 0) fill(tideLastBin, NBIN - 1, tideCur[tideLastBin], tideCur[tideLastBin]);  // the old cycle ends where it was
+    tideRows.unshift(tideCur); if (tideRows.length > 14) tideRows.pop(); tideCur = new Float32Array(NBIN).fill(gv); tideLastBin = -1;
+  }
+  if (tideLastBin >= 0 && bin > tideLastBin) fill(tideLastBin, bin, tideCur[tideLastBin], gv); else tideCur[bin] = gv;  // no gaps between frames
+  tideLastBin = bin; tideLastPh = ph;
+  // isometric sheet: x = phase across the cycle, depth = older cycles, height = how far the track is pulled down
+  const x0 = W * .1, x1 = W * .84, y0 = H * .8, dxk = W * .02, dyk = -H * .019, amp = H * .26;
+  const P = (fx, k, gv) => [x0 + (x1 - x0) * fx + k * dxk, y0 + k * dyk - (1 - (1 - gv)) * amp * .0 - (gv) * amp];
+  g.lineWidth = 1; g.strokeStyle = "rgba(169,139,255,.14)";
+  for (let k = 0; k <= 14; k++) { const [a, b] = P(0, k, 0), [c, d] = P(1, k, 0); g.beginPath(); g.moveTo(a, b); g.lineTo(c, d); g.stroke(); }
+  for (let i = 0; i <= 8; i++) { const [a, b] = P(i / 8, 0, 0), [c, d] = P(i / 8, 14, 0); g.beginPath(); g.moveTo(a, b); g.lineTo(c, d); g.stroke(); }
+  // past cycles (back to front)
+  for (let k = tideRows.length - 1; k >= 0; k--) { const row = tideRows[k], al = .75 * (1 - k / 15);
+    g.strokeStyle = `rgba(169,139,255,${al})`; g.lineWidth = 1.2; g.beginPath(); for (let i = 0; i < NBIN; i++) { const [x, y] = P(i / (NBIN - 1), k + 1, row[i]); i ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke(); }
+  // the ideal pump shape (faint) for this cycle
+  if (PU.pmode !== 1) { g.setLineDash([3, 5]); g.strokeStyle = "rgba(255,201,60,.5)"; g.beginPath(); for (let i = 0; i <= 96; i++) { const f = i / 96, [x, y] = P(f, 0, 1 - PU.pdepth / 100 * pumpShape(f)); i ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke(); g.setLineDash([]); }
+  // the live cycle up to the playhead, and the playhead
+  g.strokeStyle = "#ffd27a"; g.lineWidth = 2.2; g.beginPath(); let started = false;
+  for (let i = 0; i < NBIN; i++) { if (i / NBIN > ph) break; const [x, y] = P(i / (NBIN - 1), 0, tideCur[i]); started ? g.lineTo(x, y) : g.moveTo(x, y); started = true; } g.stroke();
+  { const [x, y] = P(ph, 0, levels.pGain); g.fillStyle = "#fff1c9"; g.beginPath(); g.arc(x, y, 5, 0, 7); g.fill(); g.strokeStyle = "#ffd27a"; g.lineWidth = 1.4; g.beginPath(); g.arc(x, y, 11, 0, 7); g.stroke();
+    const [bx, by] = P(ph, 0, 0); g.strokeStyle = "rgba(255,210,122,.4)"; g.beginPath(); g.moveTo(bx, by); g.lineTo(x, y); g.stroke(); }
+  // beat ticks along the front edge
+  for (let i = 0; i < 4; i++) { const [x, y] = P(i / 4, 0, 0); text(g, i ? "·" : "1", x, y + 16, V.amber, 11, "center"); }
+  const grDb = 20 * Math.log10(Math.max(levels.pGain, 1e-3));
+  text(g, "GAIN " + grDb.toFixed(1) + " dB", W - 40, 136, "#a98bff", 13, "right");
+  if (PU.pfilt < 19900 && PU.pfamt > 0) text(g, "FILTER → " + hz(PU.pfilt) + " · " + PU.pfamt.toFixed(0) + "%", W - 40, 154, V.orange, 11, "right");
+  vpuck(g, 40 + (PU.pcurve + 100) / 200 * (W - 80), H - 40 - PU.pdepth / 100 * (H - 80));
+  $("#axDepth").textContent = PU.pdepth.toFixed(0) + "%"; $("#axCurve").textContent = (PU.pcurve > 0 ? "+" : "") + PU.pcurve.toFixed(0);
+}
+function drawGR() {
+  const [g, W, H] = fit($("#grView")); vframe(g, W, H, "#a98bff", "GAIN", RATES[PU.prate]);
+  grHist.push(levels.pGain); if (grHist.length > 180) grHist.shift();
+  const x0 = 16, w = W - 32, y0 = 22, h = H - 40;
+  g.strokeStyle = "rgba(255,255,255,.07)"; g.lineWidth = 1; for (const d of [0, .5, 1]) { g.beginPath(); g.moveTo(x0, y0 + h * d); g.lineTo(x0 + w, y0 + h * d); g.stroke(); }
+  g.strokeStyle = "#a98bff"; g.lineWidth = 1.6; g.beginPath(); grHist.forEach((v, i) => { const x = x0 + w * i / 180, y = y0 + h * (1 - v); i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.stroke();
+}
+function drawSC() {
+  const [g, W, H] = fit($("#scView")); vframe(g, W, H, V.teal, "SIDECHAIN", PU.pmode === 0 ? "OFF" : PU.sthr.toFixed(0) + " dB");
+  scHist.push(levels.pSc); if (scHist.length > 180) scHist.shift();
+  const x0 = 16, w = W - 32, y0 = 22, h = H - 40, Y = v => y0 + h * (1 - Math.max(0, (20 * Math.log10(Math.max(v, 1e-5)) + 60) / 60));
+  g.setLineDash([3, 4]); g.strokeStyle = "rgba(255,201,60,.6)"; g.beginPath(); g.moveTo(x0, Y(Math.pow(10, PU.sthr / 20))); g.lineTo(x0 + w, Y(Math.pow(10, PU.sthr / 20))); g.stroke(); g.setLineDash([]);
+  g.strokeStyle = PU.pmode === 0 ? "rgba(47,214,168,.35)" : V.teal; g.lineWidth = 1.4; g.beginPath(); scHist.forEach((v, i) => { const x = x0 + w * i / 180, y = Y(v); i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.stroke();
+  if (HOST && PU.pmode !== 0 && !scHist.some(v => v > 1e-4)) text(g, "route a kick into Sidechain", W / 2, H / 2 + 4, "#6c6a70", 10, "center");
+}
+
 // ===================================================================== PRESETS
 // Each preset is complete: it starts from the unit's defaults, so nothing from the last sound leaks in.
 const PDEF = {
   echo: { sync: false, note: 5, noteR: 6, time: 375, timeR: 500, fb: 40, mix: 30, sat: 0, lo: 20, hi: 20000, wob: 100, duck: 0, rel: 250, width: 100, out: 0, style: 0, mode: 0, throw: 0, age: 0, space: 0, warp: 1 },
   drive: { drive: 4, style: 0, punish: false, tone: 0, mix: 100, auto: true, out: 0, pump: 0, rate: 1, filter: 20000, res: 20 },
+  pump: { pmode: 0, pdepth: 60, prate: 2, patk: 5, phold: 0, pcurve: 0, pphase: 0, sthr: -30, satk: 2, srel: 180, pfilt: 20000, pfamt: 0, pres: 20, pmix: 100, pout: 0 },
   reverb: { vsize: 100, vdecay: 2.5, vpre: 10, vstyle: 0, vmix: 30, vdamp: 6000, vbass: 100, vdiff: 100, vmod: 100, vearly: 100, vlo: 20, vhi: 20000, vwidth: 100, vduck: 0, vrel: 300, vfreeze: false, vout: 0 },
 };
 const PRESETS = {
@@ -818,6 +937,17 @@ const PRESETS = {
     ["Parallel Punch", "smash blended under", { style: 1, drive: 7, mix: 35 }],
     ["Init", "defaults", {}],
   ],
+  pump: [
+    ["ORPHEO · Tide", "a slow breath with a closing filter", { prate: 2, pdepth: 45, patk: 3, pcurve: 30, pfilt: 2500, pfamt: 35, pres: 25 }, true],
+    ["Justice Pump", "the whole track breathes on 1/4", { prate: 2, pdepth: 75, patk: 2, phold: 5, pcurve: 50 }],
+    ["Four-Floor Duck", "sidechain: route your kick in", { pmode: 1, pdepth: 70, sthr: -28, srel: 160 }],
+    ["Breathing Pad", "long swells on 1/2", { prate: 1, pdepth: 55, patk: 25, pcurve: -40 }],
+    ["Gated Stutter", "hard 1/16 chop", { prate: 4, pdepth: 100, patk: 0, phold: 40, pcurve: 100 }],
+    ["Filter Disco Pump", "resonant low-pass on the beat", { prate: 2, pdepth: 30, pfilt: 600, pfamt: 90, pres: 55 }],
+    ["Subtle Glue", "barely there, just motion", { prate: 2, pdepth: 20 }],
+    ["Kick + Groove", "sidechain and pump together", { pmode: 2, pdepth: 60, sthr: -30, srel: 200 }],
+    ["Init", "defaults", {}],
+  ],
   reverb: [
     ["ORPHEO · Hall", "dark, lush, blooms in the gaps", { vstyle: 6, vsize: 110, vdecay: 2.6, vpre: 45, vmix: 30, vdamp: 5500, vlo: 180, vduck: 25, vrel: 350, vmod: 130, vearly: 60 }, true],
     ["Vocal Plate", "bright, short, ducked", { vstyle: 1, vdecay: 1.8, vpre: 25, vmix: 22, vdamp: 9000, vlo: 200, vduck: 30 }],
@@ -831,7 +961,7 @@ const PRESETS = {
     ["Init", "defaults", {}],
   ],
 };
-const UOBJ = { echo: () => E, drive: () => D, reverb: () => RV };
+const UOBJ = { echo: () => E, drive: () => D, reverb: () => RV, pump: () => PU };
 function refreshUnit(u) { const keep = UNIT; try { UNIT_OVERRIDE = u; refreshWidgets(); } finally { UNIT_OVERRIDE = null; } }
 let UNIT_OVERRIDE = null;
 function applyPreset(u, i) {
@@ -839,10 +969,10 @@ function applyPreset(u, i) {
   Object.assign(o, PDEF[u], vals);
   userEdit = performance.now();
   refreshUnit(u);
-  if (u === "echo") updateEcho(); else if (u === "drive") updateDrive(); else updateVerb();
-  $({ echo: "#ePn", drive: "#dPn", reverb: "#vPn" }[u]).textContent = name;
+  if (u === "echo") updateEcho(); else if (u === "drive") updateDrive(); else if (u === "pump") updatePump(); else updateVerb();
+  $({ echo: "#ePn", drive: "#dPn", reverb: "#vPn", pump: "#pPn" }[u]).textContent = name;
 }
-for (const [u, m, rail] of [["echo", "#ePm", "#echo .rail"], ["drive", "#dPm", "#drive .rail"], ["reverb", "#vPm", "#verb .rail"]]) {
+for (const [u, m, rail] of [["echo", "#ePm", "#echo .rail"], ["drive", "#dPm", "#drive .rail"], ["reverb", "#vPm", "#verb .rail"], ["pump", "#pPm", "#pump .rail"]]) {
   const menu = document.createElement("div"); menu.className = "pmenu";
   menu.innerHTML = `<div class="ph">PRESETS</div>` + PRESETS[u].map(([n, d, , flag], i) => `<button data-i="${i}" class="${flag ? "flag" : ""}"><span>${n}</span><small>${d}</small></button>`).join("");
   $(rail).appendChild(menu);
@@ -859,6 +989,7 @@ function shape(x) { // in the plugin: the true transfer curve of the current voi
 function measure(now, dt) { return HOST ? hostMeasure(now, dt) : localMeasure(now, dt); }
 function hostMeasure(now, dt) {
   const h = H || {}, dec = x => x * Math.exp(-dt / .3);
+  if (UNIT === "pump") { const dec2 = x => x * Math.exp(-dt / .3); levels.pIn = Math.max(h.inL || 0, dec2(levels.pIn)); levels.pOut = Math.max(h.out || 0, dec2(levels.pOut)); levels.pSc = h.sc || 0; levels.pGain = h.gain == null ? 1 : h.gain; levels.pBeat = h.beat || 0; levels.pTempo = h.tempo || 120; return { ph: .5, pumpVal: 1 }; }
   if (UNIT === "reverb") { levels.vIn = Math.max(h.inL || 0, dec(levels.vIn)); levels.vWet = Math.max(h.wet || 0, dec(levels.vWet)); levels.vEr = Math.max(h.er || 0, dec(levels.vEr)); levels.vDuckGain = h.duckGain == null ? 1 : h.duckGain; return { ph: .5, pumpVal: 1 }; }
   if (UNIT === "drive") { levels.dIn = Math.max(h.inL || 0, dec(levels.dIn)); levels.dOut = Math.max(h.out || 0, dec(levels.dOut)); return { ph: .5, pumpVal: h.pump == null ? 1 : h.pump }; }
   levels.eIn = Math.max(h.inL || 0, dec(levels.eIn)); levels.wet = Math.max(h.wet || 0, dec(levels.wet));
@@ -884,12 +1015,16 @@ const MAP = {
 MAP.reverb = [[RV, "vsize", "Size"], [RV, "vdecay", "Decay"], [RV, "vpre", "Pre-Delay"], [RV, "vstyle", "Style"], [RV, "vmix", "Mix"], [RV, "vdamp", "Damping"],
   [RV, "vbass", "Bass"], [RV, "vdiff", "Diffusion"], [RV, "vmod", "Modulation"], [RV, "vearly", "Early"], [RV, "vlo", "Low Cut", offLow], [RV, "vhi", "High Cut", offHigh],
   [RV, "vwidth", "Width"], [RV, "vduck", "Duck"], [RV, "vrel", "Duck Release"], [RV, "vfreeze", "Freeze", bool], [RV, "vout", "Output"]];
+MAP.pump = [[PU, "pmode", "Mode"], [PU, "pdepth", "Depth"], [PU, "prate", "Rate"], [PU, "patk", "Attack"], [PU, "phold", "Hold"], [PU, "pcurve", "Curve"],
+  [PU, "pphase", "Phase"], [PU, "sthr", "SC Threshold"], [PU, "satk", "SC Attack"], [PU, "srel", "SC Release"], [PU, "pfilt", "Filter", offHigh], [PU, "pfamt", "Filter Amount"],
+  [PU, "pres", "Resonance"], [PU, "pmix", "Mix"], [PU, "pout", "Output"]];
 const KEYOF = { echo: { out: "eout" }, drive: { out: "dout" } };
 const sent = {};
 function refreshWidgets() { // put every control in the state the plugin reports, without sending anything back
   const U = UNIT_OVERRIDE || UNIT, km = KEYOF[U] || {};
   for (const [o, f] of MAP[U]) { const k = K[km[f] || f]; if (k && typeof o[f] === "number") k.set(o[f], true); }
   if (U === "echo") { syncUI(); eMix.set(E.mix); $("#eStyleName").textContent = STYLES[E.style].n; $("#eModes").querySelectorAll("button").forEach((b, i) => b.classList.toggle("on", i === E.mode)); }
+  else if (U === "pump") { pMix.set(PU.pmix); setPMode(PU.pmode); }
   else if (U === "reverb") { vMix.set(RV.vmix); $("#vStyleName").textContent = VSTY[RV.vstyle] ? VSTY[RV.vstyle].n : ""; $("#vFreeze button").classList.toggle("on", RV.vfreeze); }
   else { dMix.set(D.mix); $("#dStyleName").textContent = DSTY[D.style] ? DSTY[D.style].n : ""; $("#dRates").querySelectorAll("button").forEach((b, i) => b.classList.toggle("on", i === D.rate));
     $("#dAuto").querySelectorAll("button").forEach((b, i) => b.classList.toggle("on", i === (D.auto ? 0 : 1))); $("#punish").classList.toggle("on", D.punish); $("#punState").textContent = D.punish ? "+18 dB" : "SAFE"; }
@@ -916,14 +1051,15 @@ function hostSync() { // send whatever the user changed (never before the plugin
     if (sent[name] == null || Math.abs(v - sent[name]) > 1e-6) { sent[name] = v; window.webkit.messageHandlers.lab.postMessage({ type: "param", name, value: v }); }
   }
 }
-if (HOST && UNIT) { $("#echo").classList.toggle("show", UNIT === "echo"); $("#drive").classList.toggle("show", UNIT === "drive"); $("#verb").classList.toggle("show", UNIT === "reverb"); scaleUnits(); }
+if (HOST && UNIT) { $("#echo").classList.toggle("show", UNIT === "echo"); $("#drive").classList.toggle("show", UNIT === "drive"); $("#verb").classList.toggle("show", UNIT === "reverb"); $("#pump").classList.toggle("show", UNIT === "pump"); scaleUnits(); }
 
 // ===================================================================== loop
 function tick() { window.__fr = (window.__fr || 0) + 1; hostSync();
   const now = ctx.state === "running" ? ctx.currentTime : performance.now() / 1000, dt = Math.min(.1, Math.max(.001, now - lastT)); lastT = now;
   const pm = measure(now, dt);
   const shown = document.querySelector(".unit.show");
-  if ($("#verb").classList.contains("show")) { drawVerb(now, dt); drawDecay(now); drawRefl(); meters("mV", levels.vIn, levels.vWet, "IN", "VERB"); vMix.draw(now, levels.vWet); }
+  if ($("#pump").classList.contains("show")) { drawTide(now); drawGR(); drawSC(); meters("mP", levels.pIn, levels.pOut, "IN", "OUT"); pMix.draw(now, levels.pOut); }
+  else if ($("#verb").classList.contains("show")) { drawVerb(now, dt); drawDecay(now); drawRefl(); meters("mV", levels.vIn, levels.vWet, "IN", "VERB"); vMix.draw(now, levels.vWet); }
   else if ($("#echo").classList.contains("show")) { drawRing(now); drawLadder(); drawDuck(); meters("mE", levels.eIn, levels.wet, "IN", "ECHO"); eMix.draw(now, levels.wet); }
   else { drawDrive(now, pm); meters("mD", levels.dIn, levels.dOut, "IN", "OUT"); dMix.draw(now, levels.dOut); }
   if (shown) shown.querySelectorAll(".hero > canvas:not(.bloom), .mini > canvas:not(.bloom)").forEach(bloom);
