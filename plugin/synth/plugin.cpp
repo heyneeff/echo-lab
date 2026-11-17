@@ -110,6 +110,11 @@ void SynthPlugin::applyParams() {
     p.outputDb = plain(kOutput);
     p.scanMode = (int)plain(kScan);
     p.scanSpeed = plain(kScanSpeed);
+    p.filterType = (int)plain(kFilterType);
+    p.filterMorph = plain(kFilterMorph) / 100;
+    p.filterDriveDb = plain(kFilterDrive);
+    p.hpf = (int)plain(kHpf);
+    p.keytrack = plain(kKeytrack) / 100;
     synth.update(p);
     synth.setTable(pickTable((int)plain(kTable)));
     DriveParams d;

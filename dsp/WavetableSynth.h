@@ -10,6 +10,8 @@
 #include <cstdint>
 #include <vector>
 
+#include "Filters.h"
+
 namespace echolab {
 namespace wt {
 
@@ -193,6 +195,12 @@ struct Params {
     // sound the table was grown from (built-in tables: 2 s), times scanSpeed
     int scanMode = kScanOff;
     double scanSpeed = 1;
+    // filter section (dsp/Filters.h); SVF with morph 0 and no drive is the original low-pass
+    int filterType = kFilterSvf;
+    double filterMorph = 0;       // 0..1
+    double filterDriveDb = 0;     // 0..24
+    double keytrack = 0;          // 0..1: cutoff follows the note (1 = an octave per octave, around C4)
+    int hpf = 1;                  // 0 boost, 1 flat, 2 low, 3 high
 };
 
 // ------------------------------------------------------------------ envelope
@@ -230,7 +238,7 @@ struct Voice {
     double subPhase = 0;
     double scan = 0;            // SCAN playhead 0..1 (from Position to the end)
     int scanDir = 1;
-    double ic1[2]{}, ic2[2]{};  // SVF state per channel
+    VoiceFilter filt;
     bool active() const { return amp.stage != Env::Idle; }
 };
 
@@ -238,19 +246,23 @@ class Synth {
 public:
     static constexpr int kVoices = 16;
 
-    Synth() { setTable(nullptr); }
+    Synth() : combMem((size_t)kVoices * 2 * kCombLen, 0.f) { setTable(nullptr); wireCombs(); }
 
     // Play from another table (nullptr = the ORPHEO table). The caller keeps it alive until it
     // has been replaced and at least one more block has run.
     void setTable(const Wavetable* t) { current.store(t ? t : &factoryTable(0), std::memory_order_release); }
 
-    void prepare(double sampleRate) { sr = sampleRate; reset(); }
+    void prepare(double sampleRate) { sr = sampleRate; reset(); hpf.set(p.hpf, sr); }
     void reset() {
         sm.pos = -1;
         for (auto& v : voices) v = Voice{};
+        wireCombs();
         held.fill(false);
     }
-    void update(const Params& np) { p = np; }
+    void update(const Params& np) {
+        if (np.hpf != p.hpf) hpf.set(np.hpf, sr);
+        p = np;
+    }
 
     void noteOn(int note, double velocity) {
         Voice* v = nullptr;
@@ -268,7 +280,7 @@ public:
             v->mod.v = 0;
             for (int u = 0; u < kMaxUnison; ++u) v->phase[u] = u == 0 ? 0.0 : rand01();
             v->subPhase = 0;
-            for (int c = 0; c < 2; ++c) v->ic1[c] = v->ic2[c] = 0;
+            v->filt.reset();
         }
         v->scan = 0;
         v->scanDir = 1;
@@ -286,26 +298,29 @@ public:
     // add n samples into L/R (caller clears)
     void process(float* L, float* R, int n) {
         for (int off = 0; off < n; off += kChunk) processChunk(L + off, R + off, std::min(kChunk, n - off));
+        hpf.process(L, R, n);
     }
 
 private:
     // Knob moves arrive once per host block; stepping the table position or the cutoff that coarsely
     // is audible as static. These glide sample by sample (~12 ms) instead.
     static constexpr int kChunk = 64;
-    struct Smooth { double pos = -1, cut = 0, res = 0, sub = 0, out = 0; } sm;
+    struct Smooth { double pos = -1, cut = 0, res = 0, sub = 0, out = 0, morph = 0, drive = 0; } sm;
 
     void processChunk(float* L, float* R, int n) {
         const Wavetable& table = *current.load(std::memory_order_acquire);
         const double k = 1 - std::exp(-1.0 / (0.012 * sr));
         const double tCut = std::log2(std::max(20.0, p.cutoffHz)), tOut = std::pow(10.0, p.outputDb / 20);
-        if (sm.pos < 0) sm = {p.position, tCut, p.resonance, p.sub, tOut};  // first block: start on target
-        double sPos[kChunk], sCut[kChunk], sRes[kChunk], sSub[kChunk], sOut[kChunk];
+        if (sm.pos < 0) sm = {p.position, tCut, p.resonance, p.sub, tOut, p.filterMorph, p.filterDriveDb};  // first block: on target
+        double sPos[kChunk], sCut[kChunk], sRes[kChunk], sSub[kChunk], sOut[kChunk], sMorph[kChunk], sDrive[kChunk];
         for (int i = 0; i < n; ++i) {
             sm.pos += (p.position - sm.pos) * k; sPos[i] = sm.pos;
             sm.cut += (tCut - sm.cut) * k;       sCut[i] = sm.cut;
             sm.res += (p.resonance - sm.res) * k; sRes[i] = sm.res;
             sm.sub += (p.sub - sm.sub) * k;       sSub[i] = sm.sub;
             sm.out += (tOut - sm.out) * k;        sOut[i] = sm.out;
+            sm.morph += (p.filterMorph - sm.morph) * k; sMorph[i] = sm.morph;
+            sm.drive += (p.filterDriveDb - sm.drive) * k; sDrive[i] = sm.drive;
         }
         const int uni = std::clamp(p.unison, 1, kMaxUnison);
         const double uniGain = 1.0 / std::sqrt((double)uni);
@@ -330,6 +345,9 @@ private:
             const double subInc = f0 * 0.5 / sr;
             const double scanInc = p.scanSpeed / ((table.seconds > 0 ? table.seconds : 2.0) * sr);
             const double velGain = 1 - p.velocity + p.velocity * v.vel;
+            const double keyOct = p.keytrack * (v.note - 60) / 12.0;
+            FilterSettings fs;
+            fs.type = p.filterType;
             for (int i = 0; i < n; ++i) {
                 const double a = v.amp.next(), m = v.mod.next();
                 if (!v.active()) break;
@@ -361,20 +379,14 @@ private:
                     v.subPhase += subInc;
                     if (v.subPhase >= 1) v.subPhase -= 1;
                 }
-                // SVF low-pass (TPT), cutoff follows the mod envelope
-                const double fc = std::clamp(std::exp2(sCut[i] + p.filterEnv * 6 * m), 20.0, sr * 0.45);
-                if (fc < sr * 0.449 || sRes[i] > 0.01) {
-                    const double g = std::tan(kPi * fc / sr), k = 2 - 1.9 * sRes[i];
-                    const double a1 = 1 / (1 + g * (g + k)), a2 = g * a1, a3 = g * a2;
-                    double* ch[2] = {&sl, &sr_};
-                    for (int c = 0; c < 2; ++c) {
-                        const double v0 = *ch[c], v3 = v0 - v.ic2[c];
-                        const double v1 = a1 * v.ic1[c] + a2 * v3, v2 = v.ic2[c] + a2 * v.ic1[c] + a3 * v3;
-                        v.ic1[c] = 2 * v1 - v.ic1[c];
-                        v.ic2[c] = 2 * v2 - v.ic2[c];
-                        *ch[c] = v2;
-                    }
-                }
+                // filter (dsp/Filters.h); cutoff follows the mod envelope and the keyboard
+                fs.fc = std::clamp(std::exp2(sCut[i] + p.filterEnv * 6 * m + keyOct), 20.0, sr * 0.45);
+                fs.res = sRes[i];
+                fs.morph = sMorph[i];
+                fs.driveDb = sDrive[i];
+                // the plain SVF low-pass, wide open and clean, is transparent: skip it (as v0.1 did)
+                const bool open = fs.type == kFilterSvf && fs.fc >= sr * 0.449 && fs.res <= 0.01 && fs.morph < 1e-4 && fs.driveDb < 0.01;
+                if (!open) v.filt.process(sl, sr_, fs, sr);
                 const double g = a * velGain * sOut[i] * 0.35;
                 L[i] += (float)(sl * g);
                 R[i] += (float)(sr_ * g);
@@ -431,6 +443,9 @@ private:
     double rand01() { seed = seed * 6364136223846793005ULL + 1442695040888963407ULL; return (seed >> 11) * (1.0 / 9007199254740992.0); }
 
     std::atomic<const Wavetable*> current{nullptr};
+    std::vector<float> combMem;  // comb-filter delay lines, 2 x kCombLen per voice (allocated once)
+    HpfStep hpf;
+    void wireCombs() { for (int i = 0; i < kVoices; ++i) voices[i].filt.comb = &combMem[(size_t)i * 2 * kCombLen]; }
     Params p;
     double sr = 48000;
     std::array<Voice, kVoices> voices{};

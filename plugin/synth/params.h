@@ -14,8 +14,11 @@ enum ParamId : int {
     kPosition = 0, kUnison, kDetune, kSpread, kSub, kCutoff, kResonance, kFilterEnv, kPosEnv,
     kAttack, kDecay, kSustain, kRelease, kModAttack, kModDecay, kVelocity, kDrive, kOutput,
     kTable, kScan, kScanSpeed,  // v0.3
+    kFilterType, kFilterMorph, kFilterDrive, kHpf, kKeytrack,  // v0.4
     kNumParams
 };
+inline const char* const kFilterTypeNames[] = {"SVF", "Ladder", "Diode", "OTA", "Comb", "Formant"};
+inline const char* const kHpfNames[] = {"Boost", "Flat", "Low", "High"};
 inline const char* const kTableNames[] = {"ORPHEO", "MOOG", "PWM", "SYNC", "JUNO", "GROWN"};
 constexpr int kTableGrown = 5;
 inline const char* const kScanNames[] = {"Off", "Once", "Loop", "Ping-Pong"};
@@ -44,9 +47,15 @@ inline const ParamDef kParams[kNumParams] = {
     {kTable, "Table", "", 0, 5, 0, Map::List},
     {kScan, "Scan", "", 0, 3, 0, Map::List},
     {kScanSpeed, "Scan Speed", "x", 0.25, 4, 1, Map::Log},
+    {kFilterType, "Filter Type", "", 0, 5, 0, Map::List},
+    {kFilterMorph, "Filter Morph", "%", 0, 100, 0, Map::Linear},
+    {kFilterDrive, "Filter Drive", "dB", 0, 24, 0, Map::Linear},
+    {kHpf, "HPF", "", 0, 3, 1, Map::List},
+    {kKeytrack, "Keytrack", "%", 0, 100, 0, Map::Linear},
 };
 inline const int kDisplayOrder[kNumParams] = {
-    kTable, kPosition, kScan, kScanSpeed, kPosEnv, kUnison, kDetune, kSpread, kSub, kCutoff, kResonance, kFilterEnv,
+    kTable, kPosition, kScan, kScanSpeed, kPosEnv, kUnison, kDetune, kSpread, kSub,
+    kFilterType, kCutoff, kResonance, kFilterMorph, kFilterDrive, kKeytrack, kHpf, kFilterEnv,
     kAttack, kDecay, kSustain, kRelease, kModAttack, kModDecay, kVelocity, kDrive, kOutput,
 };
 
@@ -94,6 +103,8 @@ inline std::string toText(const ParamDef& p, double n) {
     char buf[64];
     if (p.id == kTable) return kTableNames[std::clamp((int)v, 0, 5)];
     if (p.id == kScan) return kScanNames[std::clamp((int)v, 0, 3)];
+    if (p.id == kFilterType) return kFilterTypeNames[std::clamp((int)v, 0, 5)];
+    if (p.id == kHpf) return kHpfNames[std::clamp((int)v, 0, 3)];
     if (p.id == kScanSpeed) { std::snprintf(buf, sizeof buf, "%.2fx", v); return buf; }
     if (p.id == kUnison) { std::snprintf(buf, sizeof buf, v < 1.5 ? "%.0f voice" : "%.0f voices", v); return buf; }
     if ((p.map == Map::LogOffLow || p.map == Map::LogOffHigh) && v <= 0) return "Off";

@@ -75,14 +75,23 @@ body.dragging .hero .dropzone, .hero.growing .dropzone { display: grid; }
 @keyframes grow { 50% { border-color: #2fd6a8; color: #8ff0d2; } }
 
 .rail { position: relative; border-radius: 16px; background: linear-gradient(180deg, var(--rail-hi), var(--rail)); box-shadow: 0 0 0 1px #ffffff0a inset;
-  display: grid; grid-template-rows: 38px auto auto auto auto 1fr; gap: 12px; padding: 0 0 12px; overflow: hidden; }
+  display: grid; grid-template-rows: 38px auto 1fr; gap: 10px; padding: 0 0 12px; overflow: hidden; }
+.tabs { display: flex; gap: 6px; margin: 0 12px; }
+.tabs button { flex: 1; font: 700 9px var(--sans); letter-spacing: .3em; color: var(--dim); background: #141417; border: 1px solid #ffffff0d; border-radius: 7px; padding: 8px; cursor: pointer; }
+.tabs button.on { color: var(--amber); border-color: #ffc93c66; box-shadow: 0 0 12px #ffc93c22; background: #1d1b17; }
+.page { display: none; align-content: start; gap: 12px; } .page.on { display: grid; }
+.mini.wide { height: 172px; margin: 0 12px; }
+.ftype button { font-size: 8px; letter-spacing: .12em; }
+.frow { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; margin: 0 12px 0 6px; }
+.g3 { display: grid; grid-template-columns: repeat(3, 1fr); }
+.hpfbox { display: grid; gap: 6px; justify-items: center; } .hpfbox .lbl { font: 700 8px var(--sans); letter-spacing: .2em; color: var(--white, #e9e6e1); }
 .preset { display: flex; align-items: center; gap: 8px; padding: 0 10px 0 16px; background: #0f0f12; border-bottom: 1px solid #ffffff0a; }
 .preset .nm { font: 700 11px var(--sans); letter-spacing: .26em; }
 .preset .pn { flex: 1; font: 10px var(--vec); color: var(--amber); letter-spacing: .08em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: .85; }
 .pbtn { width: 26px; height: 26px; border-radius: 6px; background: #1d1d22; border: 1px solid #ffffff12; color: var(--txt); display: grid; place-items: center; cursor: pointer; font-size: 11px; }
 .row { display: flex; justify-content: space-around; align-items: flex-start; padding: 0 12px; }
 .minis { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 12px; }
-.mini { position: relative; height: 150px; border-radius: 10px; background: #0d0a09; box-shadow: 0 0 0 1px #ffffff0a inset; overflow: hidden; }
+.mini { position: relative; height: 128px; border-radius: 10px; background: #0d0a09; box-shadow: 0 0 0 1px #ffffff0a inset; overflow: hidden; }
 .g6 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px 0; padding: 0 6px; }
 .pmenu { position: absolute; left: 0; right: 0; top: 38px; bottom: 0; z-index: 5; display: none; align-content: start; gap: 6px; padding: 14px 14px 18px;
   background: rgba(13,10,9,.96); backdrop-filter: blur(4px); overflow: auto; border-top: 1px solid #ff8a1f33; }
@@ -140,12 +149,22 @@ body.dragging .hero .dropzone, .hero.growing .dropzone { display: grid; }
       <div class="dropzone" id="dropzone"><div>DROP AUDIO TO GROW A WAVETABLE<small>voice · synth · bass · drums · any sound</small></div></div>
     </div>
     <div class="rail">
-      <div class="preset"><div class="pbtn" id="pm" title="Presets">☰</div><span class="nm">VOICE</span><span class="pn" id="pn"></span><div class="pbtn" id="prev">◁</div><div class="pbtn" id="next">▷</div></div>
-      <div class="row" id="big"></div>
-      <div class="minis"><div class="mini"><canvas id="frameView"></canvas></div><div class="mini"><canvas id="filtView"></canvas></div></div>
-      <div class="g6" id="small"></div>
-      <div class="scanrow"><span class="lbl">SCAN</span><div class="seg" id="scanSeg"></div><div id="scanK"></div></div>
-      <div></div>
+      <div class="preset"><div class="pbtn" id="pm" title="Presets">☰</div><span class="nm">MORPHEUS</span><span class="pn" id="pn"></span><div class="pbtn" id="prev">◁</div><div class="pbtn" id="next">▷</div></div>
+      <div class="tabs" id="tabs"><button data-p="pgVoice" class="on">VOICE</button><button data-p="pgFilter">FILTER</button></div>
+      <div>
+        <div class="page on" id="pgVoice">
+          <div class="row" id="big"></div>
+          <div class="minis"><div class="mini"><canvas id="frameView"></canvas></div><div class="mini"><canvas id="filtView"></canvas></div></div>
+          <div class="g6" id="small"></div>
+          <div class="scanrow"><span class="lbl">SCAN</span><div class="seg" id="scanSeg"></div><div id="scanK"></div></div>
+        </div>
+        <div class="page" id="pgFilter">
+          <div class="seg ftype" id="ftSeg" style="margin:0 12px"></div>
+          <div class="mini wide"><canvas id="respView"></canvas></div>
+          <div class="row" id="fBig"></div>
+          <div class="frow"><div class="g3" id="fSmall"></div><div class="hpfbox"><span class="lbl">HPF</span><div class="seg" id="hpfSeg"></div></div></div>
+        </div>
+      </div>
       <div class="pmenu" id="pmenu"></div>
     </div>
     <div class="deck">
@@ -172,7 +191,7 @@ const VF = "'Share Tech Mono', ui-monospace, monospace";
 const log = m => { if (HOST) window.webkit.messageHandlers.lab.postMessage({ type: "log", msg: String(m) }); else console.log(m); };
 
 // ===================================================================== parameters (plain values; mirror plugin/synth/params.h)
-const DEF = { "Table": 0, "Scan": 0, "Scan Speed": 1, "Position": 40, "Unison": 1, "Detune": 15, "Spread": 60, "Sub": 0, "Cutoff": 20000, "Resonance": 10, "Filter Env": 0, "Position Env": 0,
+const DEF = { "Table": 0, "Scan": 0, "Scan Speed": 1, "Filter Type": 0, "Filter Morph": 0, "Filter Drive": 0, "HPF": 1, "Keytrack": 0, "Position": 40, "Unison": 1, "Detune": 15, "Spread": 60, "Sub": 0, "Cutoff": 20000, "Resonance": 10, "Filter Env": 0, "Position Env": 0,
   "Attack": 3, "Decay": 300, "Sustain": 80, "Release": 300, "Mod Attack": 3, "Mod Decay": 600, "Velocity": 60, "Drive": 0, "Output": 0 };
 const P = { ...DEF };
 let NF = 64;  // frames in the table being played (6 .. 64)
@@ -210,8 +229,9 @@ function knob(parent, { name, min, max, log: lg, size = 44, color = COL.amber, f
       (n > .002 ? `<path d="${arc(-135, a, 37)}" stroke="${color}" stroke-width="5" fill="none" stroke-linecap="round" style="filter:drop-shadow(0 0 4px ${color})"/>` : "") + ring + dots;
     ptr.style.transform = `rotate(${a}deg)`;
     const v = fromN(n); val.textContent = fmt ? fmt(v) : v.toFixed(0);
-    if (!silent) setParam(name, v);
+    if (!silent) { setParam(name, v); if (K[name]) K[name].list.forEach(o => o !== self && o.set(v, true)); }
   };
+  let self = null;
   const dial = el.querySelector(".dial");
   dial.addEventListener("pointerdown", e => { e.preventDefault(); drag = { y: e.clientY, n }; dial.setPointerCapture(e.pointerId); });
   dial.addEventListener("pointermove", e => { if (!drag) return; n = Math.min(1, Math.max(0, drag.n + (drag.y - e.clientY) / (e.shiftKey ? 700 : 200))); paint(); repaintMods(); });
@@ -219,7 +239,10 @@ function knob(parent, { name, min, max, log: lg, size = 44, color = COL.amber, f
   dial.addEventListener("dblclick", () => { n = toN(DEF[name]); paint(); repaintMods(); });
   dial.addEventListener("wheel", e => { e.preventDefault(); n = Math.min(1, Math.max(0, n - e.deltaY / 900)); paint(); repaintMods(); }, { passive: false });
   paint(true);
-  return K[name] = { el, set(v, silent) { n = Math.min(1, Math.max(0, toN(v))); paint(silent); }, repaint() { paint(true); }, norm: () => n };
+  self = { el, set(v, silent) { n = Math.min(1, Math.max(0, toN(v))); paint(silent); }, repaint() { paint(true); }, norm: () => n };
+  if (!K[name]) K[name] = { list: [], el, set(v, s) { this.list.forEach(k => k.set(v, s)); }, repaint() { this.list.forEach(k => k.repaint()); }, norm() { return this.list[0].norm(); } };
+  K[name].list.push(self);
+  return self;
 }
 // rings that depend on another knob (e.g. Position Env drawn on Position) repaint when that knob moves
 const repaintMods = () => { K["Position"] && K["Position"].repaint(); K["Cutoff"] && K["Cutoff"].repaint(); };
@@ -246,6 +269,13 @@ knob($("#modR"), { name: "Position Env", min: -100, max: 100, color: COL.violet,
 knob($("#modR"), { name: "Filter Env", min: -100, max: 100, color: COL.violet, fmt: spct });
 $("#modR").children[0].querySelector(".name").textContent = "→ POSITION";
 $("#modR").children[1].querySelector(".name").textContent = "→ CUTOFF";
+knob($("#fBig"), { name: "Cutoff", min: 20, max: 20000, log: true, size: 72, color: COL.orange, fmt: hz,
+  mod: () => [{ amt: P["Filter Env"] / 100 * 6 / CUT_OCT, col: COL.violet }] });
+knob($("#fBig"), { name: "Resonance", min: 0, max: 100, size: 72, color: COL.orange, fmt: pct });
+const morphKnob = knob($("#fBig"), { name: "Filter Morph", min: 0, max: 100, size: 72, color: COL.amber, fmt: v => morphLabel(v) });
+knob($("#fSmall"), { name: "Filter Drive", min: 0, max: 24, color: COL.red, fmt: v => v < .05 ? "CLEAN" : "+" + v.toFixed(1) + " dB" });
+knob($("#fSmall"), { name: "Keytrack", min: 0, max: 100, color: COL.teal, fmt: pct });
+knob($("#fSmall"), { name: "Filter Env", min: -100, max: 100, color: COL.violet, fmt: spct });
 knob($("#velK"), { name: "Velocity", min: 0, max: 100, size: 64, color: COL.red, fmt: pct });
 
 // ===================================================================== the wavetable (same spectra as dsp/WavetableSynth.h)
@@ -305,7 +335,7 @@ function fit(c) { const d = Math.min(devicePixelRatio || 1, 2), W = c.clientWidt
 function glow(g, col, blur = 10) { g.strokeStyle = col; g.fillStyle = col; g.shadowColor = col; g.shadowBlur = blur; }
 function text(g, s, x, y, col, size = 11, align = "left") { g.font = size + "px " + VF; g.textAlign = align; glow(g, col, 8); g.fillText(s, x, y); g.shadowBlur = 0; g.textAlign = "left"; }
 const rgba = (hex, a) => { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; };
-function bloom(c) { let b = c.nextElementSibling; if (!b || !b.classList.contains("bloom")) { b = document.createElement("canvas"); b.className = "bloom"; c.after(b); }
+function bloom(c) { if (!c.width || !c.height) return; let b = c.nextElementSibling; if (!b || !b.classList.contains("bloom")) { b = document.createElement("canvas"); b.className = "bloom"; c.after(b); }
   if (b.width !== c.width || b.height !== c.height) { b.width = c.width; b.height = c.height; } const g = b.getContext("2d"); g.clearRect(0, 0, b.width, b.height); g.drawImage(c, 0, 0); }
 
 // ===================================================================== the dreamscape: one ridge per frame, back to front (hidden lines)
@@ -362,6 +392,7 @@ $("#hero").addEventListener("pointerup", () => padDrag = null); $("#hero").addEv
 
 // mini: the frame now playing, with unison copies fanned across the stereo field
 function drawFrame() {
+  if (!$("#frameView").offsetParent) return;  // its page is hidden
   const [g, W, H] = fit($("#frameView")), w = frameAt(P["Position"] / 100), n = Math.round(P["Unison"]);
   for (let u = 0; u < n; u++) {
     const x = n === 1 ? 0 : (2 * u / (n - 1) - 1), off = x * P["Spread"] / 100 * 16, ph = Math.round(x * P["Detune"] / 100 * 10);
@@ -372,17 +403,53 @@ function drawFrame() {
   bloom($("#frameView"));
 }
 // mini: the low-pass response, with how far the mod envelope opens it
-function drawFilt() {
-  const [g, W, H] = fit($("#filtView"));
-  const resp = fc => { const k = 2 - 1.9 * P["Resonance"] / 100; g.beginPath();
-    for (let i = 0; i <= 120; i++) { const f = 20 * Math.pow(1000, i / 120), r = f / fc, m = 1 / Math.sqrt((1 - r * r) ** 2 + (k * r) ** 2), db = 20 * Math.log10(m);
-      const X = 8 + (W - 16) * i / 120, Y = 30 - db * 1.6; i ? g.lineTo(X, Math.min(H - 6, Y)) : g.moveTo(X, Math.min(H - 6, Y)); } };
-  const fe = P["Filter Env"] / 100;
-  if (Math.abs(fe) > .005) { resp(Math.min(20000, Math.max(20, P["Cutoff"] * Math.pow(2, fe * 6)))); g.setLineDash([3, 4]); glow(g, rgba(COL.violet, .8), 6); g.lineWidth = 1.2; g.stroke(); g.setLineDash([]); }
-  resp(P["Cutoff"]); glow(g, COL.orange, 10); g.lineWidth = 1.8; g.stroke(); g.shadowBlur = 0;
-  text(g, "LOW-PASS", 10, 16, COL.orange, 10); text(g, hz(P["Cutoff"]), W - 10, 16, COL.orange, 10, "right");
-  bloom($("#filtView"));
+// ---- the filter models' responses (analog versions of dsp/Filters.h), in dB
+const FTYPES = ["SVF", "LADDER", "DIODE", "OTA", "COMB", "FORMANT"];
+const DIODE_T = [1.96146, 1.62, 1.15972, .9385, .82595, .75445, .70361, .6649, .63411, .60874, .58735];
+const VOWELS = [[800, 1150, 2900], [530, 1840, 2480], [270, 2290, 3010], [450, 800, 2830], [325, 700, 2530]];
+const C = { add: (a, b) => [a[0] + b[0], a[1] + b[1]], mul: (a, b) => [a[0] * b[0] - a[1] * b[1], a[0] * b[1] + a[1] * b[0]],
+  div: (a, b) => { const d = b[0] * b[0] + b[1] * b[1]; return [(a[0] * b[0] + a[1] * b[1]) / d, (a[1] * b[0] - a[0] * b[1]) / d]; },
+  sc: (a, k) => [a[0] * k, a[1] * k], abs: a => Math.hypot(a[0], a[1]), pow: (a, n) => { let r = [1, 0]; for (let i = 0; i < n; i++) r = C.mul(r, a); return r; } };
+function morphLabel(v) {
+  const t = Math.round(P["Filter Type"]), m = v / 100;
+  if (t === 0) return ["LP", "LP→BP", "BP", "BP→HP", "HP", "HP→NOTCH", "NOTCH"][Math.round(m * 6)];
+  if (t === 4) return m < .5 ? "+ FEEDBACK" : "− FEEDBACK";
+  if (t === 5) return ["A", "A·E", "E", "E·I", "I", "I·O", "O", "O·U", "U"][Math.round(m * 8)];
+  return "—";
 }
+function respDb(f, fc) {
+  const t = Math.round(P["Filter Type"]), res = P["Resonance"] / 100, m = P["Filter Morph"] / 100, one = [1, 0];
+  let h;
+  if (t === 0) { const s = [0, f / fc], k = 2 - 1.9 * res, D = C.add(C.add(C.mul(s, s), C.sc(s, k)), one);
+    const lp = C.div(one, D), bp = C.div(C.sc(s, k), D), hp = C.div(C.mul(s, s), D), nt = C.add(lp, hp), mm = m * 3;
+    const mix = (a, b, x) => C.add(C.sc(a, 1 - x), C.sc(b, x));
+    h = mm < 1 ? mix(lp, bp, mm) : mm < 2 ? mix(bp, hp, mm - 1) : mix(hp, nt, mm - 2); }
+  else if (t === 1 || t === 3) { const G = C.div(one, [1, f / fc]), k = res * (t === 1 ? 4.2 : 4.3), G4 = C.pow(G, 4);
+    h = C.sc(C.div(G4, C.add(one, C.sc(G4, k))), t === 1 ? 1 + .5 * k : 1 + .75 * k); }
+  else if (t === 2) { const ri = res * 10, i0 = Math.min(9, Math.floor(ri)), tune = DIODE_T[i0] * Math.pow(DIODE_T[i0 + 1] / DIODE_T[i0], ri - i0);
+    const G = C.div(one, [1, f / (fc * tune)]), k = res * 7.6, G3 = C.pow(G, 3); h = C.sc(C.div(G3, C.add(one, C.sc(G3, k))), 1 + .45 * k); }
+  else if (t === 4) { const fb = (m < .5 ? 1 : -1) * res * .97 * .65, ph = -2 * Math.PI * f / fc;
+    h = C.sc(C.div(one, C.add(one, C.sc([Math.cos(ph), Math.sin(ph)], -fb))), Math.sqrt(1 - Math.abs(fb / .65) * .9)); }
+  else { const mm = m * 4, i0 = Math.min(3, Math.floor(mm)), tt = mm - i0, sh = Math.pow(2, Math.max(-2, Math.min(2, Math.log2(fc / 1000))) * .5), q = 3 + res * 17;
+    h = [0, 0]; [1, .5, .28].forEach((a, b) => { const fb = (VOWELS[i0][b] + (VOWELS[i0 + 1][b] - VOWELS[i0][b]) * tt) * sh, s = [0, f / fb];
+      h = C.add(h, C.sc(C.div(C.sc(s, 1 / q), C.add(C.add(C.mul(s, s), C.sc(s, 1 / q)), one)), a * 2.2)); }); }
+  return 20 * Math.log10(Math.max(1e-6, C.abs(h)));
+}
+function drawResp(id, big) {
+  const c = $(id); if (!c.offsetParent) return;
+  const [g, W, H] = fit(c), top = big ? 30 : 30, dbTop = big ? 24 : 18, dbBot = big ? -36 : -30;
+  const Y = db => top + (H - top - 8) * (dbTop - Math.max(dbBot, Math.min(dbTop, db))) / (dbTop - dbBot);
+  if (big) { g.strokeStyle = "#2a2622"; g.lineWidth = 1; for (const db of [12, 0, -12, -24]) { g.beginPath(); g.moveTo(8, Y(db)); g.lineTo(W - 8, Y(db)); g.stroke(); }
+    for (const f of [100, 1000, 10000]) { const x = 8 + (W - 16) * Math.log(f / 20) / Math.log(1000); g.beginPath(); g.moveTo(x, top); g.lineTo(x, H - 8); g.stroke(); text(g, f >= 1000 ? f / 1000 + "k" : f, x + 3, H - 10, "#4a4950", 9); } }
+  const curve = fc => { g.beginPath(); for (let i = 0; i <= 160; i++) { const f = 20 * Math.pow(1000, i / 160), X = 8 + (W - 16) * i / 160, y = Y(respDb(f, fc)); i ? g.lineTo(X, y) : g.moveTo(X, y); } };
+  const fe = P["Filter Env"] / 100;
+  if (Math.abs(fe) > .005) { curve(Math.min(20000, Math.max(20, P["Cutoff"] * Math.pow(2, fe * 6)))); g.setLineDash([3, 4]); glow(g, rgba(COL.violet, .8), 6); g.lineWidth = 1.2; g.stroke(); g.setLineDash([]); }
+  curve(P["Cutoff"]); glow(g, COL.orange, 10); g.lineWidth = big ? 2.2 : 1.8; g.stroke(); g.shadowBlur = 0;
+  const t = Math.round(P["Filter Type"]), ml = morphLabel(P["Filter Morph"]);
+  text(g, FTYPES[t] + (ml !== "—" ? " · " + ml : ""), 10, 16, COL.orange, big ? 11 : 10); text(g, hz(P["Cutoff"]), W - 10, 16, COL.orange, big ? 11 : 10, "right");
+  bloom(c);
+}
+function drawFilt() { drawResp("#filtView", false); drawResp("#respView", true); }
 // deck: envelope shapes with a dot per voice riding them
 function drawEnv(id, A, D, S, R, col, which) {
   const [g, W, H] = fit($(id)), L = 10, T = 14, B = H - 12, span = W - 20;
@@ -413,6 +480,11 @@ const PRESETS = [
   ["Glass Pluck", "sine into triangle on every hit", { "Position": 6, "Position Env": 40, "Unison": 1, "Cutoff": 1200, "Resonance": 30, "Filter Env": 55, "Attack": 1, "Decay": 450, "Sustain": 0, "Release": 400, "Mod Attack": 1, "Mod Decay": 350, "Velocity": 70 }],
   ["Supersaw Dream", "seven saws, wide", { "Position": 49, "Position Env": 0, "Unison": 7, "Detune": 35, "Spread": 100, "Sub": 10, "Cutoff": 9000, "Resonance": 10, "Filter Env": 0, "Attack": 15, "Decay": 600, "Sustain": 85, "Release": 700, "Drive": 1 }],
   ["Morph Bass", "sub + a growl that opens", { "Position": 45, "Position Env": 30, "Unison": 1, "Sub": 60, "Cutoff": 400, "Resonance": 35, "Filter Env": 45, "Attack": 1, "Decay": 250, "Sustain": 60, "Release": 120, "Mod Attack": 1, "Mod Decay": 300, "Velocity": 50, "Drive": 4.5 }],
+  ["Minimoog Bass", "MOOG table, ladder, overload", { "Table": 1, "Position": 40, "Unison": 1, "Sub": 35, "Filter Type": 1, "Cutoff": 320, "Resonance": 35, "Filter Env": 55, "Filter Drive": 9, "Keytrack": 30, "Attack": 1, "Decay": 400, "Sustain": 55, "Release": 150, "Mod Attack": 1, "Mod Decay": 280, "Velocity": 50 }],
+  ["Acid 303", "saw into the diode, squelch", { "Table": 1, "Position": 40, "Unison": 1, "Filter Type": 2, "Cutoff": 450, "Resonance": 82, "Filter Env": 60, "Filter Drive": 8, "Attack": 1, "Decay": 300, "Sustain": 40, "Release": 90, "Mod Attack": 1, "Mod Decay": 220, "Velocity": 70 }],
+  ["Juno Strings", "JUNO table, OTA, high HPF", { "Table": 4, "Position": 55, "Scan": 3, "Scan Speed": .5, "Unison": 3, "Detune": 14, "Spread": 90, "Filter Type": 3, "Cutoff": 3200, "Resonance": 15, "HPF": 2, "Attack": 350, "Decay": 1200, "Sustain": 80, "Release": 900, "Drive": .8 }],
+  ["Sync Scream", "Prophet sync sweep on every note", { "Table": 3, "Position": 0, "Position Env": 90, "Mod Attack": 1, "Mod Decay": 900, "Unison": 2, "Detune": 8, "Filter Type": 1, "Cutoff": 6000, "Resonance": 20, "Attack": 2, "Decay": 500, "Sustain": 85, "Release": 300, "Drive": 3 }],
+  ["Talking Pad", "ORPHEO through the formant filter", { "Table": 0, "Position": 45, "Scan": 3, "Scan Speed": .35, "Unison": 4, "Detune": 16, "Spread": 80, "Filter Type": 5, "Filter Morph": 0, "Cutoff": 1000, "Resonance": 55, "Attack": 300, "Decay": 1500, "Sustain": 80, "Release": 1400 }],
   ["Vowel Lead", "the voice at the end of the table", { "Position": 85, "Position Env": -20, "Unison": 3, "Detune": 10, "Spread": 50, "Cutoff": 6000, "Resonance": 15, "Filter Env": 10, "Attack": 5, "Decay": 300, "Sustain": 90, "Release": 250, "Mod Decay": 800, "Drive": 3 }],
 ];
 let cur = 0;
@@ -471,10 +543,21 @@ $("#tmenu").addEventListener("click", e => { const b = e.target.closest("[data-t
 function chooseTable(i) { setParam("Table", i); if (!HOST) previewTable(i); }
 $("#hero").addEventListener("pointerdown", e => { if (!e.target.closest(".tmenu,#tableBtn")) $("#tmenu").classList.remove("open"); }, true);
 
+$("#tabs").addEventListener("click", e => { const b = e.target.closest("[data-p]"); if (!b) return;
+  $("#tabs").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); document.querySelectorAll(".page").forEach(p => p.classList.toggle("on", p.id === b.dataset.p)); });
+$("#ftSeg").innerHTML = FTYPES.map((n, i) => `<button data-i="${i}">${n}</button>`).join("");
+$("#ftSeg").addEventListener("click", e => { const b = e.target.closest("[data-i]"); if (b) { setParam("Filter Type", +b.dataset.i); syncScan(); } });
+$("#hpfSeg").innerHTML = ["BOOST", "FLAT", "LOW", "HIGH"].map((n, i) => `<button data-i="${i}">${n}</button>`).join("");
+$("#hpfSeg").addEventListener("click", e => { const b = e.target.closest("[data-i]"); if (b) { setParam("HPF", +b.dataset.i); syncScan(); } });
 const SCANS = ["OFF", "ONCE", "LOOP", "PING-PONG"];
 $("#scanSeg").innerHTML = SCANS.map((n, i) => `<button data-i="${i}">${n}</button>`).join("");
 $("#scanSeg").addEventListener("click", e => { const b = e.target.closest("[data-i]"); if (b) { setParam("Scan", +b.dataset.i); syncScan(); } });
-function syncScan() { $("#scanSeg").querySelectorAll("button").forEach((b, i) => b.classList.toggle("on", i === Math.round(P["Scan"]))); }
+function syncScan() {  // every segmented switch shows the parameter's value (from the user or the host)
+  $("#scanSeg").querySelectorAll("button").forEach((b, i) => b.classList.toggle("on", i === Math.round(P["Scan"])));
+  $("#ftSeg").querySelectorAll("button").forEach((b, i) => b.classList.toggle("on", i === Math.round(P["Filter Type"])));
+  $("#hpfSeg").querySelectorAll("button").forEach((b, i) => b.classList.toggle("on", i === Math.round(P["HPF"])));
+  if (typeof morphKnob !== "undefined") { morphKnob.repaint(); morphKnob.el.style.opacity = [1, 2, 3].includes(Math.round(P["Filter Type"])) ? .4 : 1; }
+}
 knob($("#scanK"), { name: "Scan Speed", min: .25, max: 4, log: true, size: 40, color: COL.teal, fmt: v => v.toFixed(2) + "×" });
 syncScan();
 

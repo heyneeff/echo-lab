@@ -16,6 +16,13 @@ ORPHEO rail, gothic wordmark in `ui/brand/morpheus-wordmark.png`).
   Cutoff up/down), the VOICE rail, and the mod deck. Opens in a browser as a playable preview
   (computer keyboard + Web Audio).
 
+- **M1 · Motion and the ladder** (`741190e`, filters after): SCAN (Once/Loop/Ping-Pong at the
+  sound's own speed); built-in tables MOOG (the Minimoog's six waves), PWM, SYNC (Prophet sync
+  sweep), JUNO; filter models SVF morph (LP→BP→HP→Notch), LADDER (Moog 24 dB: self-oscillates in
+  tune as a sine, bass loss with resonance), DIODE (303, 18 dB, peak on the cutoff at any
+  resonance), OTA (Juno/Jupiter 24 dB), COMB, FORMANT (A-E-I-O-U); Filter Drive, Keytrack, the
+  Juno-106 4-step HPF. Measured in `harness/test_filters.cpp`. Face: VOICE · FILTER tabs.
+
 ## Face layout (where new things go)
 
 - **Dreamscape (hero):** always the table. Later: OSC B as a second, cooler-coloured landscape;
