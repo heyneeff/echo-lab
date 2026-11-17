@@ -56,6 +56,8 @@ private:
     std::atomic<float> mOut{0};
     std::atomic<bool> sendTable{true};
     std::atomic<bool> panicReq{false};
+    space::SpatialEngine spatial;  // SPACE: after the FX rack, before the safety limiter
+    bool spaceOn = false;
     // morph snapshots: 4 whole-patch states (normalized values) on the X-Y pad corners A B / C D, blended by Morph X/Y.
     // eff = what the engine plays (the blend while morphing, else the knobs); the face shows eff.
     std::array<std::array<double, kNumParams>, 4> snap{};

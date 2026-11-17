@@ -112,6 +112,7 @@ tresult PLUGIN_API SynthPlugin::setActive(TBool state) {
     if (state) {
         synth.prepare(sampleRate);
         rack.prepare(sampleRate);
+        spatial.prepare(sampleRate);
         scFollow.prepare(sampleRate, 2, 150);
         applyParams();
         rack.reset();
@@ -208,6 +209,19 @@ void SynthPlugin::applyParams() {
     if (auto* t_ = pickTable((int)plain(kTableB))) synth.setTableB(t_);
     fx::FxParams fp;
     fp.order = (int)plain(kFxOrder);
+    space::Params sp;
+    sp.around = plain(kSpaceAround);
+    sp.height = plain(kSpaceHeight) / 100;
+    sp.distance = plain(kSpaceDistance) / 100;
+    sp.orbit = (int)plain(kSpaceOrbit);
+    sp.rate = (int)plain(kSpaceRate);
+    sp.size = plain(kSpaceSize) / 100;
+    sp.room = plain(kSpaceRoom) / 100;
+    sp.headphones = plain(kSpaceHeadphones) > 0.5;
+    const bool wasOn = spaceOn;
+    spaceOn = plain(kSpaceOn) > 0.5;
+    spatial.update(sp);
+    if (spaceOn && !wasOn) spatial.reset();
     fp.drive = plain(kDrive);
     fp.driveStyle = (int)plain(kDriveStyle);
     fp.driveMix = plain(kDriveMix) / 100;
@@ -311,7 +325,7 @@ tresult PLUGIN_API SynthPlugin::process(ProcessData& data) {
         }
     }
     if (tableDirty.exchange(false)) changed = true;
-    if (panicReq.exchange(false)) { synth.reset(); rack.reset(); }
+    if (panicReq.exchange(false)) { synth.reset(); rack.reset(); spatial.reset(); }
     if (auto* ctx = data.processContext) {  // tempo + song position for synced LFOs
         const bool tempoOk = (ctx->state & ProcessContext::kTempoValid) != 0;
         const bool posOk = (ctx->state & ProcessContext::kProjectTimeMusicValid) != 0;
@@ -362,6 +376,7 @@ tresult PLUGIN_API SynthPlugin::process(ProcessData& data) {
     {
         const double bps = hostTempo / 60.0 / sampleRate;
         rack.process(L, R, scL, scR, n, fxBeat, bps);
+        if (spaceOn) spatial.process(L, R, n, fxBeat, bps);
         fxBeat += n * bps;
     }
     float pk = 0;
@@ -614,6 +629,8 @@ std::string SynthPlugin::feedJson() {
         s += ",\"ut\":[";
         for (size_t i = 0; i < userTables.size(); ++i) { s += i ? ",\"" : "\""; s += userTables[i]; s += "\""; }
         s += "]";
+        std::snprintf(buf, sizeof buf, ",\"sp\":[%.1f,%.3f,%.3f]", spatial.viewAz.load(), spatial.viewEl.load(), spatial.viewDist.load());
+        s += buf;
         s += ",\"sn\":[";
         for (int c = 0; c < 4; ++c) { s += c ? "," : ""; s += hasSnap[c].load() ? "1" : "0"; }
         s += "],\"pn\":\"";

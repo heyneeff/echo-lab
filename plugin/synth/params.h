@@ -11,6 +11,7 @@
 #include "../../dsp/WavetableSynth.h"
 #include "../../dsp/FxRack.h"
 #include "../../dsp/TableForge.h"
+#include "../../dsp/Spatial.h"
 
 namespace echolab {
 namespace wtsynth {
@@ -44,6 +45,8 @@ enum ParamId : int {
     kVerbOn, kVerbStyle, kVerbDecay, kVerbSize, kVerbMix, kPumpOn, kPumpMode, kPumpRate, kPumpDepth, kPumpMix, kFxOrder,
     // v0.8: morph snapshots (4 whole-patch states on the X-Y pad corners)
     kMorphOn, kMorphX, kMorphY,
+    // v0.9: SPACE (the whole sound around, above, below, near, far)
+    kSpaceOn, kSpaceAround, kSpaceHeight, kSpaceDistance, kSpaceOrbit, kSpaceRate, kSpaceSize, kSpaceRoom, kSpaceHeadphones,
     kNumParams
 };
 constexpr int kModBase = kMod1Src;  // slot s (0-based): source kModBase + 3s, destination +1, amount +2
@@ -220,6 +223,15 @@ inline const ParamDef kParams[kNumParams] = {
     {kMorphOn, "Morph On", "", 0, 1, 0, Map::List},
     {kMorphX, "Morph X", "%", 0, 100, 50, Map::Linear},
     {kMorphY, "Morph Y", "%", 0, 100, 50, Map::Linear},
+    {kSpaceOn, "Space On", "", 0, 1, 0, Map::List},
+    {kSpaceAround, "Space Around", "deg", -180, 180, 0, Map::Linear},
+    {kSpaceHeight, "Space Height", "%", -100, 100, 0, Map::Linear},
+    {kSpaceDistance, "Space Distance", "%", 0, 100, 20, Map::Linear},
+    {kSpaceOrbit, "Space Orbit", "", 0, space::kNumOrbits - 1, 0, Map::List},
+    {kSpaceRate, "Space Rate", "", 0, space::kNumRates - 1, 2, Map::List},
+    {kSpaceSize, "Space Size", "%", 0, 100, 70, Map::Linear},
+    {kSpaceRoom, "Space Room", "%", 0, 100, 50, Map::Linear},
+    {kSpaceHeadphones, "Space Listen", "", 0, 1, 0, Map::List},
 };
 inline const int kDisplayOrder[kNumParams] = {
     kTable, kPosition, kScan, kScanSpeed, kPosEnv, kUnison, kDetune, kSpread, kSub,
@@ -245,6 +257,7 @@ inline const int kDisplayOrder[kNumParams] = {
     kEchoOn, kEchoStyle, kEchoMode, kEchoSync, kEchoNoteL, kEchoNoteR, kEchoTimeL, kEchoTimeR, kEchoFeedback, kEchoMix,
     kVerbOn, kVerbStyle, kVerbDecay, kVerbSize, kVerbMix, kPumpOn, kPumpMode, kPumpRate, kPumpDepth, kPumpMix, kFxOrder,
     kMorphOn, kMorphX, kMorphY,
+    kSpaceOn, kSpaceAround, kSpaceHeight, kSpaceDistance, kSpaceOrbit, kSpaceRate, kSpaceSize, kSpaceRoom, kSpaceHeadphones,
 };
 
 inline int stepCount(const ParamDef& p) { return p.map == Map::List ? (int)(p.max - p.min) : 0; }
@@ -306,7 +319,10 @@ inline std::string toText(const ParamDef& p, double n) {
     if (p.id == kTableB) return tableName((int)v);
     if (p.id == kWarpA || p.id == kWarpB) return wt::kWarpNames[std::clamp((int)v, 0, wt::kNumWarps - 1)];
     if (p.id == kNoiseColor) return kNoiseColorNames[std::clamp((int)v, 0, 3)];
-    if (p.id == kChorusOn || p.id == kEchoOn || p.id == kVerbOn || p.id == kPumpOn || p.id == kEchoSync || p.id == kMorphOn) return v > 0.5 ? "On" : "Off";
+    if (p.id == kChorusOn || p.id == kEchoOn || p.id == kVerbOn || p.id == kPumpOn || p.id == kEchoSync || p.id == kMorphOn || p.id == kSpaceOn) return v > 0.5 ? "On" : "Off";
+    if (p.id == kSpaceOrbit) return space::kOrbitNames[std::clamp((int)v, 0, space::kNumOrbits - 1)];
+    if (p.id == kSpaceRate) return space::kRateNames[std::clamp((int)v, 0, space::kNumRates - 1)];
+    if (p.id == kSpaceHeadphones) return v > 0.5 ? "Headphones" : "Speakers";
     if (p.id == kDriveStyle) return kDriveVoices[std::clamp((int)v, 0, 7)].name;
     if (p.id == kChorusMode) return fx::kChorusNames[std::clamp((int)v, 0, 3)];
     if (p.id == kEchoStyle) return kStyles[std::clamp((int)v, 0, 7)].name;
