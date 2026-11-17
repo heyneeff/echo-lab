@@ -755,6 +755,7 @@ public:
 
     int activeVoices() const { int c = 0; for (auto& v : voices) c += v.active(); return c; }
     const Wavetable& wavetable() const { return *current.load(std::memory_order_acquire); }
+    const Wavetable& wavetableB() const { return *currentB.load(std::memory_order_acquire); }
 
 private:
     int levelFor(double f) const {  // fewest-cut level whose top harmonic stays under Nyquist

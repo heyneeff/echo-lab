@@ -69,7 +69,7 @@ private:
     std::atomic<const wt::Wavetable*> customPtr{nullptr};  // what the audio thread may play as GROWN
     std::atomic<bool> tableDirty{false};
     std::string exportNote;  // one-shot message for the face after exporting (guarded by tableMx)                    // a grown table arrived: re-pick the table
-    const wt::Wavetable* lastShown = nullptr;               // editor thread: which table the face has
+    const wt::Wavetable* lastShown = nullptr, *lastShownB = nullptr;  // editor thread: which tables the face has
     void setFromEditor(const std::string& name, double plain);
 };
 

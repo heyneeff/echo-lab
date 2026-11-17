@@ -32,6 +32,14 @@ ORPHEO rail, gothic wordmark in `ui/brand/morpheus-wordmark.png`).
   slide). Face: source chips with editors, drag a source's dot onto any knob, rings in the source's
   colour, route pills (drag = amount, × = remove, + ROUTE for Pitch/Pan/Level). Tests: `test_mod`.
 
+- **M3a · Oscillator B, noise, warp** (`39affab`): OSC B (own table, position, oct/semi/fine, level),
+  noise (white/pink/brown/vinyl), warp on both oscillators (Sync, Bend±, Mirror, Asym, Quantize, FM,
+  Ring; 2x oversampled where it matters, DC-blocked), wavetable .wav import/export. `test_osc`.
+- **D · The design pass** (1280×800): header (preset browser, SYNTH / MATRIX / FX / STAGE pages, meter);
+  SYNTH page laid out along the signal: OSC A · OSC B · SUB/NOISE → the Dreamscape (B drawn behind A) +
+  UNISON/SCAN strip → FILTER → AMP/OUT; modulation + macros along the bottom; MATRIX page with all 16
+  slots. Plan for the rest: `plugin/synth/PLAN.md`.
+
 ## Face layout (where new things go)
 
 - **Dreamscape (hero):** always the table. Later: OSC B as a second, cooler-coloured landscape;

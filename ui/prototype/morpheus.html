@@ -22,12 +22,12 @@ html, body { margin: 0; height: 100%; background: radial-gradient(1200px 800px a
 .bar { height: 46px; display: flex; align-items: center; gap: 10px; padding: 0 16px; font: 11px var(--vec); color: #9a968f; letter-spacing: .14em; }
 .bar .hint { color: #5d5a60; } .bar b { color: var(--amber); font-weight: 400; }
 #stage { position: absolute; left: 0; right: 0; top: 46px; bottom: 0; display: grid; place-items: center; }
-#units { width: 1180px; height: 760px; transform-origin: 50% 50%; position: relative; }
+#units { width: 1280px; height: 800px; transform-origin: 50% 50%; position: relative; }
 html.host .bar { display: none; } html.host #stage { top: 0; } html.host body { background: #0b0b0d; }
 
 /* ---------------------------------------------------------------- body: dreamscape | rail, mod deck below */
-.chassis { position: absolute; inset: 0; border-radius: 22px; background: var(--body); padding: 12px; display: grid;
-  grid-template-columns: 660px 1fr; grid-template-rows: 1fr 196px; gap: 12px; box-shadow: 0 40px 80px -20px #000, 0 0 0 1px #ffffff0d inset; }
+.chassis { position: absolute; inset: 0; border-radius: 22px; background: var(--body); padding: 10px 12px 12px; display: grid;
+  grid-template-rows: 44px 1fr; gap: 10px; box-shadow: 0 40px 80px -20px #000, 0 0 0 1px #ffffff0d inset; }
 .hero { position: relative; border-radius: 16px; background: #0d0a09; overflow: hidden; box-shadow: 0 0 0 1px #ffffff08 inset; cursor: crosshair; touch-action: none; }
 .hero canvas, .mini canvas, .card canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .hero::after, .mini::after, .card .scr::after { content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
@@ -37,20 +37,20 @@ html.host .bar { display: none; } html.host #stage { top: 0; } html.host body { 
 .logo .wmark { display: block; height: 46px; width: auto; filter: drop-shadow(0 0 10px #ffc93c33); }
 .logo small { display: block; font: 600 9px var(--sans); letter-spacing: .42em; color: var(--dim); margin-top: 10px; }
 .axis { position: absolute; font: 700 10px var(--sans); letter-spacing: .32em; pointer-events: none; }
-.axis.y { left: 34px; bottom: 120px; transform: rotate(-90deg); transform-origin: left bottom; }
-.axis.x { left: 112px; bottom: 34px; }
+.axis.y { left: 26px; bottom: 100px; transform: rotate(-90deg); transform-origin: left bottom; }
+.axis.x { left: 96px; bottom: 22px; }
 .axis b { font: 11px var(--vec); letter-spacing: .08em; color: var(--txt); margin-left: 8px; }
 .brk { position: absolute; border-color: #e9e6e1aa; border-style: solid; pointer-events: none; }
-.brk.bl { left: 40px; bottom: 40px; width: 60px; height: 70px; border-width: 0 0 2px 2px; border-radius: 0 0 0 6px; }
-.brk.tr { right: 40px; top: 40px; width: 60px; height: 70px; border-width: 2px 2px 0 0; border-radius: 0 6px 0 0; }
-.hud { position: absolute; right: 44px; bottom: 30px; font: 11px var(--vec); letter-spacing: .14em; color: var(--amber); pointer-events: none; text-align: right; }
+.brk.bl { left: 30px; bottom: 30px; width: 60px; height: 70px; border-width: 0 0 2px 2px; border-radius: 0 0 0 6px; }
+.brk.tr { right: 30px; top: 30px; width: 60px; height: 70px; border-width: 2px 2px 0 0; border-radius: 0 6px 0 0; }
+.hud { position: absolute; right: 28px; bottom: 22px; font: 11px var(--vec); letter-spacing: .14em; color: var(--amber); pointer-events: none; text-align: right; }
 .hud span { color: var(--dim); }
-.tbtns { position: absolute; right: 44px; top: 124px; z-index: 3; display: grid; gap: 8px; justify-items: end; }
+.tbtns { position: absolute; right: 24px; top: 20px; z-index: 3; display: grid; gap: 8px; justify-items: end; }
 .tbtn { font: 10px var(--vec); letter-spacing: .14em; color: var(--amber); background: #141417cc;
   border: 1px solid #ff8a1f44; border-radius: 6px; padding: 6px 10px; cursor: pointer; display: none; }
 .tbtn:hover { border-color: #ffc93caa; box-shadow: 0 0 12px #ffc93c33; } .tbtn.show { display: block; }
 .tbtn.tab { display: block; color: var(--amber); }
-.tmenu { position: absolute; right: 44px; top: 200px; z-index: 5; display: none; gap: 4px; padding: 8px; min-width: 210px; background: #0d0a09f2;
+.tmenu { position: fixed; z-index: 15; display: none; gap: 4px; padding: 8px; min-width: 210px; background: #0d0a09f2;
   border: 1px solid #ff8a1f44; border-radius: 10px; box-shadow: 0 12px 30px #000c; }
 .tmenu.open { display: grid; }
 .tmenu button { font: 11px var(--vec); letter-spacing: .14em; text-align: left; color: #ffd27a; background: #141417; border: 1px solid #ff8a1f22;
@@ -93,7 +93,7 @@ body.dragging .hero .dropzone, .hero.growing .dropzone { display: grid; }
 .minis { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 12px; }
 .mini { position: relative; height: 128px; border-radius: 10px; background: #0d0a09; box-shadow: 0 0 0 1px #ffffff0a inset; overflow: hidden; }
 .g6 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px 0; padding: 0 6px; }
-.pmenu { position: absolute; left: 0; right: 0; top: 38px; bottom: 0; z-index: 5; display: none; align-content: start; gap: 6px; padding: 14px 14px 18px;
+.pmenu { position: absolute; left: 240px; right: 240px; top: 58px; max-height: 560px; z-index: 15; border-radius: 12px; box-shadow: 0 20px 50px #000c; display: none; align-content: start; gap: 6px; padding: 14px 14px 18px;
   background: rgba(13,10,9,.96); backdrop-filter: blur(4px); overflow: auto; border-top: 1px solid #ff8a1f33; }
 .pmenu.open { display: grid; }
 .pmenu button { font: 12px var(--vec); letter-spacing: .1em; text-align: left; color: #ffd27a; background: #141417; border: 1px solid #ff8a1f2e;
@@ -103,7 +103,50 @@ body.dragging .hero .dropzone, .hero.growing .dropzone { display: grid; }
 .pmenu button.flag { border-color: #2fd6a866; color: #8ff0d2; }
 
 /* mod deck: sources own their routes */
-.deck { grid-column: 1 / 3; display: grid; grid-template-columns: 1fr 330px 150px; gap: 12px; min-height: 0; }
+.deck { grid-column: 1 / 4; display: grid; grid-template-columns: 1fr 330px; gap: 12px; min-height: 0; }
+/* ---------------------------------------------------------------- design pass: header, pages, columns, panels */
+.head { display: grid; grid-template-columns: 210px 1fr auto 150px; align-items: center; gap: 16px; padding: 0 6px 0 14px;
+  border-radius: 14px; background: linear-gradient(180deg, var(--rail-hi), var(--rail)); box-shadow: 0 0 0 1px #ffffff0a inset; }
+.head .hmark { height: 26px; width: auto; filter: drop-shadow(0 0 8px #ffc93c33); }
+.pbrowse { display: flex; align-items: center; gap: 8px; justify-self: center; min-width: 420px; background: #0f0f12; border: 1px solid #ffffff10; border-radius: 9px; padding: 4px 6px; }
+.pbrowse .pn { flex: 1; text-align: center; font: 12px var(--vec); letter-spacing: .14em; color: var(--amber); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pages { display: flex; gap: 4px; }
+.pages button { font: 700 9px var(--sans); letter-spacing: .26em; color: var(--dim); background: #141417; border: 1px solid #ffffff0d; border-radius: 7px; padding: 8px 12px; cursor: pointer; }
+.pages button.on { color: var(--amber); border-color: #ffc93c66; background: #1d1b17; box-shadow: 0 0 12px #ffc93c22; }
+.pages button:disabled { opacity: .3; cursor: default; }
+.hmeter { height: 34px; position: relative; } .hmeter canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.pg { display: none; min-height: 0; } .pg.on { display: grid; }
+#pgSynth { grid-template-columns: 310px 1fr 320px; grid-template-rows: 1fr 200px; gap: 12px; }
+.col { display: grid; gap: 12px; min-height: 0; }
+.col.oscs { grid-template-rows: auto auto 1fr; } .col.center { grid-template-rows: 1fr auto; } .col.right { grid-template-rows: auto 1fr; }
+.panel { position: relative; border-radius: 14px; background: linear-gradient(180deg, var(--rail-hi), var(--rail)); box-shadow: 0 0 0 1px #ffffff0a inset;
+  padding: 8px 10px 8px; display: grid; gap: 6px; align-content: start; min-height: 0; }
+.panel h4 { margin: 0; display: flex; align-items: center; gap: 6px; font: 700 10px var(--sans); letter-spacing: .3em; }
+.panel h4 .sp { flex: 1; }
+.selbtn { font: 9.5px var(--vec); letter-spacing: .12em; color: var(--txt); background: #0f0f12; border: 1px solid #ffffff18; border-radius: 6px; padding: 4px 8px; cursor: pointer; white-space: nowrap; }
+.selbtn:hover { border-color: #ffffff44; }
+.oscrow { display: grid; grid-template-columns: 118px 1fr; gap: 8px; align-items: center; }
+.oscrow .scr { height: 86px; border-radius: 9px; background: #0d0a09; box-shadow: 0 0 0 1px #ffffff0a inset; position: relative; overflow: hidden; }
+.oscrow .scr canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.oscrow .scr::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, #0000 0 2px, #0000001f 2px 3px); }
+.krow { display: flex; justify-content: space-around; align-items: flex-start; }
+.krow .knob .name { font-size: 7.5px; letter-spacing: .12em; }
+.tune { display: flex; justify-content: space-around; border-top: 1px solid #ffffff0d; padding-top: 4px; }
+.voicerow { grid-template-columns: auto auto auto 1fr auto; align-items: center; gap: 12px; padding: 8px 14px; }
+.voicerow .lbl { font: 700 9px var(--sans); letter-spacing: .3em; color: var(--teal); }
+.fresp { height: 128px; border-radius: 9px; background: #0d0a09; box-shadow: 0 0 0 1px #ffffff0a inset; position: relative; overflow: hidden; }
+.fresp canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.outgrid { display: grid; grid-template-columns: repeat(4, 1fr); align-items: start; }
+.mtx { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 16px; align-content: start; padding: 14px; border-radius: 14px;
+  background: linear-gradient(180deg, var(--rail-hi), var(--rail)); box-shadow: 0 0 0 1px #ffffff0a inset; overflow: auto; }
+.mrow { display: grid; grid-template-columns: 22px 1fr 14px 1fr 150px 22px; gap: 8px; align-items: center; font: 10px var(--vec); letter-spacing: .08em; color: var(--dim);
+  background: #0f0f12; border: 1px solid #ffffff10; border-radius: 8px; padding: 7px 8px; }
+.mrow select { font: 10px var(--vec); letter-spacing: .06em; color: var(--txt); background: #141417; border: 1px solid #ffffff18; border-radius: 5px; padding: 4px; }
+.mrow .amtbar { position: relative; height: 18px; border-radius: 5px; background: #0b0b0e; box-shadow: inset 0 1px 3px #000; cursor: ew-resize; overflow: hidden; }
+.mrow .amtbar i { position: absolute; top: 2px; bottom: 2px; border-radius: 3px; opacity: .8; }
+.mrow .amtbar b { position: absolute; inset: 0; display: grid; place-items: center; font-weight: 400; color: var(--txt); font-size: 10px; }
+.mrow .x { cursor: pointer; text-align: center; } .mrow .x:hover { color: var(--red); }
+.mhead { grid-column: 1 / -1; font: 700 10px var(--sans); letter-spacing: .3em; color: var(--amber); margin-bottom: 2px; }
 .card { position: relative; border-radius: 16px; background: linear-gradient(180deg, var(--rail-hi), var(--rail)); box-shadow: 0 0 0 1px #ffffff0a inset;
   display: grid; grid-template-rows: 24px 1fr; padding: 9px 12px 8px; gap: 6px; min-width: 0; min-height: 0; }
 .card h3 { margin: 0; font: 700 9px var(--sans); letter-spacing: .32em; display: flex; justify-content: space-between; align-items: center; }
@@ -167,45 +210,52 @@ body.dragging .hero .dropzone, .hero.growing .dropzone { display: grid; }
 <div class="bar"><span>MORPHEUS</span><span class="hint">play with your keyboard: <b>A W S E D F T G Y H U J K</b> · octave <b>Z X</b> · drag the dreamscape</span></div>
 <div id="stage"><div id="units">
   <section class="chassis">
-    <div class="hero" id="hero">
-      <canvas id="land"></canvas>
-      <div class="logo"><img class="wmark" alt="MORPHEUS" src="data:image/png;base64,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"><small>WAVETABLE · THE SHAPER OF DREAMS</small></div>
-      <div class="brk tr"></div><div class="brk bl"></div>
-      <div class="axis y" style="color:var(--orange)">CUTOFF<b id="axY"></b></div>
-      <div class="axis x" style="color:var(--amber)">POSITION<b id="axX"></b></div>
-      <div class="hud" id="hud"></div>
-      <div class="tbtns"><label class="tbtn load" for="loadIn" title="Grow a wavetable from a sound file">⇪ LOAD SOUND…</label><input id="loadIn" type="file" accept="audio/*,.wav,.aif,.aiff,.mp3,.m4a,.flac" hidden>
-        <div class="tbtn tab" id="tableBtn" title="Choose the wavetable">TABLE ☰</div></div>
-      <div class="tmenu" id="tmenu"></div>
-      <div class="dropzone" id="dropzone"><div>DROP AUDIO TO GROW A WAVETABLE<small>voice · synth · bass · drums · any sound</small></div></div>
-    </div>
-    <div class="rail">
-      <div class="preset"><div class="pbtn" id="pm" title="Presets">☰</div><span class="nm">MORPHEUS</span><span class="pn" id="pn"></span><div class="pbtn" id="prev">◁</div><div class="pbtn" id="next">▷</div></div>
-      <div class="tabs" id="tabs"><button data-p="pgVoice" class="on">VOICE</button><button data-p="pgFilter">FILTER</button></div>
-      <div>
-        <div class="page on" id="pgVoice">
-          <div class="row" id="big"></div>
-          <div class="minis"><div class="mini"><canvas id="frameView"></canvas></div><div class="mini"><canvas id="filtView"></canvas></div></div>
-          <div class="g6" id="small"></div>
-          <div class="scanrow"><span class="lbl">SCAN</span><div class="seg" id="scanSeg"></div><div id="scanK"></div></div>
-        </div>
-        <div class="page" id="pgFilter">
-          <div class="seg ftype" id="ftSeg" style="margin:0 12px"></div>
-          <div class="mini wide"><canvas id="respView"></canvas></div>
-          <div class="row" id="fBig"></div>
-          <div class="frow"><div class="g3" id="fSmall"></div><div class="hpfbox"><span class="lbl">HPF</span><div class="seg" id="hpfSeg"></div></div></div>
-        </div>
+    <header class="head">
+      <img class="hmark" alt="MORPHEUS" src="data:image/png;base64,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">
+      <div class="pbrowse"><div class="pbtn" id="pm" title="Presets">☰</div><div class="pbtn" id="prev">◁</div><span class="pn" id="pn"></span><div class="pbtn" id="next">▷</div></div>
+      <nav class="pages" id="pages"><button data-pg="pgSynth" class="on">SYNTH</button><button data-pg="pgMatrix">MATRIX</button><button disabled title="M4">FX</button><button disabled title="M5">STAGE</button></nav>
+      <div class="hmeter"><canvas id="meter"></canvas></div>
+    </header>
+    <div class="pg on" id="pgSynth">
+      <div class="col oscs">
+        <div class="panel" id="oscA"><h4 style="color:var(--amber)">OSC A<span class="sp"></span><button class="selbtn" data-tsel="A" id="tselA">ORPHEO ▾</button><button class="selbtn" data-wsel="A" id="wselA">WARP OFF ▾</button></h4>
+          <div class="oscrow"><div class="scr"><canvas id="waveA"></canvas></div><div class="krow" id="oscAK"></div></div></div>
+        <div class="panel" id="oscB"><h4 style="color:#5ecbff">OSC B<span class="sp"></span><button class="selbtn" data-tsel="B" id="tselB">ORPHEO ▾</button><button class="selbtn" data-wsel="B" id="wselB">WARP OFF ▾</button></h4>
+          <div class="oscrow"><div class="scr"><canvas id="waveB"></canvas></div><div class="krow" id="oscBK"></div></div>
+          <div class="tune" id="oscBT"></div></div>
+        <div class="panel" id="subNoise"><h4 style="color:var(--amber)">SUB · NOISE<span class="sp"></span><div class="seg" id="ncSeg"></div></h4><div class="krow" id="snK"></div></div>
       </div>
-      <div class="pmenu" id="pmenu"></div>
-    </div>
+      <div class="col center">
+        <div class="hero" id="hero">
+          <canvas id="land"></canvas>
+          <div class="brk tr"></div><div class="brk bl"></div>
+          <div class="axis y" style="color:var(--orange)">CUTOFF<b id="axY"></b></div>
+          <div class="axis x" style="color:var(--amber)">POSITION<b id="axX"></b></div>
+          <div class="hud" id="hud"></div>
+          <div class="tbtns"><label class="tbtn load" for="loadIn" title="Grow a wavetable from a sound, or open a wavetable .wav">⇪ LOAD SOUND…</label><input id="loadIn" type="file" accept="audio/*,.wav,.aif,.aiff,.mp3,.m4a,.flac" hidden>
+            <div class="tbtn tab" id="exportBtn" title="Save OSC A's table as a wavetable .wav">⇩ SAVE TABLE</div></div>
+          <div class="dropzone" id="dropzone"><div>DROP AUDIO TO GROW A WAVETABLE<small>a sound becomes a table · a wavetable .wav loads as is</small></div></div>
+        </div>
+        <div class="panel voicerow"><span class="lbl">UNISON</span><div class="krow" id="uniK" style="gap:6px"></div><span class="lbl" style="margin-left:6px">SCAN</span><div class="seg" id="scanSeg"></div><div id="scanK"></div></div>
+      </div>
+      <div class="col right">
+        <div class="panel" id="filtP"><h4 style="color:var(--orange)">FILTER<span class="sp"></span><span style="font:9px var(--vec);letter-spacing:.1em;color:var(--dim)">HPF</span><div class="seg" id="hpfSeg"></div></h4>
+          <div class="seg ftype" id="ftSeg"></div>
+          <div class="fresp"><canvas id="respView"></canvas></div>
+          <div class="krow" id="fK"></div></div>
+        <div class="panel" id="outP"><h4 style="color:var(--red)">AMP · OUT<span class="sp"></span><div class="seg" id="vmSeg"></div></h4><div class="outgrid" id="outK"></div></div>
+      </div>
     <div class="deck">
       <div class="card" id="modcard">
         <h3><span class="chips" id="chips"></span></h3>
         <div id="bodies" style="min-height:0;display:grid"></div>
       </div>
       <div class="card"><h3 style="color:#f4e3c1">ORPHEO MACROS<i id="ampInfo"></i></h3><div class="macros" id="macros"></div></div>
-      <div class="card" style="grid-template-rows:1fr"><div class="foot"><div class="wm orpheo" title="ORPHEO" style="width:100%"></div><div class="meters"><canvas id="meter"></canvas></div></div></div>
     </div>
+    </div>
+    <div class="pg" id="pgMatrix"><div class="mtx" id="mtx"></div></div>
+    <div class="pmenu" id="pmenu"></div>
+    <div class="tmenu" id="tmenu"></div>
   </section>
 </div></div>
 <script>
@@ -232,9 +282,12 @@ for (let k = 1; k <= 16; k++) { DEF[`Mod ${k} Source`] = 0; DEF[`Mod ${k} Dest`]
 Object.assign(DEF, { "Env3 Attack": 10, "Env3 Decay": 500, "Env3 Sustain": 0, "Env3 Release": 300, "Mod Wheel": 0, "Pitch Bend": 0, "Aftertouch": 0, "Bend Range": 2, "Voice Mode": 0, "Glide": 0 });
 for (let q = 1; q <= 4; q++) Object.assign(DEF, { [`LFO${q} Shape`]: 0, [`LFO${q} Rate`]: 2, [`LFO${q} Sync`]: 0, [`LFO${q} Note`]: 8, [`LFO${q} Mode`]: 0 });
 for (let q = 1; q <= 8; q++) DEF[`Macro ${q}`] = 0;
+Object.assign(DEF, { "Osc A Level": 100, "Table B": 0, "Position B": 40, "Octave B": 0, "Semi B": 0, "Fine B": 0, "Osc B Level": 0,
+  "Warp A": 0, "Warp A Amount": 0, "Warp B": 0, "Warp B Amount": 0, "Noise": 0, "Noise Color": 0 });
 Object.assign(P, DEF);
 
 let NF = 64;  // frames in the table being played (6 .. 64)
+let WTB = [], NFB = 64, TNB = "ORPHEO";  // OSC B's table
 const K = {};
 let userEdit = 0;
 function setParam(name, v) { P[name] = v; userEdit = performance.now(); if (HOST) window.webkit.messageHandlers.lab.postMessage({ type: "param", name, value: v }); }
@@ -299,10 +352,11 @@ const SRC = [null,
   { id: 14, key: "DRIFT", name: "DRIFT", col: "#b0e0c8" }];
 const MACRO_NAMES = ["DREAM", "BLOOM", "MOTION", "GRIT", "SPACE", "WIDTH", "TONE", "FLUX"];
 for (let q = 0; q < 8; q++) SRC.push({ id: 15 + q, key: MACRO_NAMES[q], name: "MACRO " + (q + 1) + " · " + MACRO_NAMES[q], col: "#f4e3c1" });
-const DEST_NAMES = ["", "POSITION", "PITCH", "CUTOFF", "RESONANCE", "FILTER MORPH", "FILTER DRIVE", "DETUNE", "SPREAD", "SUB", "LEVEL", "PAN", "SCAN SPEED"];
+const DEST_NAMES = ["", "POSITION", "PITCH", "CUTOFF", "RESONANCE", "FILTER MORPH", "FILTER DRIVE", "DETUNE", "SPREAD", "SUB", "LEVEL", "PAN", "SCAN SPEED", "POSITION B", "LEVEL B", "WARP A", "WARP B", "NOISE"];
 // knob -> destination, and how far a +100% route moves that knob (in knob turns)
-const DEST_OF = { "Position": 1, "Cutoff": 3, "Resonance": 4, "Filter Morph": 5, "Filter Drive": 6, "Detune": 7, "Spread": 8, "Sub": 9, "Output": 10, "Scan Speed": 12 };
-const RING_SCALE = { 1: 1, 3: 6 / CUT_OCT, 4: 1, 5: 1, 6: 1, 7: 1, 8: 1, 9: 1, 10: .5, 12: .5 };
+const DEST_OF = { "Position": 1, "Cutoff": 3, "Resonance": 4, "Filter Morph": 5, "Filter Drive": 6, "Detune": 7, "Spread": 8, "Sub": 9, "Output": 10, "Scan Speed": 12,
+  "Position B": 13, "Osc B Level": 14, "Warp A Amount": 15, "Warp B Amount": 16, "Noise": 17 };
+const RING_SCALE = { 1: 1, 3: 6 / CUT_OCT, 4: 1, 5: 1, 6: 1, 7: 1, 8: 1, 9: 1, 10: .5, 12: .5, 13: 1, 14: 1, 15: 1, 16: 1, 17: 1 };
 const slot = k => ({ k, src: Math.round(P[`Mod ${k} Source`]), dst: Math.round(P[`Mod ${k} Dest`]), amt: P[`Mod ${k} Amount`] / 100 });
 const routes = () => { const r = []; for (let k = 1; k <= 16; k++) { const s = slot(k); if (s.src && s.dst) r.push(s); } return r; };
 function matrixRings(name) { const d = DEST_OF[name]; if (!d || typeof P["Mod 1 Source"] === "undefined") return [];
@@ -314,23 +368,55 @@ function addRoute(src, dst, amt = .25) {
   flash("all 16 routes in use");
 }
 function removeRoute(k) { setSlot(k, 0, 0, 0); afterRoutes(); }
-function afterRoutes() { repaintMods(); renderPills(); }
+function afterRoutes() { repaintMods(); renderPills(); renderMatrix(); }
+// MATRIX page: all 16 slots as rows (the same data as the pills)
+function renderMatrix() {
+  const box = $("#mtx"); if (!box || !box.offsetParent) return;
+  const srcOpts = ['<option value="0">— none —</option>'].concat(SRC.slice(1).map(x => `<option value="${x.id}">${x.name}</option>`)).join("");
+  const dstOpts = DEST_NAMES.map((n, i) => `<option value="${i}">${i ? n : "— none —"}</option>`).join("");
+  let html = `<div class="mhead">MODULATION MATRIX · ${routes().length} / 16 ROUTES · drag a bar to set the amount, double-click to zero</div>`;
+  for (let k = 1; k <= 16; k++) {
+    const sl = slot(k), col = sl.src ? SRC[sl.src].col : "#4a4950", w = Math.abs(sl.amt) * 50, left = sl.amt >= 0 ? 50 : 50 - w;
+    html += `<div class="mrow" data-k="${k}" style="border-color:${sl.src && sl.dst ? col + "55" : "#ffffff10"}"><span style="color:${col}">${k}</span>
+      <select data-f="Source">${srcOpts}</select><span>→</span><select data-f="Dest">${dstOpts}</select>
+      <div class="amtbar"><i style="left:${left}%;width:${w}%;background:${col}"></i><b>${sl.amt > 0 ? "+" : ""}${Math.round(sl.amt * 100)}%</b></div><span class="x" title="clear">×</span></div>`;
+  }
+  box.innerHTML = html;
+  box.querySelectorAll(".mrow").forEach(r => { const sl = slot(+r.dataset.k); r.querySelector('[data-f="Source"]').value = sl.src; r.querySelector('[data-f="Dest"]').value = sl.dst; });
+}
+let mtxDrag = null;
+$("#mtx").addEventListener("change", e => { const r = e.target.closest(".mrow"), f = e.target.dataset.f; if (!r || !f) return;
+  setParam(`Mod ${r.dataset.k} ${f}`, +e.target.value); if (f === "Source" && slot(+r.dataset.k).amt === 0 && +e.target.value) setParam(`Mod ${r.dataset.k} Amount`, 25); afterRoutes(); });
+$("#mtx").addEventListener("pointerdown", e => { const r = e.target.closest(".mrow"); if (!r) return;
+  if (e.target.classList.contains("x")) { setSlot(+r.dataset.k, 0, 0, 0); afterRoutes(); return; }
+  const bar = e.target.closest(".amtbar"); if (!bar) return; e.preventDefault();
+  mtxDrag = { k: +r.dataset.k, x: e.clientX, a: slot(+r.dataset.k).amt }; bar.setPointerCapture(e.pointerId); });
+$("#mtx").addEventListener("pointermove", e => { if (!mtxDrag) return; const a = Math.max(-1, Math.min(1, mtxDrag.a + (e.clientX - mtxDrag.x) / scaleNow() / (e.shiftKey ? 600 : 150)));
+  setParam(`Mod ${mtxDrag.k} Amount`, Math.round(a * 1000) / 10); repaintMods(); renderPills();
+  const r = $("#mtx").querySelector(`.mrow[data-k="${mtxDrag.k}"]`), w = Math.abs(a) * 50; r.querySelector("i").style.left = (a >= 0 ? 50 : 50 - w) + "%"; r.querySelector("i").style.width = w + "%"; r.querySelector("b").textContent = (a > 0 ? "+" : "") + Math.round(a * 100) + "%"; });
+$("#mtx").addEventListener("pointerup", () => { mtxDrag = null; });
+$("#mtx").addEventListener("dblclick", e => { const r = e.target.closest(".mrow"); if (r && e.target.closest(".amtbar")) { setParam(`Mod ${r.dataset.k} Amount`, 0); afterRoutes(); } });
 let flashT = 0;
 function flash(msg) { $("#ampInfo").textContent = msg; flashT = performance.now(); }
 
-// ===================================================================== layout
-knob($("#big"), { name: "Position", min: 0, max: 100, size: 84, color: COL.amber, fmt: v => "FRAME " + (1 + Math.round(v / 100 * (NF - 1))),
+// ===================================================================== layout (SYNTH page: oscillators -> filter -> out, modulation below)
+knob($("#oscAK"), { name: "Position", label: "POSITION", min: 0, max: 100, size: 52, color: COL.amber, fmt: v => "FRAME " + (1 + Math.round(v / 100 * (NF - 1))),
   mod: () => [{ amt: P["Position Env"] / 100, col: COL.violet }] });
-knob($("#big"), { name: "Cutoff", min: 20, max: 20000, log: true, size: 84, color: COL.orange, fmt: hz,
-  mod: () => [{ amt: P["Filter Env"] / 100 * 6 / CUT_OCT, col: COL.violet }] });
-knob($("#big"), { name: "Unison", min: 1, max: 7, step: 1, size: 84, color: COL.teal, fmt: v => v + (v > 1 ? " VOICES" : " VOICE") });
-const sm = $("#small");
-knob(sm, { name: "Detune", min: 0, max: 100, color: COL.teal, fmt: v => v.toFixed(0) + " ct" });
-knob(sm, { name: "Spread", min: 0, max: 100, color: COL.teal, fmt: pct });
-knob(sm, { name: "Resonance", min: 0, max: 100, color: COL.orange, fmt: pct });
-knob(sm, { name: "Sub", min: 0, max: 100, color: COL.amber, fmt: pct });
-knob(sm, { name: "Drive", min: 0, max: 10, color: COL.red, fmt: v => v < .005 ? "OFF" : v.toFixed(1) });
-knob(sm, { name: "Output", min: -24, max: 12, color: COL.white, fmt: dB });
+knob($("#oscAK"), { name: "Warp A Amount", label: "WARP", min: 0, max: 100, size: 52, color: COL.amber, fmt: pct });
+knob($("#oscAK"), { name: "Osc A Level", label: "LEVEL", min: 0, max: 100, size: 52, color: COL.amber, fmt: pct });
+knob($("#oscBK"), { name: "Position B", label: "POSITION", min: 0, max: 100, size: 52, color: "#5ecbff", fmt: v => "FRAME " + (1 + Math.round(v / 100 * (NFB - 1))) });
+knob($("#oscBK"), { name: "Warp B Amount", label: "WARP", min: 0, max: 100, size: 52, color: "#5ecbff", fmt: pct });
+knob($("#oscBK"), { name: "Osc B Level", label: "LEVEL", min: 0, max: 100, size: 52, color: "#5ecbff", fmt: v => v < .5 ? "OFF" : pct(v) });
+knob($("#oscBT"), { name: "Octave B", label: "OCT", min: -3, max: 3, step: 1, size: 38, color: "#5ecbff", fmt: v => (v > 0 ? "+" : "") + Math.round(v) });
+knob($("#oscBT"), { name: "Semi B", label: "SEMI", min: -12, max: 12, step: 1, size: 38, color: "#5ecbff", fmt: v => (v > 0 ? "+" : "") + Math.round(v) + " st" });
+knob($("#oscBT"), { name: "Fine B", label: "FINE", min: -100, max: 100, size: 38, color: "#5ecbff", fmt: v => (v > 0 ? "+" : "") + v.toFixed(0) + " ct" });
+knob($("#snK"), { name: "Sub", label: "SUB", min: 0, max: 100, size: 40, color: COL.amber, fmt: pct });
+knob($("#snK"), { name: "Noise", label: "NOISE", min: 0, max: 100, size: 40, color: "#cfcfd6", fmt: pct });
+knob($("#uniK"), { name: "Unison", label: "VOICES", min: 1, max: 7, step: 1, size: 40, color: COL.teal, fmt: v => Math.round(v) + "×" });
+knob($("#uniK"), { name: "Detune", label: "DETUNE", min: 0, max: 100, size: 40, color: COL.teal, fmt: v => v.toFixed(0) + " ct" });
+knob($("#uniK"), { name: "Spread", label: "SPREAD", min: 0, max: 100, size: 40, color: COL.teal, fmt: pct });
+knob($("#outK"), { name: "Drive", label: "DRIVE", min: 0, max: 10, size: 44, color: COL.red, fmt: v => v < .005 ? "OFF" : v.toFixed(1) });
+knob($("#outK"), { name: "Output", label: "OUTPUT", min: -24, max: 12, size: 44, color: COL.white, fmt: dB });
 // ---- the mod deck: one body per source (built once), chips to switch, pills for routes
 const bodies = $("#bodies"), chips = $("#chips");
 let selSrc = 1;
@@ -367,11 +453,11 @@ for (let q = 1; q <= 4; q++) {
 }
 // MIDI + play
 const bMidi = body(8, `<div style="display:grid;gap:8px;align-content:start;min-height:0"><div class="minichips" id="midiChips"></div>
-  <div class="playrow"><div class="seg" id="vmSeg" style="width:170px"></div><div id="glideK"></div><div id="bendK"></div></div></div>` + `<div class="pills" id="midiPills"></div>`, true);
+  </div>` + `<div class="pills" id="midiPills"></div>`, true);
 $("#vmSeg").innerHTML = ["POLY", "MONO", "LEGATO"].map((n, i) => `<button data-i="${i}">${n}</button>`).join("");
 $("#vmSeg").addEventListener("click", e => { const b = e.target.closest("[data-i]"); if (b) { setParam("Voice Mode", +b.dataset.i); syncScan(); } });
-knob($("#glideK"), { name: "Glide", min: 1, max: 3000, log: true, color: "#c9b6ff", fmt: v => v < 1.2 ? "OFF" : ms(v), toParam: v => v < 1.2 ? 0 : v });
-knob($("#bendK"), { name: "Bend Range", label: "BEND", min: 0, max: 24, step: 1, color: "#c9b6ff", fmt: v => Math.round(v) + " st" });
+knob($("#outK"), { name: "Glide", min: 1, max: 3000, log: true, color: "#c9b6ff", fmt: v => v < 1.2 ? "OFF" : ms(v), toParam: v => v < 1.2 ? 0 : v });
+knob($("#outK"), { name: "Bend Range", label: "BEND", min: 0, max: 24, step: 1, color: "#c9b6ff", fmt: v => Math.round(v) + " st" });
 // macro bodies (routes only)
 for (let q = 0; q < 8; q++) body(15 + q, `<div class="ph" style="font:10px var(--vec);letter-spacing:.14em;color:#f4e3c1;align-self:start;line-height:1.7">MACRO ${q + 1} · ${MACRO_NAMES[q]}<br><span style="color:var(--dim);font-size:9px">one knob, any number of routes: drag its ● onto knobs, or + ROUTE</span></div>` + pillsBox(15 + q), true);
 // chips (primary sources) and MIDI mini-chips
@@ -461,13 +547,12 @@ addEventListener("contextmenu", e => { const kn = e.target.closest(".knob"), d =
   routes().filter(r => r.dst === d && (r.src === selSrc || (selSrc === 8 && r.src >= 8 && r.src <= 14))).forEach(r => setSlot(r.k, 0, 0, 0)); afterRoutes(); });
 selectSource(1);
 
-knob($("#fBig"), { name: "Cutoff", min: 20, max: 20000, log: true, size: 72, color: COL.orange, fmt: hz,
+knob($("#fK"), { name: "Cutoff", label: "CUTOFF", min: 20, max: 20000, log: true, size: 52, color: COL.orange, fmt: hz,
   mod: () => [{ amt: P["Filter Env"] / 100 * 6 / CUT_OCT, col: COL.violet }] });
-knob($("#fBig"), { name: "Resonance", min: 0, max: 100, size: 72, color: COL.orange, fmt: pct });
-const morphKnob = knob($("#fBig"), { name: "Filter Morph", min: 0, max: 100, size: 72, color: COL.amber, fmt: v => morphLabel(v) });
-knob($("#fSmall"), { name: "Filter Drive", min: 0, max: 24, color: COL.red, fmt: v => v < .05 ? "CLEAN" : "+" + v.toFixed(1) + " dB" });
-knob($("#fSmall"), { name: "Keytrack", min: 0, max: 100, color: COL.teal, fmt: pct });
-knob($("#fSmall"), { name: "Filter Env", min: -100, max: 100, color: COL.violet, fmt: spct });
+knob($("#fK"), { name: "Resonance", label: "RESO", min: 0, max: 100, size: 52, color: COL.orange, fmt: pct });
+const morphKnob = knob($("#fK"), { name: "Filter Morph", label: "MORPH", min: 0, max: 100, size: 40, color: COL.amber, fmt: v => morphLabel(v) });
+knob($("#fK"), { name: "Filter Drive", label: "DRIVE", min: 0, max: 24, size: 40, color: COL.red, fmt: v => v < .05 ? "CLEAN" : "+" + v.toFixed(0) + " dB" });
+knob($("#fK"), { name: "Keytrack", label: "KEY", min: 0, max: 100, size: 40, color: COL.teal, fmt: pct });
 
 
 // ===================================================================== the wavetable (same spectra as dsp/WavetableSynth.h)
@@ -483,17 +568,16 @@ function amp(f, h) {
 const SH = { saw: t => 1 - 2 * t, sq: t => t < .5 ? 1 : -1, pulse: (t, d) => t < d ? 1 : -1, tri: t => 1 - 4 * Math.abs(t - .5),
   shark: t => t < .75 ? -1 + 2 * t / .75 : 1 - 2 * (t - .75) / .25, sync: (t, r) => { const x = t * r; return 1 - 2 * (x - Math.floor(x)); } };
 function shapeTable(fns) { return fns.map(fn => { const w = new Float32Array(NP); for (let i = 0; i < NP; i++) w[i] = fn((i + .5) / NP); return w; }); }
-function previewTable(i) {
-  if (i === 0 || i === 5) { NF = 64; buildWT(); TN = i ? "GROWN" : "ORPHEO"; }
-  else {
-    const r = (n, f) => Array.from({ length: n }, (_, k) => f(k / (n - 1)));
-    WT = shapeTable([null, [SH.tri, SH.shark, SH.saw, SH.sq, t => SH.pulse(t, .3), t => SH.pulse(t, .1)],
-      r(32, u => t => SH.pulse(t, .5 - .45 * u)), r(32, u => t => SH.sync(t, 1 + 7 * u)),
-      r(16, u => t => (1 - .6 * u) * SH.saw(t) + (.4 + .6 * u) * SH.pulse(t, .5 - .4 * u))][i]).map(w => { let pk = 1e-9; w.forEach(x => pk = Math.max(pk, Math.abs(x))); return w.map(x => x / pk); });
-    NF = WT.length; TN = TABLES[i][0];
-  }
-  TI = "BUILT-IN " + NF + " FRAMES"; K["Position"].repaint();
+function makePreview(i) {  // browser only: [frames, name]
+  if (i === 0 || i === 5) { const keep = NF; NF = 64; buildWT(); const t = WT; NF = keep; return [t, i ? "GROWN" : "ORPHEO"]; }
+  const r = (n, f) => Array.from({ length: n }, (_, k) => f(k / (n - 1)));
+  const t = shapeTable([null, [SH.tri, SH.shark, SH.saw, SH.sq, t => SH.pulse(t, .3), t => SH.pulse(t, .1)],
+    r(32, u => t => SH.pulse(t, .5 - .45 * u)), r(32, u => t => SH.sync(t, 1 + 7 * u)),
+    r(16, u => t => (1 - .6 * u) * SH.saw(t) + (.4 + .6 * u) * SH.pulse(t, .5 - .4 * u))][i]).map(w => { let pk = 1e-9; w.forEach(x => pk = Math.max(pk, Math.abs(x))); return w.map(x => x / pk); });
+  return [t, TABLES[i][0]];
 }
+function previewTable(i) { const [t, n] = makePreview(i); WT = t; NF = t.length; TN = n; TI = "BUILT-IN " + NF + " FRAMES"; K["Position"].repaint(); }
+function previewTableB(i) { const [t, n] = makePreview(i); WTB = t; NFB = t.length; TNB = n; K["Position B"].repaint(); }
 let WT = [];
 function buildWT() {
   WT = [];
@@ -505,7 +589,11 @@ function buildWT() {
     WT.push(w);
   }
 }
-buildWT();
+buildWT(); WTB = WT;
+function frameAtOf(tbl, pos) {
+  const n = tbl.length, x = Math.max(0, Math.min(1, pos)) * (n - 1), i = Math.min(n - 2, Math.floor(x)), t = x - i, a = tbl[i], b = tbl[i + 1], o = new Float32Array(NP);
+  for (let k = 0; k < NP; k++) o[k] = a[k] + (b[k] - a[k]) * t; return o;
+}
 function frameAt(pos) { // pos 0..1 -> interpolated waveform
   const x = Math.max(0, Math.min(1, pos)) * (NF - 1), i = Math.min(NF - 2, Math.floor(x)), t = x - i, a = WT[i], b = WT[i + 1], o = new Float32Array(NP);
   for (let k = 0; k < NP; k++) o[k] = a[k] + (b[k] - a[k]) * t; return o;
@@ -534,7 +622,15 @@ function bloom(c) { if (!c.width || !c.height) return; let b = c.nextElementSibl
 let padDrag = null;
 function drawLand(now) {
   const c = $("#land"), [g, W, H] = fit(c);
-  const span = 63 / Math.max(1, NF - 1), ox = 96, oy = H - 128, ww = 380, amp_ = 38, dx = 2.45 * span, dy = 3.7 * span;   // frame f sits at (ox + f*dx, oy - f*dy)
+  const span = 63 / Math.max(1, NF - 1), ox = W * .12, oy = H - 74, ww = W * .55, amp_ = 30, dx = W * .24 / 63 * span, dy = H * .42 / 63 * span;   // frame f sits at (ox + f*dx, oy - f*dy)
+  // OSC B: a cooler landscape behind A (when it's on)
+  if (P["Osc B Level"] > .5 && WTB.length > 1) {
+    const nb = WTB.length, bdx = W * .24 / (nb - 1), bdy = H * .42 / (nb - 1), bx = ox + W * .08, by = oy - H * .07, bamp = amp_ * .8, PB = P["Position B"] / 100;
+    const ridgeB = (w, f) => { const x0 = bx + f * bdx, y0 = by - f * bdy; g.beginPath(); for (let k = 0; k <= NP; k++) { const x = x0 + ww * k / NP, y = y0 - w[k % NP] * bamp; k ? g.lineTo(x, y) : g.moveTo(x, y); } };
+    for (let f = nb - 1; f >= 0; f -= Math.max(1, Math.round(nb / 24))) { ridgeB(WTB[f], f); g.strokeStyle = rgba("#5ecbff", .14 + .1 * (1 - f / nb)); g.lineWidth = 1; g.stroke(); }
+    ridgeB(frameAtOf(WTB, PB), PB * (nb - 1)); glow(g, rgba("#5ecbff", .9), 10); g.lineWidth = 1.6; g.stroke(); g.shadowBlur = 0;
+    for (const v of voices) if (v.amp > .01 && v.posB != null) { ridgeB(frameAtOf(WTB, v.posB), v.posB * (nb - 1)); glow(g, rgba("#9fe0ff", Math.min(1, .2 + v.amp * .6)), 8); g.lineWidth = 1; g.stroke(); g.shadowBlur = 0; }
+  }
   const P0 = P["Position"] / 100;
   const ridge = (w, f) => { const x0 = ox + f * dx, y0 = oy - f * dy; g.beginPath(); for (let k = 0; k <= NP; k++) { const s = w[k % NP]; const x = x0 + ww * k / NP, y = y0 - s * amp_; k ? g.lineTo(x, y) : g.moveTo(x, y); } };
   // floor grid
@@ -560,16 +656,16 @@ function drawLand(now) {
     const f = v.pos * (NF - 1);
     ridge(frameAt(v.pos), f); glow(g, rgba(COL.teal, Math.min(1, .25 + v.amp)), 12); g.lineWidth = 1.2 + v.amp * 1.4; g.stroke(); g.shadowBlur = 0;
     const x = ox + f * dx - 10, y = oy - f * dy; glow(g, COL.teal, 8); g.beginPath(); g.arc(x, y, 2.5 + v.amp * 2, 0, 7); g.fill(); g.shadowBlur = 0;
-    text(g, noteName(v.note), ox - 18 + (NF - 1) * dx + ww + 40, 150 + 13 * vi++, rgba(COL.teal, .5 + v.amp * .5), 10, "right");
+    text(g, noteName(v.note), W - 30, 104 + 13 * vi++, rgba(COL.teal, .5 + v.amp * .5), 10, "right");
   }
   // X-Y marker: position along the depth axis, cutoff as the height of the stem
   const cn = Math.log(P["Cutoff"] / 20) / Math.log(1000), mx = ox + fp * dx - 22, my = oy - fp * dy + amp_;
-  g.strokeStyle = rgba(COL.orange, .7); g.lineWidth = 1.5; g.setLineDash([3, 4]); g.beginPath(); g.moveTo(mx, my); g.lineTo(mx, my - 40 - cn * 150); g.stroke(); g.setLineDash([]);
-  glow(g, COL.orange, 12); g.beginPath(); g.arc(mx, my - 40 - cn * 150, padDrag ? 7 : 5, 0, 7); g.stroke(); g.beginPath(); g.arc(mx, my - 40 - cn * 150, 2, 0, 7); g.fill(); g.shadowBlur = 0;
+  g.strokeStyle = rgba(COL.orange, .7); g.lineWidth = 1.5; g.setLineDash([3, 4]); g.beginPath(); g.moveTo(mx, my); g.lineTo(mx, my - 30 - cn * H * .32); g.stroke(); g.setLineDash([]);
+  glow(g, COL.orange, 12); g.beginPath(); g.arc(mx, my - 30 - cn * H * .32, padDrag ? 7 : 5, 0, 7); g.stroke(); g.beginPath(); g.arc(mx, my - 30 - cn * H * .32, 2, 0, 7); g.fill(); g.shadowBlur = 0;
   $("#axX").textContent = "FRAME " + (1 + Math.round(fp));
   $("#axY").textContent = hz(P["Cutoff"]);
   const nv = voices.filter(v => v.amp > .01).length;
-  $("#hud").innerHTML = `${TN} <span>· ${TI} ·</span> ${nv} ${nv === 1 ? "VOICE" : "VOICES"}`;
+  $("#hud").innerHTML = performance.now() < noteUntil ? `<span>${NOTE_MSG}</span>` : `${TN} <span>· ${TI} ·</span> ${nv} ${nv === 1 ? "VOICE" : "VOICES"}`;
   bloom(c);
 }
 const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
@@ -582,17 +678,37 @@ $("#hero").addEventListener("pointermove", e => { if (!padDrag) return; const s 
   K["Cutoff"].set(20 * Math.pow(1000, Math.min(1, Math.max(0, padDrag.c + (padDrag.y - e.clientY) / s / 300)))); });
 $("#hero").addEventListener("pointerup", () => padDrag = null); $("#hero").addEventListener("lostpointercapture", () => padDrag = null);
 
-// mini: the frame now playing, with unison copies fanned across the stereo field
-function drawFrame() {
-  if (!$("#frameView").offsetParent) return;  // its page is hidden
-  const [g, W, H] = fit($("#frameView")), w = frameAt(P["Position"] / 100), n = Math.round(P["Unison"]);
-  for (let u = 0; u < n; u++) {
-    const x = n === 1 ? 0 : (2 * u / (n - 1) - 1), off = x * P["Spread"] / 100 * 16, ph = Math.round(x * P["Detune"] / 100 * 10);
-    g.beginPath(); for (let k = 0; k <= NP; k++) { const s = w[(k + ph + NP) % NP]; const X = 14 + off + (W - 28) * k / NP, Y = H / 2 + 6 - s * (H / 2 - 22); k ? g.lineTo(X, Y) : g.moveTo(X, Y); }
-    glow(g, u === (n - 1) / 2 || n === 1 ? COL.amber : rgba(COL.teal, .55), 8); g.lineWidth = u === (n - 1) / 2 || n === 1 ? 1.8 : 1; g.stroke();
+// oscillator screens: the frame now playing, through its warp (the same shapes as the engine)
+let NOTE_MSG = "", noteUntil = 0;
+const WARPS = ["OFF", "SYNC", "BEND+", "BEND−", "MIRROR", "ASYM", "QUANTIZE", "FM", "RING"];
+function warped(w, mode, amt) {
+  const at = ph => { const x = (((ph % 1) + 1) % 1) * NP, i = Math.floor(x), t = x - i; return w[i % NP] + (w[(i + 1) % NP] - w[i % NP]) * t; };
+  const o = new Float32Array(NP + 1);
+  for (let k = 0; k <= NP; k++) {
+    const ph = k / NP; let v;
+    if (amt < .001 || mode === 0) v = at(ph);
+    else if (mode === 1) v = at(ph * (1 + amt * 7));
+    else if (mode === 2 || mode === 3) { const kk = Math.pow(2, (mode === 2 ? -1 : 1) * amt * 2.5); v = at(ph / (ph + kk * (1 - ph))); }
+    else if (mode === 4) v = at(ph) * (1 - amt) + at(ph < .5 ? 2 * ph : 2 - 2 * ph) * amt;
+    else if (mode === 5) { const ww = .5 - .45 * amt; v = at(ph < ww ? .5 * ph / ww : .5 + .5 * (ph - ww) / (1 - ww)); }
+    else if (mode === 6) { const st = Math.max(4, Math.round(Math.pow(2, 11 - amt * 9))); v = at(Math.floor(ph * st) / st); }
+    else if (mode === 7) v = at(ph + amt * Math.sin(2 * Math.PI * ph));      // FM drawn against a sine
+    else v = at(ph) * ((1 - amt) + amt * Math.sin(2 * Math.PI * ph));         // ring, likewise
+    o[k] = v;
   }
-  g.shadowBlur = 0; text(g, "FRAME " + (1 + Math.round(P["Position"] / 100 * (NF - 1))), 10, 16, COL.amber, 10); text(g, n + "×", W - 10, 16, COL.teal, 10, "right");
-  bloom($("#frameView"));
+  return o;
+}
+function drawWave(id, which) {
+  const c = $(id); if (!c.offsetParent) return;
+  const [g, W, H] = fit(c), A = which === "A";
+  const w = A ? frameAt(P["Position"] / 100) : frameAtOf(WTB, P["Position B"] / 100);
+  const y = warped(w, Math.round(P[A ? "Warp A" : "Warp B"]), P[A ? "Warp A Amount" : "Warp B Amount"] / 100), col = A ? COL.amber : "#5ecbff";
+  const on = A ? P["Osc A Level"] > .5 : P["Osc B Level"] > .5;
+  g.strokeStyle = "#2a2622"; g.beginPath(); g.moveTo(6, H / 2); g.lineTo(W - 6, H / 2); g.stroke();
+  g.beginPath(); for (let k = 0; k <= NP; k++) { const X = 6 + (W - 12) * k / NP, Y = H / 2 - y[k] * (H / 2 - 10); k ? g.lineTo(X, Y) : g.moveTo(X, Y); }
+  glow(g, on ? col : "#4a4950", on ? 9 : 0); g.lineWidth = 1.6; g.stroke(); g.shadowBlur = 0;
+  text(g, "F" + (1 + Math.round((A ? P["Position"] : P["Position B"]) / 100 * ((A ? NF : NFB) - 1))), 6, 12, on ? col : "#4a4950", 9);
+  bloom(c);
 }
 // mini: the low-pass response, with how far the mod envelope opens it
 // ---- the filter models' responses (analog versions of dsp/Filters.h), in dB
@@ -641,7 +757,7 @@ function drawResp(id, big) {
   text(g, FTYPES[t] + (ml !== "—" ? " · " + ml : ""), 10, 16, COL.orange, big ? 11 : 10); text(g, hz(P["Cutoff"]), W - 10, 16, COL.orange, big ? 11 : 10, "right");
   bloom(c);
 }
-function drawFilt() { drawResp("#filtView", false); drawResp("#respView", true); }
+function drawFilt() { drawResp("#respView", true); }
 // deck: envelope shapes with a dot per voice riding them
 function drawEnv(id, A, D, S, R, col, which) {
   if (!$(id).offsetParent) return;
@@ -673,11 +789,11 @@ function drawLfo(q) {
   const sy = P[`LFO${q} Sync`] > .5; text(g, sy ? LFO_NOTES[Math.round(P[`LFO${q} Note`])] : P[`LFO${q} Rate`].toFixed(2) + " Hz", W - 8, 14, col, 9, "right");
   bloom(c);
 }
-function drawMeter() {
-  const [g, W, H] = fit($("#meter")), seg = 18, db = 20 * Math.log10(Math.max(outLevel, 1e-5)), lit = Math.max(0, Math.min(1, (db + 48) / 48)) * seg;
-  for (let i = 0; i < seg; i++) { const y = H - 18 - (i + 1) * (H - 22) / seg, on = i < lit, cc = i > 15 ? COL.red : i > 12 ? COL.amber : COL.teal;
-    g.fillStyle = on ? cc : "#26252b"; g.shadowColor = cc; g.shadowBlur = on ? 6 : 0; g.fillRect(W / 2 - 10, y, 20, (H - 22) / seg - 2); }
-  g.shadowBlur = 0; text(g, db < -60 ? "-∞" : db.toFixed(1), W / 2, H - 3, "#9a968f", 9, "center");
+function drawMeter() {  // horizontal, in the header
+  const [g, W, H] = fit($("#meter")), seg = 22, db = 20 * Math.log10(Math.max(outLevel, 1e-5)), lit = Math.max(0, Math.min(1, (db + 48) / 48)) * seg, bw = (W - 44) / seg;
+  for (let i = 0; i < seg; i++) { const on = i < lit, cc = i > 19 ? COL.red : i > 15 ? COL.amber : COL.teal;
+    g.fillStyle = on ? cc : "#26252b"; g.shadowColor = cc; g.shadowBlur = on ? 6 : 0; g.fillRect(4 + i * bw, H / 2 - 6, bw - 2, 12); }
+  g.shadowBlur = 0; text(g, db < -60 ? "-∞" : db.toFixed(1), W - 4, H / 2 + 4, "#9a968f", 9, "right");
 }
 
 // ===================================================================== presets
@@ -724,10 +840,38 @@ let TN = "ORPHEO", TI = "FACTORY", pending = null;
 const MAX_SECONDS = 12;
 function setGrowing(on, label) { $("#hero").classList.toggle("growing", on); if (label) $("#dropzone").firstElementChild.innerHTML = label; }
 const DROP_LABEL = $("#dropzone").firstElementChild.innerHTML;
+// a wavetable .wav: a "clm " chunk ("<!>2048 ..."), or a name that says so and a length in whole 2048 cycles
+function wavetableInfo(buf, name) {
+  const dv = new DataView(buf); if (buf.byteLength < 44) return null;
+  const tag = o => String.fromCharCode(dv.getUint8(o), dv.getUint8(o + 1), dv.getUint8(o + 2), dv.getUint8(o + 3));
+  if (tag(0) !== "RIFF" || tag(8) !== "WAVE") return null;
+  let rate = 0, ch = 1, bits = 16, cycle = 0, dataBytes = 0;
+  for (let o = 12; o + 8 <= buf.byteLength;) {
+    const id = tag(o), len = dv.getUint32(o + 4, true);
+    if (id === "fmt ") { ch = dv.getUint16(o + 10, true); rate = dv.getUint32(o + 12, true); bits = dv.getUint16(o + 22, true); }
+    else if (id === "clm ") { let t = ""; for (let i = 0; i < Math.min(len, 64); i++) t += String.fromCharCode(dv.getUint8(o + 8 + i)); const m = t.match(/<!>(\d+)/); if (m) cycle = +m[1]; }
+    else if (id === "data") dataBytes = len;
+    o += 8 + len + (len & 1);
+  }
+  const frames = dataBytes / (ch * bits / 8);
+  if (!cycle && /wavetable|(^|[\s_-])wt([\s_.-]|$)/i.test(name) && frames % 2048 === 0 && frames / 2048 >= 2) cycle = 2048;
+  return cycle >= 16 && rate ? { rate, cycle } : null;
+}
 async function growFrom(file) {
   setGrowing(true, `GROWING A TABLE FROM<small>${file.name.replace(/[<>&]/g, "")}</small>`);
   try {
-    const oc = new OfflineAudioContext(1, 1, 48000), ab = await oc.decodeAudioData(await file.arrayBuffer());
+    const buf = await file.arrayBuffer(), wt = wavetableInfo(buf, file.name);
+    if (wt) {  // a wavetable file: decode at its own rate (no resampling) and hand over the cycles as they are
+      const ab = await new OfflineAudioContext(1, 1, wt.rate).decodeAudioData(buf.slice(0));
+      const mono = new Float32Array(ab.length); for (let c = 0; c < ab.numberOfChannels; c++) { const d = ab.getChannelData(c); for (let i = 0; i < ab.length; i++) mono[i] += d[i] / ab.numberOfChannels; }
+      if (!HOST) { setGrowing(true, `${file.name.replace(/[<>&]/g, "")}<small>wavetable · ${Math.floor(mono.length / wt.cycle)} frames of ${wt.cycle} · loads inside the plugin</small>`); setTimeout(() => setGrowing(false, DROP_LABEL), 2500); return; }
+      const bytes = new Uint8Array(mono.buffer); let bin = "";
+      for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+      pending = { t: performance.now(), seen: false };
+      window.webkit.messageHandlers.lab.postMessage({ type: "wavetable", name: file.name, data: btoa(bin), value: wt.cycle });
+      return;
+    }
+    const oc = new OfflineAudioContext(1, 1, 48000), ab = await oc.decodeAudioData(buf);
     const n = Math.min(ab.length, MAX_SECONDS * 48000), mono = new Float32Array(n);
     for (let c = 0; c < ab.numberOfChannels; c++) { const d = ab.getChannelData(c); for (let i = 0; i < n; i++) mono[i] += d[i] / ab.numberOfChannels; }
     if (!HOST) { setGrowing(true, `${file.name.replace(/[<>&]/g, "")}<small>decoded ${(n / 48000).toFixed(1)} s · growing happens inside the plugin</small>`); setTimeout(() => setGrowing(false, DROP_LABEL), 2500); return; }
@@ -750,18 +894,31 @@ $("#loadIn").addEventListener("change", e => { const f = e.target.files[0]; if (
 const TABLES = [["ORPHEO", "sine → saw → square → voice"], ["MOOG", "the Minimoog's six waves"], ["PWM", "position = pulse width"],
   ["SYNC", "position = hard-sync sweep"], ["JUNO", "the DCO: saw into narrowing pulse"]];
 let GROWN = "";
-function renderTableMenu() {
-  const cur = Math.round(P["Table"]);
-  $("#tmenu").innerHTML = TABLES.map(([n, d], i) => `<button data-t="${i}" class="${i === cur ? "on" : ""}">${n}<small>${d}</small></button>`).join("") +
-    `<button data-t="5" class="grown ${cur === 5 ? "on" : ""}" ${GROWN ? "" : "disabled"}>${GROWN ? "GROWN · " + GROWN : "GROWN"}<small>${GROWN ? "from your sound" : "load or drop a sound"}</small></button>`;
+function openMenu(btn, items, current, pick) {  // a small list under a button
+  const m = $("#tmenu"), r = btn.getBoundingClientRect();
+  m.innerHTML = items.map(([n, d, dis, cls], i) => `<button data-i="${i}" class="${i === current ? "on" : ""} ${cls || ""}" ${dis ? "disabled" : ""}>${n}<small>${d || ""}</small></button>`).join("");
+  m.style.left = Math.min(innerWidth - 260, r.left) + "px"; m.style.top = (r.bottom + 4) + "px"; m.classList.add("open");
+  m.onclick = e => { const b = e.target.closest("[data-i]"); if (!b || b.disabled) return; pick(+b.dataset.i); m.classList.remove("open"); };
 }
-$("#tableBtn").onclick = () => { renderTableMenu(); $("#tmenu").classList.toggle("open"); };
-$("#tmenu").addEventListener("click", e => { const b = e.target.closest("[data-t]"); if (!b || b.disabled) return; chooseTable(+b.dataset.t); $("#tmenu").classList.remove("open"); });
-function chooseTable(i) { setParam("Table", i); if (!HOST) previewTable(i); }
-$("#hero").addEventListener("pointerdown", e => { if (!e.target.closest(".tmenu,#tableBtn")) $("#tmenu").classList.remove("open"); }, true);
+addEventListener("pointerdown", e => { if (!e.target.closest(".tmenu,[data-tsel],[data-wsel]")) $("#tmenu").classList.remove("open"); }, true);
+document.querySelectorAll("[data-tsel]").forEach(b => b.onclick = () => {
+  const A = b.dataset.tsel === "A", par = A ? "Table" : "Table B";
+  const items = TABLES.map(([n, d]) => [n, d]).concat([[GROWN ? "GROWN · " + GROWN : "GROWN", GROWN ? "from your sound" : "load or drop a sound", !GROWN, "grown"]]);
+  openMenu(b, items, Math.round(P[par]), i => { setParam(par, i); if (!HOST) (A ? previewTable : previewTableB)(i); syncScan(); });
+});
+document.querySelectorAll("[data-wsel]").forEach(b => b.onclick = () => {
+  const par = b.dataset.wsel === "A" ? "Warp A" : "Warp B", other = b.dataset.wsel === "A" ? "B" : "A";
+  const desc = ["", "hard sync, 1-8x", "squeeze toward the start", "squeeze toward the end", "forward, then back", "phase distortion (PWM on any table)", "lo-fi steps", "FM from OSC " + other, "ring mod with OSC " + other];
+  openMenu(b, WARPS.map((n, i) => [n, desc[i]]), Math.round(P[par]), i => { setParam(par, i); syncScan(); });
+});
+function chooseTable(i) { setParam("Table", i); if (!HOST) previewTable(i); syncScan(); }
+$("#pages").addEventListener("click", e => { const b = e.target.closest("[data-pg]"); if (!b) return;
+  $("#pages").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); document.querySelectorAll(".pg").forEach(p => p.classList.toggle("on", p.id === b.dataset.pg)); renderMatrix(); });
+$("#ncSeg").innerHTML = ["WHITE", "PINK", "BROWN", "VINYL"].map((n, i) => `<button data-i="${i}">${n}</button>`).join("");
+$("#ncSeg").addEventListener("click", e => { const b = e.target.closest("[data-i]"); if (b) { setParam("Noise Color", +b.dataset.i); syncScan(); } });
+$("#exportBtn").onclick = () => { if (HOST) window.webkit.messageHandlers.lab.postMessage({ type: "export", name: TN }); else { NOTE_MSG = "SAVING TABLES WORKS INSIDE THE PLUGIN"; noteUntil = performance.now() + 3000; } };
 
-$("#tabs").addEventListener("click", e => { const b = e.target.closest("[data-p]"); if (!b) return;
-  $("#tabs").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); document.querySelectorAll(".page").forEach(p => p.classList.toggle("on", p.id === b.dataset.p)); });
+
 $("#ftSeg").innerHTML = FTYPES.map((n, i) => `<button data-i="${i}">${n}</button>`).join("");
 $("#ftSeg").addEventListener("click", e => { const b = e.target.closest("[data-i]"); if (b) { setParam("Filter Type", +b.dataset.i); syncScan(); } });
 $("#hpfSeg").innerHTML = ["BOOST", "FLAT", "LOW", "HIGH"].map((n, i) => `<button data-i="${i}">${n}</button>`).join("");
@@ -781,6 +938,9 @@ function syncScan() {  // every segmented switch shows the parameter's value (fr
     $("#lfoRate" + q).style.display = sy ? "none" : ""; $("#lfoNote" + q).style.display = sy ? "" : "none";
   }
   if ($("#vmSeg")) $("#vmSeg").querySelectorAll("button").forEach((b, i) => b.classList.toggle("on", i === Math.round(P["Voice Mode"])));
+  if ($("#ncSeg")) $("#ncSeg").querySelectorAll("button").forEach((b, i) => b.classList.toggle("on", i === Math.round(P["Noise Color"])));
+  if ($("#tselA")) { $("#tselA").textContent = TN + " ▾"; $("#tselB").textContent = TNB + " ▾";
+    $("#wselA").textContent = "WARP " + WARPS[Math.round(P["Warp A"])] + " ▾"; $("#wselB").textContent = "WARP " + WARPS[Math.round(P["Warp B"])] + " ▾"; }
   if (typeof morphKnob !== "undefined") { morphKnob.repaint(); morphKnob.el.style.opacity = [1, 2, 3].includes(Math.round(P["Filter Type"])) ? .4 : 1; }
 }
 knob($("#scanK"), { name: "Scan Speed", min: .25, max: 4, log: true, size: 40, color: COL.teal, fmt: v => v.toFixed(2) + "×" });
@@ -789,20 +949,23 @@ syncScan();
 // ===================================================================== plugin bridge
 window.__host = h => {
   if (h.wt && h.wt.length >= 2) { WT = h.wt.map(a => Float32Array.from(a)); NF = WT.length; K["Position"].repaint(); }
+  if (h.wtB && h.wtB.length >= 2) { WTB = h.wtB.map(a => Float32Array.from(a)); NFB = WTB.length; K["Position B"].repaint(); }
+  if (h.tnB != null) TNB = h.tnB;
+  if (h.note) { NOTE_MSG = h.note; noteUntil = performance.now() + 3500; }
   if (h.p && performance.now() - userEdit > 400) {
     let moved = false;
     for (const k in h.p) if (k in P && Math.abs(P[k] - h.p[k]) > 1e-6 * Math.max(1, Math.abs(P[k]))) { P[k] = h.p[k]; K[k] && K[k].set(h.p[k], true); moved = true; }
-    if (moved) { repaintMods(); renderPills(); }
+    if (moved) { repaintMods(); renderPills(); renderMatrix(); }
   }
   if (h.lfo) h.lfo.forEach((x, i) => { LFOV[i] = x; });
-  if (h.tn != null) { TN = h.tn; TI = h.ti || ""; GROWN = h.grown || ""; $("#tableBtn").textContent = "TABLE ☰"; }
+  if (h.tn != null) { TN = h.tn; TI = h.ti || ""; GROWN = h.grown || ""; }
   if (pending) {  // growing: wait for the plugin to start and finish, then play the new table
     if (h.busy) pending.seen = true;
     if (pending.seen && !h.busy) { pending = null; setGrowing(false, DROP_LABEL); setParam("Table", 5); }
     else if (performance.now() - pending.t > 30000) { pending = null; setGrowing(false, DROP_LABEL); }
   }
   syncScan();
-  voices = (h.v || []).map(([note, pos, a, m]) => ({ note, pos, amp: a, mod: m }));
+  voices = (h.v || []).map(([note, pos, a, m, pb]) => ({ note, pos, amp: a, mod: m, posB: pb }));
   outLevel = Math.max(h.out || 0, outLevel * .85);
   frame();
 };
@@ -855,14 +1018,14 @@ function simulate() {
     let base = P["Position"] / 100;
     if (P["Scan"] > 0) { let s = (now - v.t0) * P["Scan Speed"] / 2;  // built-in tables scan over 2 s
       s = P["Scan"] === 1 ? Math.min(1, s) : P["Scan"] === 2 ? s % 1 : (Math.floor(s) % 2 ? 1 - s % 1 : s % 1); base += (1 - base) * s; }
-    voices.push({ note: v.note, pos: Math.max(0, Math.min(1, base + P["Position Env"] / 100 * en.m)), amp: en.a, mod: en.m }); }
+    voices.push({ note: v.note, pos: Math.max(0, Math.min(1, base + P["Position Env"] / 100 * en.m)), amp: en.a, mod: en.m, posB: P["Position B"] / 100 }); }
   outLevel = Math.max(outLevel * .9, voices.reduce((s, v) => s + v.amp * .25, 0));
 }
 
 // ===================================================================== loop
 function frame() {
   const now = performance.now() / 1000;
-  drawLand(now); drawFrame(); drawFilt(); drawMeter();
+  drawLand(now); drawWave("#waveA", "A"); drawWave("#waveB", "B"); drawFilt(); drawMeter();
   drawEnv("#ampView", P["Attack"] / 1000, P["Decay"] / 1000, P["Sustain"] / 100, P["Release"] / 1000, COL.teal, "a");
   drawEnv("#modView", P["Mod Attack"] / 1000, P["Mod Decay"] / 1000, 0, P["Release"] / 1000, COL.violet, "m");
   drawEnv("#e3View", P["Env3 Attack"] / 1000, P["Env3 Decay"] / 1000, P["Env3 Sustain"] / 100, P["Env3 Release"] / 1000, "#ff6fae", "e3");
@@ -870,7 +1033,7 @@ function frame() {
   if (now * 1000 - flashT > 2500) $("#ampInfo").textContent = `${routes().length} / 16 ROUTES`;
 }
 function loop() { simulate(); frame(); requestAnimationFrame(loop); }
-const scaleNow = () => HOST ? Math.min(innerWidth / 1180, innerHeight / 760) : Math.min(innerWidth / 1210, (innerHeight - 52) / 780, 1.25);
+const scaleNow = () => HOST ? Math.min(innerWidth / 1280, innerHeight / 800) : Math.min(innerWidth / 1310, (innerHeight - 52) / 830, 1.25);
 function scaleUnits() { $("#units").style.transform = `scale(${scaleNow()})`; }
 addEventListener("resize", scaleUnits); scaleUnits();
 if (!HOST) requestAnimationFrame(loop); else frame();

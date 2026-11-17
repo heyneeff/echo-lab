@@ -343,7 +343,7 @@ IPlugView* PLUGIN_API SynthPlugin::createView(FIDString name) {
     h.feed = [this] { return feedJson(); };
     h.setParam = [this](const std::string& n, double v) { setFromEditor(n, v); };
     h.message = [this](const std::string& t, const std::string& n, const std::string& d, double v) { onEditorMessage(t, n, d, v); };
-    return new WebEditor(std::move(h), 1180, 760);
+    return new WebEditor(std::move(h), 1280, 800);
 }
 
 void SynthPlugin::setFromEditor(const std::string& name, double plain) {
@@ -371,8 +371,8 @@ std::string SynthPlugin::feedJson() {
     for (auto& v : synth.views) {
         const int note = v.note.load(std::memory_order_relaxed);
         if (note < 0) continue;
-        std::snprintf(buf, sizeof buf, "%s[%d,%.4f,%.4f,%.4f]", first ? "" : ",", note, v.pos.load(std::memory_order_relaxed),
-                      v.amp.load(std::memory_order_relaxed), v.mod.load(std::memory_order_relaxed));
+        std::snprintf(buf, sizeof buf, "%s[%d,%.4f,%.4f,%.4f,%.4f]", first ? "" : ",", note, v.pos.load(std::memory_order_relaxed),
+                      v.amp.load(std::memory_order_relaxed), v.mod.load(std::memory_order_relaxed), v.posB.load(std::memory_order_relaxed));
         s += buf;
         first = false;
     }
@@ -394,10 +394,9 @@ std::string SynthPlugin::feedJson() {
         s += ",\"tn\":\"" + tn + "\",\"ti\":\"" + ti + "\",\"grown\":\"" + (custom ? tableName : std::string()) + "\"";
         if (!exportNote.empty()) { s += ",\"note\":\"" + exportNote + "\""; exportNote.clear(); }
     }
-    if (sendTable.exchange(false) || shown != lastShown) {  // frames x 128 points, from a smooth (64-harmonic) level
-        lastShown = shown;
-        const auto& t = *shown;
-        s += ",\"wt\":[";
+    // tables for the face: frames x 128 points, from a smooth (64-harmonic) level; sent when they change
+    auto tableJson = [&](const char* key, const wt::Wavetable& t) {
+        s += ",\""; s += key; s += "\":[";
         for (int f = 0; f < t.frames; ++f) {
             const float* d = t.at(f, 4);
             s += f ? ",[" : "[";
@@ -405,6 +404,16 @@ std::string SynthPlugin::feedJson() {
             s += "]";
         }
         s += "]";
+    };
+    const wt::Wavetable* shownB = &synth.wavetableB();
+    const bool fresh = sendTable.exchange(false);
+    if (fresh || shown != lastShown) { lastShown = shown; tableJson("wt", *shown); }
+    if (fresh || shownB != lastShownB) {
+        lastShownB = shownB; tableJson("wtB", *shownB);
+        std::string nb = "ORPHEO";
+        if (shownB == customPtr.load()) { std::lock_guard<std::mutex> lock(tableMx); nb = tableName; }
+        else for (int i = 0; i < wt::kFactoryTables; ++i) if (shownB == &wt::factoryTable(i)) nb = wt::kFactoryNames[i];
+        s += ",\"tnB\":\"" + nb + "\"";
     }
     s += "}";
     return s;
