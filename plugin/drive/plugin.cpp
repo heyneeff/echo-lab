@@ -217,7 +217,7 @@ void DriveLabPlugin::setFromEditor(const std::string& name, double plain) {
 
 std::string DriveLabPlugin::feedJson() {
     std::string s = "{\"p\":{";
-    char buf[128];
+    char buf[256];
     for (int id = 0; id < kNumParams; ++id) {
         std::snprintf(buf, sizeof buf, "%s\"%s\":%.5g", id ? "," : "", kParams[id].name, toPlain(kParams[id], getParamNormalized(id)));
         s += buf;

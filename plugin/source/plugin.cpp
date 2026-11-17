@@ -8,6 +8,7 @@
 #include "base/source/fstreamer.h"
 #include "pluginterfaces/base/ustring.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
+#include "pluginterfaces/vst/ivstprocesscontext.h"
 #include "public.sdk/source/vst/vstparameters.h"
 
 using namespace Steinberg;
@@ -108,6 +109,10 @@ void EchoLabPlugin::applyParams() {
     Params p;
     p.timeMs[0] = plain(kTime);
     p.timeMs[1] = plain(kTimeR);
+    if (plain(kSync) > 0.5) {  // tempo sync: note values at the host tempo
+        p.timeMs[0] = kNoteBeats[std::clamp((int)plain(kNote), 0, kNumNotes - 1)] * 60000.0 / hostTempo;
+        p.timeMs[1] = kNoteBeats[std::clamp((int)plain(kNoteR), 0, kNumNotes - 1)] * 60000.0 / hostTempo;
+    }
     p.feedback = plain(kFeedback) / 100.0;
     p.mix = plain(kMix) / 100.0;
     p.saturationDb = plain(kSaturation);
@@ -162,6 +167,10 @@ tresult PLUGIN_API EchoLabPlugin::process(ProcessData& data) {
             }
         }
     }
+    if (data.processContext && (data.processContext->state & ProcessContext::kTempoValid)) {
+        double t = data.processContext->tempo;
+        if (t > 20 && std::abs(t - hostTempo) > 1e-3) { hostTempo = t; if (toPlain(kParams[kSync], norm[kSync]) > 0.5) changed = true; }
+    }
     if (changed) applyParams();
     if (data.numInputs == 0 || data.numOutputs == 0 || data.numSamples <= 0) return kResultOk;
 
@@ -214,13 +223,13 @@ void EchoLabPlugin::setFromEditor(const std::string& name, double plain) {
 
 std::string EchoLabPlugin::feedJson() {
     std::string s = "{\"p\":{";
-    char buf[96];
+    char buf[256];
     for (int id = 0; id < kNumParams; ++id) {
         std::snprintf(buf, sizeof buf, "%s\"%s\":%.5g", id ? "," : "", kParams[id].name, toPlain(kParams[id], getParamNormalized(id)));
         s += buf;
     }
-    std::snprintf(buf, sizeof buf, "},\"inL\":%.5g,\"wet\":%.5g,\"wr\":%.5g,\"wf\":%.5g,\"duckGain\":%.5g}",
-                  mIn.exchange(0), mWet.exchange(0), mWr.exchange(0), mWf.load(), mDuck.exchange(1));
+    std::snprintf(buf, sizeof buf, "},\"tempo\":%.3f,\"inL\":%.5g,\"wet\":%.5g,\"wr\":%.5g,\"wf\":%.5g,\"duckGain\":%.5g}",
+                  hostTempo, mIn.exchange(0), mWet.exchange(0), mWr.exchange(0), mWf.load(), mDuck.exchange(1));
     s += buf;
     return s;
 }

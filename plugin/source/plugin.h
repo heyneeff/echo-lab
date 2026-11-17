@@ -38,6 +38,7 @@ private:
     EchoEngine engine;
     int currentStyle = -1;
     double sampleRate = 44100;
+    double hostTempo = 120;
     // editor link: meters written by the audio thread (peak-held), read and reset by the editor
     std::atomic<float> mIn{0}, mWet{0}, mWr{0}, mWf{0}, mDuck{1};
     std::string feedJson();
