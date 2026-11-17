@@ -46,7 +46,7 @@ private:
     ParamDef def;
 };
 
-constexpr uint32 kStateVersion = 7;  // 2: + grown wavetable, 3: + its length (SCAN), 4: mod switches sized for growth, 5: + preset name, 6: + morph snapshots, 7: Table switches sized for growth (128)
+constexpr uint32 kStateVersion = 8;  // 2: + grown wavetable, 3: + its length (SCAN), 4: mod switches sized for growth, 5: + preset name, 6: + morph snapshots, 7: Table switches sized for growth (128), 8: + MIDI learn map and locks
 constexpr int kSavedHarmonics = 512;   // per frame, complex, as floats
 
 std::string upper(std::string s) { for (auto& c : s) c = (char)std::toupper((unsigned char)c); return s; }
@@ -65,6 +65,11 @@ tresult PLUGIN_API SynthPlugin::initialize(FUnknown* context) {
         parameters.addParameter(new TableParameter(kParams[id]));
         norm[id] = toNorm(kParams[id], kParams[id].def);
     }
+    for (int cc = 0; cc < 128; ++cc) {  // hidden: not shown or automated in the host, only a door for CCs
+        const std::string nm = "CC " + std::to_string(cc);
+        parameters.addParameter(new Parameter(USTRING(nm.c_str()), kCCBase + cc, nullptr, 0, 0, ParameterInfo::kIsHidden | ParameterInfo::kIsReadOnly));
+    }
+    defaultCCs();
     applyInitPatch();
     if (!libThread.joinable()) libThread = std::thread([this] { libLoop(); });
     return kResultOk;
@@ -132,7 +137,7 @@ bool SynthPlugin::blendInto(const double* base, double* out) const {
     int best = 0;
     for (int c = 1; c < 4; ++c) if (w[c] > w[best] + 1e-9) best = c;
     for (int id = 0; id < kNumParams; ++id) {
-        if (morphExcluded(id)) { out[id] = base[id]; continue; }
+        if (morphExcluded(id) || locked[id].load(std::memory_order_relaxed)) { out[id] = base[id]; continue; }
         if (kParams[id].map == Map::List) { out[id] = has[best] ? snap[best][id] : base[id]; continue; }
         double v = 0;
         for (int c = 0; c < 4; ++c) v += w[c] * (has[c] ? snap[c][id] : base[id]);
@@ -326,6 +331,19 @@ tresult PLUGIN_API SynthPlugin::process(ProcessData& data) {
             ParamValue v;
             ParamID id = q->getParameterId();
             if (pts > 0 && id < (ParamID)kNumParams && q->getPoint(pts - 1, off, v) == kResultTrue) { norm[id] = v; changed = true; }
+            else if (pts > 0 && id >= (ParamID)kCCBase && id < (ParamID)kCCBase + 128 && q->getPoint(pts - 1, off, v) == kResultTrue) {
+                const int cc = (int)(id - kCCBase);
+                const int learn = learnTarget.exchange(-1);
+                if (learn >= 0) { for (auto& m : ccMap) if (m == learn) m = -1; ccMap[cc] = learn; learnedCC = cc; }
+                const int target = ccMap[cc].load();
+                if (target >= 0 && target < kNumParams) {
+                    norm[target] = v; changed = true;
+                    if (data.outputParameterChanges) {  // tell the host (and so the face and automation) the knob moved
+                        int32 qi = 0;
+                        if (IParamValueQueue* oq = data.outputParameterChanges->addParameterData((ParamID)target, qi)) { int32 pi = 0; oq->addPoint(0, v, pi); }
+                    }
+                }
+            }
         }
     }
     if (tableDirty.exchange(false)) changed = true;
@@ -399,8 +417,19 @@ tresult PLUGIN_API SynthPlugin::queryInterface(const TUID iid, void** obj) {
     return SingleComponentEffect::queryInterface(iid, obj);
 }
 
+// the knobs most keyboards send from their filter / envelope / general-purpose controls
+void SynthPlugin::defaultCCs() {
+    for (auto& m : ccMap) m = -1;
+    ccMap[1] = kModWheel; ccMap[64] = kSustainPedal;
+    ccMap[74] = kCutoff; ccMap[71] = kResonance; ccMap[73] = kAttack; ccMap[75] = kDecay; ccMap[72] = kRelease;
+    const int macros[8] = {kMacro1, kMacro2, kMacro3, kMacro4, kMacro5, kMacro6, kMacro7, kMacro8};
+    for (int k = 0; k < 4; ++k) { ccMap[16 + k] = macros[k]; ccMap[80 + k] = macros[4 + k]; }
+    ccMap[12] = kMorphX; ccMap[13] = kMorphY;
+}
+
 tresult PLUGIN_API SynthPlugin::getMidiControllerAssignment(int32 busIndex, int16, CtrlNumber cc, ParamID& id) {
     if (busIndex != 0) return kResultFalse;
+    if (cc >= 0 && cc < 128) { id = kCCBase + cc; return kResultTrue; }  // every CC: routed (and learnable) in process()
     switch (cc) {
         // played: wheels, pressure, pedal
         case kCtrlModWheel: id = kModWheel; return kResultTrue;
@@ -509,6 +538,16 @@ void SynthPlugin::onEditorMessage(const std::string& type, const std::string& na
             for (auto& c : up) c = (char)std::toupper((unsigned char)c);
             installTable(std::move(spectra), up.substr(0, 28), buf, 0);
         });
+    } else if (type == "learn") {  // the next CC that moves is assigned to this parameter ("" cancels)
+        int id = -1;
+        for (int i = 0; i < kNumParams; ++i) if (name == kParams[i].name) id = i;
+        learnedCC = -1;
+        learnTarget = id;
+    } else if (type == "forget") {
+        for (int i = 0; i < kNumParams; ++i) if (name == kParams[i].name) for (auto& m : ccMap) if (m == i) m = -1;
+    } else if (type == "lock") {
+        for (int i = 0; i < kNumParams; ++i) if (name == kParams[i].name) locked[i] = value > 0.5;
+        tableDirty = true;  // re-blend
     } else if (type == "pname") {  // the face picked a preset: remember its name with the set
         std::string nm;
         for (char c : name) if ((unsigned char)c >= 32 && c != '"' && c != '\\') nm += c;
@@ -655,6 +694,16 @@ std::string SynthPlugin::feedJson() {
         s += "]";
         std::snprintf(buf, sizeof buf, ",\"sp\":[%.3f,%.3f,%.3f]", spatial.viewX.load(), spatial.viewY.load(), spatial.viewZ.load());
         s += buf;
+        s += ",\"ml\":[";
+        bool firstM = true;
+        for (int cc = 0; cc < 128; ++cc) { const int t = ccMap[cc].load(); if (t < 0 || t >= kNumParams) continue; s += firstM ? "[" : ",["; firstM = false; s += std::to_string(cc) + ",\"" + kParams[t].name + "\"]"; }
+        s += "],\"lt\":\"";
+        { const int lt = learnTarget.load(); if (lt >= 0 && lt < kNumParams) s += kParams[lt].name; }
+        s += "\",\"lc\":" + std::to_string(learnedCC.load());
+        s += ",\"lk\":[";
+        bool firstL = true;
+        for (int i = 0; i < kNumParams; ++i) if (locked[i].load()) { s += firstL ? "\"" : ",\""; firstL = false; s += kParams[i].name; s += "\""; }
+        s += "]";
         s += ",\"sn\":[";
         for (int c = 0; c < 4; ++c) { s += c ? "," : ""; s += hasSnap[c].load() ? "1" : "0"; }
         s += "],\"pn\":\"";
@@ -760,6 +809,13 @@ tresult PLUGIN_API SynthPlugin::setState(IBStream* state) {
             hasSnap[c].store(true);
         }
     }
+    defaultCCs();
+    for (auto& l : locked) l = false;
+    if (version >= 8) {
+        for (int cc = 0; cc < 128; ++cc) { int32 t; if (!s.readInt32(t)) break; ccMap[cc] = t >= 0 && t < kNumParams ? t : -1; }
+        int32 nl = 0;
+        if (s.readInt32(nl) && nl >= 0 && nl <= kNumParams) for (int32 k = 0; k < nl; ++k) { int32 i; if (!s.readInt32(i)) break; if (i >= 0 && i < kNumParams) locked[i] = true; }
+    }
     applyParams();
     return kResultOk;
 }
@@ -790,6 +846,11 @@ tresult PLUGIN_API SynthPlugin::getState(IBStream* state) {
     s.writeInt32(kNumParams);
     for (int c = 0; c < 4; ++c)
         if (mask & (1 << c)) for (int i = 0; i < kNumParams; ++i) s.writeDouble(snap[c][i]);
+    for (int cc = 0; cc < 128; ++cc) s.writeInt32(ccMap[cc].load());  // v8: the MIDI map
+    int32 nl = 0;
+    for (int i = 0; i < kNumParams; ++i) nl += locked[i].load() ? 1 : 0;
+    s.writeInt32(nl);
+    for (int i = 0; i < kNumParams; ++i) if (locked[i].load()) s.writeInt32(i);  // and the locks
     return kResultOk;
 }
 

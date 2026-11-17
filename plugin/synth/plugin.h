@@ -56,6 +56,14 @@ private:
     std::atomic<float> mOut{0};
     std::atomic<bool> sendTable{true};
     std::atomic<bool> panicReq{false};
+    // MIDI: VST3 never hands a plugin raw CCs, so every CC 0-127 comes in on a hidden proxy parameter (kCCBase + cc)
+    // and is routed here: the default table below, plus whatever you teach it with LEARN MIDI. Saved with the set.
+    static constexpr int kCCBase = 100000;
+    std::array<std::atomic<int>, 128> ccMap{};   // cc -> parameter id, -1 = nothing
+    std::atomic<int> learnTarget{-1}, learnedCC{-1};
+    void defaultCCs();
+    // LOCK: a locked parameter is left alone by the morph (and by Dice in the face)
+    std::array<std::atomic<bool>, kNumParams> locked{};
     space::SpatialEngine spatial;  // SPACE: after the FX rack, before the safety limiter
     bool spaceOn = false;
     // morph snapshots: 4 whole-patch states (normalized values) on the X-Y pad corners A B / C D, blended by Morph X/Y.

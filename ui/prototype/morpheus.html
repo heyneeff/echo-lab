@@ -53,6 +53,14 @@ html.host .bar { display: none; } html.host #stage { top: 0; } html.host body { 
 .tmenu { position: fixed; z-index: 15; display: none; gap: 4px; padding: 8px; min-width: 210px; background: #0d0a09f2;
   border: 1px solid #ff8a1f44; border-radius: 10px; box-shadow: 0 12px 30px #000c; }
 .tmenu.open { display: grid; } .tmenu.wide { grid-template-columns: repeat(3, 1fr); }
+.tmenu .kmh { font: 600 14px var(--cond, sans-serif); letter-spacing: .14em; color: var(--rust, #ff5a36); padding: 2px 4px 6px; border-bottom: 1px solid #3a2a20; display: grid; gap: 2px; max-width: 260px; }
+.tmenu .kmh small { font: 9px var(--vec); color: var(--dim); letter-spacing: .04em; }
+.tmenu .kmin { font: 11px var(--vec); color: #ffd27a; background: #0a0807; border: 1px solid #4a3324; border-radius: 3px; padding: 6px 8px; outline: none; -webkit-user-select: text; user-select: text; }
+.tmenu .kmin:focus { border-color: #ffa53a; }
+.tmenu button.on small { color: #ff8a5c; }
+.tmenu.km { gap: 2px; width: 300px; max-height: 92vh; overflow: auto; } .tmenu.km button { padding: 4px 9px; font-size: 10px; display: flex; justify-content: space-between; gap: 8px; }
+.tmenu.km button small { font-size: 8px; text-align: right; }
+.knob.locked .name::before { content: "■ "; color: #ff5a36; font-size: .8em; }
 .tmenu.lib.open { display: block; columns: 4 170px; column-gap: 10px; width: 760px; max-height: 560px; overflow: auto; }
 .tmenu.lib .tsec { break-inside: avoid; display: grid; gap: 3px; margin-bottom: 10px; }
 .tmenu.lib .th { font: 600 13px var(--cond); letter-spacing: .16em; color: var(--rust, #ff5a36); padding: 2px 2px 3px; border-bottom: 1px solid #3a2a20; margin-bottom: 2px; }
@@ -989,9 +997,74 @@ addEventListener("pointerup", () => {
   const { src, g, target } = routeDrag; g.remove(); routeDrag = null;
   if (target) { target.classList.remove("droptarget"); addRoute(src, DEST_OF[target.dataset.param]); selectSource(src); }
 });
-// right-click a knob: remove the shown source's routes to it
-addEventListener("contextmenu", e => { const kn = e.target.closest(".knob"), d = kn && DEST_OF[kn.dataset.param]; if (!d) return; e.preventDefault();
-  routes().filter(r => r.dst === d && (r.src === selSrc || (selSrc === 8 && r.src >= 8 && r.src <= 14))).forEach(r => setSlot(r.k, 0, 0, 0)); afterRoutes(); });
+// ===================================================================== right-click any knob: our own menu
+// learn MIDI · type a value · modulate by · add to a macro · put on the pad · lock · dice / nudge · reset · copy / paste · what it does
+let ML = [], LT = "", LC = -1, LK = [], CLIP = null, lastLC = -1;
+const HELP = { "Position": "where in the wavetable OSC A plays (frame by frame)", "Position B": "where in its table OSC B plays", "Cutoff": "the filter's frequency: lower = darker",
+  "Resonance": "a peak at the cutoff; high = whistling", "Filter Morph": "SVF only: low-pass → band-pass → high-pass", "Filter Drive": "pushes the filter into saturation",
+  "Keytrack": "higher notes open the filter more", "Attack": "how fast a note fades in", "Decay": "how fast it falls to the sustain level", "Sustain": "the level while you hold the key",
+  "Release": "how long it rings after you let go", "Unison": "how many detuned copies of each voice", "Detune": "how far apart the unison voices are", "Spread": "how wide the unison voices are panned",
+  "Sub": "a sine one octave down", "Noise": "noise mixed in, through the filter", "Drive": "Prometheus saturation on the whole synth", "Output": "the final level",
+  "Glide": "how long a note slides to the next", "Bend Range": "how far the pitch wheel bends, in semitones", "Scan Speed": "how fast SCAN moves through the table",
+  "Warp A Amount": "how hard OSC A's warp bends the wave", "Warp B Amount": "how hard OSC B's warp bends the wave", "Osc B Level": "how loud OSC B is (off = not computed)",
+  "Space X": "left ↔ right", "Space Y": "below ↔ above", "Space Z": "behind ↔ in front", "Space Amount": "how strong every space cue is", "Space Room": "how much room comes with distance",
+  "Morph X": "across the morph pad", "Morph Y": "up the morph pad" };
+const tell = m => { NOTE_MSG = m; noteUntil = performance.now() + 2600; flash(m); };
+const post = (type, name, value) => { if (HOST) window.webkit.messageHandlers.lab.postMessage({ type, name, value: value || 0 }); else tell("MIDI AND LOCKS WORK INSIDE THE PLUGIN"); };
+function knobMenu(kn, x, y) {
+  const name = kn.dataset.param, Kx = K[name]; if (!Kx) return;
+  const d = DEST_OF[name], cc = ML.filter(([c, n]) => n === name).map(([c]) => c), lockedNow = LK.includes(name);
+  const presetV = PRESETS[cur] && name in PRESETS[cur][2] ? PRESETS[cur][2][name] : DEF[name];
+  const m = $("#tmenu"); m.classList.remove("lib", "wide"); m.classList.add("km");
+  const main = () => {
+    const rows = [
+      ["learn", LT === name ? "LISTENING… MOVE A CONTROL" : "LEARN MIDI", cc.length ? "now on CC " + cc.join(", ") : "move a knob on your controller"],
+      cc.length && ["forget", "FORGET MIDI", "unmap CC " + cc.join(", ")],
+      d && ["mod", "MODULATE BY  ▸", routes().filter(r => r.dst === d).length + " routes on this knob"],
+      d && ["macro", "ADD TO A MACRO  ▸", "one of the eight ORPHEO macros moves it"],
+      ["padx", "PUT ON THE PAD: ACROSS", "drag the dreamscape left / right"], ["pady", "PUT ON THE PAD: UP", "drag the dreamscape up / down"],
+      ["lock", lockedNow ? "UNLOCK" : "LOCK", lockedNow ? "morph and dice may change it again" : "morph and dice leave it alone"],
+      ["dice", "DICE THIS", "a random value"], ["nudge", "NUDGE", "a small random step"],
+      ["preset", "RESET TO THE PRESET", String(presetV)], ["def", "RESET TO DEFAULT", "double-click does this too"],
+      ["copy", "COPY", Kx.text()], CLIP != null && ["paste", "PASTE", "the copied position"],
+    ].filter(Boolean);
+    m.innerHTML = `<div class="kmh">${name.toUpperCase()}<small>${HELP[name] || "drag up / down · shift = fine · double-click = default"}</small></div>
+      <input class="kmin" placeholder="type a value (now ${Kx.text()})" spellcheck="false">` +
+      rows.map(([k, n, dd]) => `<button data-k="${k}">${n}<small>${dd || ""}</small></button>`).join("");
+    const inp = m.querySelector(".kmin");
+    inp.addEventListener("keydown", e => { e.stopPropagation(); if (e.key === "Enter") { const v = parseFloat(inp.value.replace(/[^0-9.+-eE]/g, "")) * (/k\s*hz/i.test(inp.value) ? 1000 : 1);
+      if (isFinite(v)) { Kx.set(v); repaintMods(); } close(); } if (e.key === "Escape") close(); });
+  };
+  const sub = (title, items, pick) => { m.innerHTML = `<div class="kmh">${title}</div><button data-back>◂ BACK</button>` + items.map(([n, dd, cls], i) => `<button data-i="${i}" class="${cls || ""}">${n}<small>${dd || ""}</small></button>`).join("");
+    m.onclick = e => { e.stopPropagation(); const b = e.target.closest("button"); if (!b) return; if (b.hasAttribute("data-back")) { main(); m.onclick = act; return; } pick(+b.dataset.i); close(); }; };
+  const close = () => { m.classList.remove("open", "km"); m.onclick = null; };
+  const act = e => {
+    const b = e.target.closest("[data-k]"); if (!b) return; e.stopPropagation(); const k = b.dataset.k;
+    if (k === "learn") { post("learn", LT === name ? "" : name); if (LT !== name) tell("MOVE A KNOB ON YOUR CONTROLLER FOR " + name.toUpperCase()); }
+    else if (k === "forget") { post("forget", name); tell("FORGOT CC " + cc.join(", ")); }
+    else if (k === "mod") {
+      const here = routes().filter(r => r.dst === d);
+      return sub("MODULATE " + name.toUpperCase() + " BY", here.map(r => ["✕ " + SRC[r.src].key + "  " + Math.round(r.amt * 100) + "%", "remove this route", "on"]).concat(SRC.filter(x => x && x.id > 0).map(x => [x.name, "add a route"])),
+        i => { if (i < here.length) { setSlot(here[i].k, 0, 0, 0); afterRoutes(); } else { const src = SRC.filter(x => x && x.id > 0)[i - here.length].id; addRoute(src, d); selectSource(src); } });
+    }
+    else if (k === "macro") return sub("ADD " + name.toUpperCase() + " TO", MACRO_NAMES.map((n, q) => ["MACRO " + (q + 1) + " · " + n, "turns it by up to +50%"]), q => { addRoute(15 + q, d, .5); selectSource(15 + q); });
+    else if (k === "padx" || k === "pady") { PAD[k === "padx" ? "x" : "y"] = name; renderPad(); tell(name.toUpperCase() + " IS ON THE PAD"); }
+    else if (k === "lock") { post("lock", name, lockedNow ? 0 : 1); LK = lockedNow ? LK.filter(n => n !== name) : LK.concat([name]); paintLocks(); }
+    else if (k === "dice") { if (!lockedNow) Kx.setN(Math.random()); }
+    else if (k === "nudge") { if (!lockedNow) Kx.setN(Kx.norm() + (Math.random() - .5) * .12); }
+    else if (k === "preset") Kx.set(presetV);
+    else if (k === "def") Kx.set(DEF[name]);
+    else if (k === "copy") CLIP = Kx.norm();
+    else if (k === "paste") Kx.setN(CLIP);
+    repaintMods(); close();
+  };
+  main(); m.onclick = act;
+  m.classList.add("open"); m.style.left = Math.max(8, Math.min(innerWidth - m.offsetWidth - 8, x)) + "px"; m.style.top = Math.max(8, Math.min(innerHeight - m.offsetHeight - 8, y)) + "px";
+  setTimeout(() => { const i = m.querySelector(".kmin"); if (i) i.focus(); }, 0);
+}
+function paintLocks() { document.querySelectorAll(".knob").forEach(k => { k.classList.toggle("locked", LK.includes(k.dataset.param));
+  const cc = ML.filter(([c, n]) => n === k.dataset.param).map(([c]) => c); k.title = cc.length ? "MIDI CC " + cc.join(", ") : ""; }); }
+addEventListener("contextmenu", e => { const kn = e.target.closest(".knob"); if (!kn) return; e.preventDefault(); knobMenu(kn, e.clientX, e.clientY); });
 selectSource(1);
 
 knob($("#fK"), { name: "Cutoff", label: "CUTOFF", min: 20, max: 20000, log: true, size: 52, color: COL.orange, fmt: hz,
@@ -1471,7 +1544,7 @@ let GROWN = "";
 function openMenu(btn, items, current, pick) {  // a small list under a button
   const m = $("#tmenu"), r = btn.getBoundingClientRect();
   m.innerHTML = items.map(([n, d, dis, cls], i) => `<button data-i="${i}" class="${i === current ? "on" : ""} ${cls || ""}" ${dis ? "disabled" : ""}>${n}<small>${d || ""}</small></button>`).join("");
-  m.classList.remove("lib"); m.classList.toggle("wide", items.length > 12); m.style.top = (r.bottom + 4) + "px"; m.classList.add("open");
+  m.classList.remove("lib", "km"); m.classList.toggle("wide", items.length > 12); m.style.top = (r.bottom + 4) + "px"; m.classList.add("open");
   m.style.left = Math.max(8, Math.min(innerWidth - m.offsetWidth - 8, r.left)) + "px";
   m.onclick = e => { const b = e.target.closest("[data-i]"); if (!b || b.disabled) return; pick(+b.dataset.i); m.classList.remove("open"); };
 }
@@ -1573,6 +1646,8 @@ window.__host = h => {
   if (h.wtB && h.wtB.length >= 2) { WTB = h.wtB.map(a => Float32Array.from(a)); NFB = WTB.length; K["Position B"].repaint(); }
   if (h.tnB != null) TNB = h.tnB;
   if (h.note) { NOTE_MSG = h.note; noteUntil = performance.now() + 3500; }
+  if (h.ml) { const was = JSON.stringify(ML) + LK.join(); ML = h.ml; LK = h.lk || []; LT = h.lt || ""; if (was !== JSON.stringify(ML) + LK.join()) paintLocks();
+    if (h.lc >= 0 && h.lc !== lastLC && !LT) { const t = ML.find(([c]) => c === h.lc); if (t) tell("CC " + h.lc + " → " + t[1].toUpperCase()); } lastLC = h.lc; }
   if (h.sp) { if (!SP || h.sp.join() !== SP.join()) spLive = performance.now(); SP = h.sp; }
   if (h.sn && h.sn.join() !== SNAPS.join()) { SNAPS = h.sn.slice(); renderMorph(); }
   if (typeof h.pn === "string" && h.pn !== lastPn) { lastPn = h.pn; $("#pn").textContent = h.pn || "—"; const i = PRESETS.findIndex(x => x[0] === h.pn); if (i >= 0) cur = i; }
