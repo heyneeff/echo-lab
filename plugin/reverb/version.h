@@ -11,7 +11,7 @@
 #define FULL_VERSION_STR MAJOR_VERSION_STR "." SUB_VERSION_STR "." RELEASE_NUMBER_STR "." BUILD_NUMBER_STR
 #define VERSION_STR MAJOR_VERSION_STR "." SUB_VERSION_STR "." RELEASE_NUMBER_STR
 #define stringOriginalFilename "Lethe.vst3"
-#define stringFileDescription "Lethe Reverb"
+#define stringFileDescription "Letheverb"
 #define stringCompanyName "Echo Lab"
 #define stringCompanyWeb ""
 #define stringCompanyEmail ""

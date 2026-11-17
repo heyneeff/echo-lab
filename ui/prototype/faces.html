@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Echo Nymph · Prometheus · Lethe</title>
+<title>Echo Nymph · Prometheus · Letheverb</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
@@ -130,7 +130,7 @@ html.host body { background: #0b0b0d; }
   <span>CHAIN</span>
   <div class="grp"><button id="useDrive" class="on">DRIVE</button><span>→</span><button id="useEcho" class="on">ECHO</button><span>→</span><button id="useVerb" class="on">REVERB</button></div>
   <span class="sp"></span>
-  <div class="grp"><button id="showEcho" class="on">ECHO NYMPH</button><button id="showDrive">PROMETHEUS DRIVE</button><button id="showVerb">LETHE REVERB</button></div>
+  <div class="grp"><button id="showEcho" class="on">ECHO NYMPH</button><button id="showDrive">PROMETHEUS DRIVE</button><button id="showVerb">LETHEVERB</button></div>
 </div>
 <div id="stage"><div id="units">
 
@@ -176,7 +176,7 @@ html.host body { background: #0b0b0d; }
   <section class="unit" id="verb"><div class="chassis">
     <div class="hero" id="verbHero">
       <canvas id="room"></canvas>
-      <div class="logo">LETHE<small>REVERB · HALLS · OBLIVION</small></div>
+      <div class="logo">LETHEVERB<small>HALLS · DEPTHS · OBLIVION</small></div>
       <div class="brk tr"></div><div class="brk bl"></div>
       <div class="axis y" style="color:var(--amber)">DECAY<b id="axDecay"></b></div>
       <div class="axis x" style="color:var(--teal)">SIZE<b id="axSize"></b></div>
@@ -354,13 +354,18 @@ const lines = [0, 1].map(i => {
 });
 lines.forEach((L, i) => { eIn.connect(L.inG); L.inG.connect(L.write); L.lp.connect(L.self); L.self.connect(L.write); L.lp.connect(L.cross); L.cross.connect(lines[1 - i].write); });
 lines[0].write.connect(anWrite);
-eWetSum.connect(duckG); duckG.connect(eWet); eWet.connect(eOut); eWet.connect(anWet); const vIn = N("GainNode"), vDry = N("GainNode"), vWetG = N("GainNode"), vDuckG = N("GainNode"), conv = N("ConvolverNode");
+eWetSum.connect(duckG); duckG.connect(eWet); eWet.connect(eOut); eWet.connect(anWet); const vIn = N("GainNode"), vDry = N("GainNode"), vWetG = N("GainNode"), vDuckG = N("GainNode");
+// two convolvers, crossfaded, so changing the space never cuts the tail
+const convs = [N("ConvolverNode"), N("ConvolverNode")], convG = [N("GainNode", { gain: 1 }), N("GainNode", { gain: 0 })]; let convCur = 0, irSig = "";
 const anVIn = N("AnalyserNode", { fftSize: 2048 }), anVWet = N("AnalyserNode", { fftSize: 2048 });
-eOut.connect(vIn); vIn.connect(anVIn); vIn.connect(vDry); vDry.connect(master); vIn.connect(conv); conv.connect(vDuckG); vDuckG.connect(vWetG); vWetG.connect(anVWet); vWetG.connect(master);
+eOut.connect(vIn); vIn.connect(anVIn); vIn.connect(vDry); vDry.connect(master); convs.forEach((c, i) => { vIn.connect(c); c.connect(convG[i]); convG[i].connect(vDuckG); }); vDuckG.connect(vWetG); vWetG.connect(anVWet); vWetG.connect(master);
 let irTimer = null;
 function updateVerb() { // browser stand-in: a stereo noise impulse with the same three-band decay times + early taps
   const m = RV.on ? RV.vmix / 100 : 0;
   vWetG.gain.setTargetAtTime(Math.sin(m * Math.PI / 2) * Math.pow(10, RV.vout / 20) * 0.6, ctx.currentTime, .02); vDry.gain.setTargetAtTime(Math.cos(m * Math.PI / 2), ctx.currentTime, .02);
+  const sig = [RV.vsize, RV.vdecay, RV.vpre, RV.vstyle, RV.vdamp, RV.vbass, RV.vearly, RV.vhi].map(v => Math.round(v * 100)).join(",");
+  if (sig === irSig) return;  // mix / output / duck don't change the space: no rebuild
+  irSig = sig;
   clearTimeout(irTimer); irTimer = setTimeout(() => {
     const sr = ctx.sampleRate, rt = rtBands(), len = Math.min(8, Math.max(rt.lo, rt.mid) * 1.3 + .1), n = Math.ceil(len * sr), b = ctx.createBuffer(2, n, sr), pre = Math.round(RV.vpre / 1000 * sr);
     const st = VSTY[RV.vstyle] || VSTY[0], sz = RV.vsize / 100;
@@ -369,7 +374,11 @@ function updateVerb() { // browser stand-in: a stereo noise impulse with the sam
         const lo = lp1, hi = w - lp2, mid = w - lo - hi; const fade = Math.min(1, t / (0.03 * sz * st.sm + .005));
         d[i] = fade * .35 * (lo * Math.pow(10, -3 * t / rt.lo) + mid * Math.pow(10, -3 * t / rt.mid) + hi * Math.pow(10, -3 * t / rt.hi)); }
       ER_MS.forEach((ms, k) => { if ((k & 1) !== c) return; const i = pre + Math.round(ms / 1000 * sr * st.es * sz); if (i < n) d[i] += st.er * RV.vearly / 100 * Math.pow(.82, k) * .5; }); }
-    conv.buffer = b; }, 120);
+    const nxt = 1 - convCur, t = ctx.currentTime;
+    convs[nxt].buffer = b;
+    convG[nxt].gain.cancelScheduledValues(t); convG[nxt].gain.setValueAtTime(convG[nxt].gain.value, t); convG[nxt].gain.linearRampToValueAtTime(1, t + .2);
+    convG[convCur].gain.cancelScheduledValues(t); convG[convCur].gain.setValueAtTime(convG[convCur].gain.value, t); convG[convCur].gain.linearRampToValueAtTime(0, t + .2);
+    convCur = nxt; }, 120);
 }
 function updateEcho() {
   const t = ctx.currentTime, st = STYLES[E.style], T = E.time / 1000, fb = E.fb / 100;
