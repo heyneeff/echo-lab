@@ -4,6 +4,7 @@
 
 #include <cctype>
 #include <cstdlib>
+#include <chrono>
 #include <filesystem>
 #include <cmath>
 #include <cstdio>
@@ -45,7 +46,7 @@ private:
     ParamDef def;
 };
 
-constexpr uint32 kStateVersion = 6;  // 2: + grown wavetable, 3: + its length (SCAN), 4: mod switches sized for growth, 5: + preset name, 6: + morph snapshots
+constexpr uint32 kStateVersion = 7;  // 2: + grown wavetable, 3: + its length (SCAN), 4: mod switches sized for growth, 5: + preset name, 6: + morph snapshots, 7: Table switches sized for growth (128)
 constexpr int kSavedHarmonics = 512;   // per frame, complex, as floats
 
 std::string upper(std::string s) { for (auto& c : s) c = (char)std::toupper((unsigned char)c); return s; }
@@ -65,6 +66,7 @@ tresult PLUGIN_API SynthPlugin::initialize(FUnknown* context) {
         norm[id] = toNorm(kParams[id], kParams[id].def);
     }
     applyInitPatch();
+    if (!libThread.joinable()) libThread = std::thread([this] { libLoop(); });
     return kResultOk;
 }
 
@@ -202,8 +204,8 @@ void SynthPlugin::applyParams() {
     p.noise = plain(kNoise) / 100;
     p.noiseColor = (int)plain(kNoiseColor);
     synth.update(p);
-    synth.setTable(pickTable((int)plain(kTable)));
-    synth.setTableB(pickTable((int)plain(kTableB)));
+    if (auto* t_ = pickTable((int)plain(kTable))) synth.setTable(t_);
+    if (auto* t_ = pickTable((int)plain(kTableB))) synth.setTableB(t_);
     fx::FxParams fp;
     fp.order = (int)plain(kFxOrder);
     fp.drive = plain(kDrive);
@@ -236,9 +238,58 @@ void SynthPlugin::applyParams() {
 }
 
 // a built-in table, or the grown one (ORPHEO if nothing has been grown yet)
+// nullptr = a library table that is still being built (keep playing the current one; it arrives in ~0.1 s)
 const wt::Wavetable* SynthPlugin::pickTable(int ti) const {
+    if (ti >= kTableLibrary) {
+        if (ti >= kTableLibrary + wt::forge::count() || ti >= kTableSlots) return &wt::factoryTable(0);
+        if (const auto* t = lib[ti].ptr.load(std::memory_order_acquire)) return t;
+        lib[ti].want.store(true, std::memory_order_release);
+        return nullptr;
+    }
     const wt::Wavetable* grown = ti == kTableGrown ? customPtr.load(std::memory_order_acquire) : nullptr;
     return grown ? grown : &wt::factoryTable(ti == kTableGrown ? 0 : ti);
+}
+
+void SynthPlugin::libLoop() {
+    using clock = std::chrono::steady_clock;
+    const auto t0 = clock::now();
+    std::vector<std::pair<std::unique_ptr<wt::Wavetable>, double>> retiredLib;  // kept 3 s after eviction
+    while (!libQuit.load()) {
+        const double now = std::chrono::duration<double>(clock::now() - t0).count();
+        const int a = (int)toPlain(kParams[kTable], getParamNormalized(kTable)), b = (int)toPlain(kParams[kTableB], getParamNormalized(kTableB));
+        for (int i : {a, b}) if (i >= kTableLibrary && i < kTableSlots) { lib[i].lastUse = now; if (!lib[i].ptr.load()) lib[i].want = true; }
+        // build what was asked for
+        for (int i = kTableLibrary; i < kTableLibrary + wt::forge::count() && !libQuit.load(); ++i) {
+            if (!lib[i].want.load(std::memory_order_acquire) || lib[i].ptr.load()) { lib[i].want = false; continue; }
+            auto t = std::make_unique<wt::Wavetable>();
+            t->build(wt::forge::recipes()[i - kTableLibrary].make());
+            lib[i].table = std::move(t);
+            lib[i].lastUse = now;
+            lib[i].ptr.store(lib[i].table.get(), std::memory_order_release);
+            lib[i].want = false;
+            // an atomic pointer swap, safe from here: the table switches even when no audio is running
+            if ((int)toPlain(kParams[kTable], getParamNormalized(kTable)) == i) synth.setTable(lib[i].table.get());
+            if ((int)toPlain(kParams[kTableB], getParamNormalized(kTableB)) == i) synth.setTableB(lib[i].table.get());
+            tableDirty = true;
+        }
+        // keep at most kLibKeep built: evict the least recently used one that nothing plays
+        for (;;) {
+            int built = 0, victim = -1;
+            for (int i = kTableLibrary; i < kTableSlots; ++i) {
+                if (!lib[i].ptr.load()) continue;
+                ++built;
+                const auto* p = lib[i].ptr.load();
+                const bool playing = i == a || i == b || p == &synth.wavetable() || p == &synth.wavetableB();
+                if (!playing && (victim < 0 || lib[i].lastUse < lib[victim].lastUse)) victim = i;
+            }
+            if (built <= kLibKeep || victim < 0) break;
+            lib[victim].ptr.store(nullptr, std::memory_order_release);
+            retiredLib.emplace_back(std::move(lib[victim].table), now);
+        }
+        retiredLib.erase(std::remove_if(retiredLib.begin(), retiredLib.end(), [&](auto& r) {  // never free a table that is still playing
+            return now - r.second > 3 && r.first.get() != &synth.wavetable() && r.first.get() != &synth.wavetableB(); }), retiredLib.end());
+        std::this_thread::sleep_for(std::chrono::milliseconds(15));
+    }
 }
 
 void SynthPlugin::render(float* L, float* R, int from, int to) {
@@ -340,6 +391,8 @@ tresult PLUGIN_API SynthPlugin::getMidiControllerAssignment(int32 busIndex, int1
 }
 
 SynthPlugin::~SynthPlugin() {
+    libQuit = true;
+    if (libThread.joinable()) libThread.join();
     if (worker.joinable()) worker.join();
     synth.setTable(nullptr);
 }
@@ -398,8 +451,25 @@ void SynthPlugin::onEditorMessage(const std::string& type, const std::string& na
             beginEdit(id); performEdit(id, nv); setParamNormalized(id, nv); endEdit(id);
         }
         beginEdit(kMorphOn); performEdit(kMorphOn, 0); setParamNormalized(kMorphOn, 0); endEdit(kMorphOn);
-        synth.setTable(pickTable((int)toPlain(kParams[kTable], snap[c][kTable])));
-        synth.setTableB(pickTable((int)toPlain(kParams[kTableB], snap[c][kTableB])));
+        if (auto* t_ = pickTable((int)toPlain(kParams[kTable], snap[c][kTable]))) synth.setTable(t_);
+        if (auto* t_ = pickTable((int)toPlain(kParams[kTableB], snap[c][kTableB]))) synth.setTableB(t_);
+    } else if (type == "usertable" && !name.empty()) {  // a .wav from ~/Music/Morpheus/Tables, by name
+        if (name.find('/') != std::string::npos || name.find("..") != std::string::npos) return;
+        const char* home = std::getenv("HOME");
+        const std::string path = std::string(home ? home : "/tmp") + "/Music/Morpheus/Tables/" + name + ".wav";
+        if (worker.joinable()) worker.join();
+        worker = std::thread([this, path, name] {
+            std::vector<float> mono;
+            int cycle = 0;
+            if (!wt::readWavetableWav(path, mono, cycle)) { std::lock_guard<std::mutex> lock(tableMx); exportNote = "COULDN'T READ THAT TABLE"; return; }
+            auto spectra = wt::cyclesToSpectra(mono.data(), (int)mono.size(), cycle);
+            if (spectra.size() < 2) return;
+            char buf[64];
+            std::snprintf(buf, sizeof buf, "YOUR TABLE %d FRAMES", (int)spectra.size());
+            std::string up = name;
+            for (auto& c : up) c = (char)std::toupper((unsigned char)c);
+            installTable(std::move(spectra), up.substr(0, 28), buf, 0);
+        });
     } else if (type == "pname") {  // the face picked a preset: remember its name with the set
         std::string nm;
         for (char c : name) if ((unsigned char)c >= 32 && c != '"' && c != '\\') nm += c;
@@ -447,8 +517,8 @@ void SynthPlugin::useFactoryTable() {
     tableName = "ORPHEO";
     tableInfo = "FACTORY";
     tableDirty = true;
-    synth.setTable(pickTable((int)toPlain(kParams[kTable], getParamNormalized(kTable))));
-    synth.setTableB(pickTable((int)toPlain(kParams[kTableB], getParamNormalized(kTableB))));
+    if (auto* t_ = pickTable((int)toPlain(kParams[kTable], getParamNormalized(kTable)))) synth.setTable(t_);
+    if (auto* t_ = pickTable((int)toPlain(kParams[kTableB], getParamNormalized(kTableB)))) synth.setTableB(t_);
 }
 
 IPlugView* PLUGIN_API SynthPlugin::createView(FIDString name) {
@@ -470,8 +540,8 @@ void SynthPlugin::setFromEditor(const std::string& name, double plain) {
         beginEdit(id); performEdit(id, nv); setParamNormalized(id, nv); endEdit(id);
         // switching tables is an atomic pointer swap, safe from here: don't wait for the audio thread
         // (a sleeping device in Live, or a host without audio, would otherwise never switch)
-        if (id == kTable) synth.setTable(pickTable((int)toPlain(kParams[kTable], nv)));
-        if (id == kTableB) synth.setTableB(pickTable((int)toPlain(kParams[kTableB], nv)));
+        if (id == kTable) if (auto* t_ = pickTable((int)toPlain(kParams[kTable], nv))) synth.setTable(t_);
+        if (id == kTableB) if (auto* t_ = pickTable((int)toPlain(kParams[kTableB], nv))) synth.setTableB(t_);
         return;
     }
 }
@@ -511,9 +581,39 @@ std::string SynthPlugin::feedJson() {
         if (shown != customPtr.load()) {
             for (int i = 0; i < wt::kFactoryTables; ++i)
                 if (shown == &wt::factoryTable(i)) { tn = wt::kFactoryNames[i]; std::snprintf(buf, sizeof buf, "BUILT-IN %d FRAMES", shown->frames); ti = buf; }
+            for (int i = 0; i < wt::forge::count(); ++i)
+                if (shown == lib[kTableLibrary + i].ptr.load()) { tn = wt::forge::recipes()[i].name; std::snprintf(buf, sizeof buf, "%s %d FRAMES", wt::forge::recipes()[i].family, shown->frames); ti = buf; }
         }
         s += ",\"tn\":\"" + tn + "\",\"ti\":\"" + ti + "\",\"grown\":\"" + (custom ? tableName : std::string()) + "\"";
         if (!exportNote.empty()) { s += ",\"note\":\"" + exportNote + "\""; exportNote.clear(); }
+        // the library (once per page), whether a table is still being built, and the tables in your folder
+        if (sendTable || libFeed++ % 40 == 0) {  // also resent each second: a page may not be listening yet at first
+            s += ",\"lib\":[";
+            for (int i = 0; i < wt::forge::count(); ++i) { s += i ? "," : ""; s += "[\""; s += wt::forge::recipes()[i].name; s += "\",\""; s += wt::forge::recipes()[i].family; s += "\"]"; }
+            s += "]";
+        }
+        bool building = false;
+        for (int i = kTableLibrary; i < kTableSlots; ++i) building |= lib[i].want.load() && !lib[i].ptr.load();
+        s += building ? ",\"tb\":1" : ",\"tb\":0";
+        if (++userScan % 80 == 1) {  // ~every 2 s: ~/Music/Morpheus/Tables
+            userTables.clear();
+            const char* home = std::getenv("HOME");
+            std::error_code ec;
+            for (const auto& e : std::filesystem::directory_iterator(std::string(home ? home : "/tmp") + "/Music/Morpheus/Tables", ec)) {
+                const auto p = e.path();
+                std::string ext = p.extension().string();
+                for (auto& c : ext) c = (char)std::tolower((unsigned char)c);
+                if (ext != ".wav") continue;
+                std::string nm = p.stem().string();
+                for (auto& c : nm) if (c == '"' || c == '\\' || (unsigned char)c < 32 || (unsigned char)c > 126) c = '_';
+                userTables.push_back(nm);
+                if (userTables.size() >= 200) break;
+            }
+            std::sort(userTables.begin(), userTables.end());
+        }
+        s += ",\"ut\":[";
+        for (size_t i = 0; i < userTables.size(); ++i) { s += i ? ",\"" : "\""; s += userTables[i]; s += "\""; }
+        s += "]";
         s += ",\"sn\":[";
         for (int c = 0; c < 4; ++c) { s += c ? "," : ""; s += hasSnap[c].load() ? "1" : "0"; }
         s += "],\"pn\":\"";
@@ -574,6 +674,9 @@ tresult PLUGIN_API SynthPlugin::setState(IBStream* state) {
             setParamNormalized(di, norm[di]);
         }
     }
+    // Before v7 the Table switches had 6 entries (0..5): re-express them on the 128-slot switches
+    auto oldTable = [](double n) { return std::round(n * 5) / (kTableSlots - 1); };
+    if (version < 7) for (int id : {(int)kTable, (int)kTableB}) { norm[id] = oldTable(norm[id]); setParamNormalized(id, norm[id]); }
     applyParams();
     int32 hasTable = 0;
     if (version >= 2 && s.readInt32(hasTable) && hasTable) {
@@ -612,6 +715,7 @@ tresult PLUGIN_API SynthPlugin::setState(IBStream* state) {
             if (!(mask & (1 << c))) continue;
             snap[c] = norm;  // parameters newer than the saved set keep the knobs' values
             for (int32 i = 0; i < cnt; ++i) { double v; if (!s.readDouble(v)) return kResultFalse; if (i < kNumParams) snap[c][i] = v; }
+            if (version < 7) { snap[c][kTable] = oldTable(snap[c][kTable]); snap[c][kTableB] = oldTable(snap[c][kTableB]); }
             hasSnap[c].store(true);
         }
     }

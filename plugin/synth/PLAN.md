@@ -203,12 +203,13 @@ The window grows to **1280 × 800** (the face still scales to fit). Layout:
 4. **Dice**: randomise a section (osc, filter, mod, FX) with locks; "mutate" by a small amount.
 5. **Step modulator / arp**: a 16-step lane as a source (Massive X performers, Pigments sequencer), plus a tempo arp.
 6. **FX as destinations**: echo mix, reverb mix/decay, drive, pump depth on the matrix.
-7. **Table editor**: draw a frame, harmonics view, morph two grown tables (we already grow tables from sound: Serum can't).
-8. **Presets inside the plugin** (from M5) so FINISH + snapshots save with the patch everywhere.
+7. **TableForge** (done): 36 original tables computed from math (ANALOG, DIGITAL, SPECTRAL, VOCAL, ORPHEO), built on demand on a worker (6 kept), a categorised table browser, and a Your Tables folder (~/Music/Morpheus/Tables). Table switches resized to 128 slots (state v7 migrates older sets).
+8. **Table editor**: draw a frame, harmonics view, morph two grown tables (we already grow tables from sound: Serum can't).
+9. **Presets inside the plugin** (from M5) so FINISH + snapshots save with the patch everywhere.
 
 ## Where we stopped (save point)
 
 M4 done; M5: STAGE page in. M6 started: FINISH panel (12 recipes) in the deck, a new Morpheus opens on
 ORPHEO · Dream Pad (with Juno chorus + ORPHEO space), the preset name is saved with the set (state v5).
 Morph snapshots done (Morph On/X/Y params; corners in the SCAN strip and on STAGE; the Dreamscape becomes the morph pad).
-Charon's pump clock fixed for a stopped transport. Next: remap curves, Dice, presets inside the plugin.
+Charon's pump clock fixed for a stopped transport. TableForge library + table browser in. Next: remap curves, Dice, presets inside the plugin.

@@ -10,6 +10,7 @@
 #include "../../dsp/Modulation.h"
 #include "../../dsp/WavetableSynth.h"
 #include "../../dsp/FxRack.h"
+#include "../../dsp/TableForge.h"
 
 namespace echolab {
 namespace wtsynth {
@@ -53,6 +54,13 @@ inline const char* const kFilterTypeNames[] = {"SVF", "Ladder", "Diode", "OTA", 
 inline const char* const kHpfNames[] = {"Boost", "Flat", "Low", "High"};
 inline const char* const kTableNames[] = {"ORPHEO", "MOOG", "PWM", "SYNC", "JUNO", "GROWN"};
 constexpr int kTableGrown = 5;
+// The Table switches are sized for growth (like the mod switches): 0-4 built-in, 5 GROWN, 6.. the TableForge library.
+constexpr int kTableSlots = 128, kTableLibrary = 6;
+inline std::string tableName(int i) {
+    if (i >= 0 && i <= kTableGrown) return kTableNames[i];
+    const int k = i - kTableLibrary;
+    return k >= 0 && k < wt::forge::count() ? wt::forge::recipes()[k].name : "ORPHEO";
+}
 inline const char* const kScanNames[] = {"Off", "Once", "Loop", "Ping-Pong"};
 enum class Map { Linear, Log, LogOffLow, LogOffHigh, List };
 struct ParamDef { int id; const char* name; const char* units; double min, max, def; Map map; };
@@ -76,7 +84,7 @@ inline const ParamDef kParams[kNumParams] = {
     {kVelocity, "Velocity", "%", 0, 100, 60, Map::Linear},
     {kDrive, "Drive", "", 0, 10, 0, Map::Linear},
     {kOutput, "Output", "dB", -24, 12, 0, Map::Linear},
-    {kTable, "Table", "", 0, 5, 0, Map::List},
+    {kTable, "Table", "", 0, kTableSlots - 1, 0, Map::List},
     {kScan, "Scan", "", 0, 3, 0, Map::List},
     {kScanSpeed, "Scan Speed", "x", 0.25, 4, 1, Map::Log},
     {kFilterType, "Filter Type", "", 0, 5, 0, Map::List},
@@ -171,7 +179,7 @@ inline const ParamDef kParams[kNumParams] = {
     {kVoiceMode, "Voice Mode", "", 0, 2, 0, Map::List},
     {kGlide, "Glide", "ms", 1, 3000, 0, Map::LogOffLow},
     {kOscALevel, "Osc A Level", "%", 0, 100, 100, Map::Linear},
-    {kTableB, "Table B", "", 0, 5, 0, Map::List},
+    {kTableB, "Table B", "", 0, kTableSlots - 1, 0, Map::List},
     {kPositionB, "Position B", "%", 0, 100, 40, Map::Linear},
     {kOctB, "Octave B", "", -3, 3, 0, Map::List},
     {kSemiB, "Semi B", "st", -12, 12, 0, Map::List},
@@ -281,7 +289,7 @@ inline double hostNorm(const ParamDef& p, double v) {
 inline std::string toText(const ParamDef& p, double n) {
     double v = toPlain(p, n);
     char buf[64];
-    if (p.id == kTable) return kTableNames[std::clamp((int)v, 0, 5)];
+    if (p.id == kTable) return tableName((int)v);
     if (p.id == kScan) return kScanNames[std::clamp((int)v, 0, 3)];
     if (p.id == kFilterType) return kFilterTypeNames[std::clamp((int)v, 0, 5)];
     if (p.id >= kModBase && p.id < kModBase + 3 * wt::kModSlots && (p.id - kModBase) % 3 == 0) return (int)v < wt::kNumSources ? wt::kSourceNames[std::max(0, (int)v)] : "None";
@@ -295,7 +303,7 @@ inline std::string toText(const ParamDef& p, double n) {
         }
     }
     if (p.id == kVoiceMode) return kVoiceModeNames[std::clamp((int)v, 0, 2)];
-    if (p.id == kTableB) return kTableNames[std::clamp((int)v, 0, 5)];
+    if (p.id == kTableB) return tableName((int)v);
     if (p.id == kWarpA || p.id == kWarpB) return wt::kWarpNames[std::clamp((int)v, 0, wt::kNumWarps - 1)];
     if (p.id == kNoiseColor) return kNoiseColorNames[std::clamp((int)v, 0, 3)];
     if (p.id == kChorusOn || p.id == kEchoOn || p.id == kVerbOn || p.id == kPumpOn || p.id == kEchoSync || p.id == kMorphOn) return v > 0.5 ? "On" : "Off";

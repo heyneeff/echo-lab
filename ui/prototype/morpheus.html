@@ -53,6 +53,10 @@ html.host .bar { display: none; } html.host #stage { top: 0; } html.host body { 
 .tmenu { position: fixed; z-index: 15; display: none; gap: 4px; padding: 8px; min-width: 210px; background: #0d0a09f2;
   border: 1px solid #ff8a1f44; border-radius: 10px; box-shadow: 0 12px 30px #000c; }
 .tmenu.open { display: grid; } .tmenu.wide { grid-template-columns: repeat(3, 1fr); }
+.tmenu.lib.open { display: block; columns: 4 170px; column-gap: 10px; width: 760px; max-height: 560px; overflow: auto; }
+.tmenu.lib .tsec { break-inside: avoid; display: grid; gap: 3px; margin-bottom: 10px; }
+.tmenu.lib .th { font: 600 13px var(--cond); letter-spacing: .16em; color: var(--rust, #ff5a36); padding: 2px 2px 3px; border-bottom: 1px solid #3a2a20; margin-bottom: 2px; }
+.tmenu.lib button { padding: 5px 8px; font-size: 10px; } .tmenu.lib .tnote { font: 9px var(--vec); color: var(--dim); padding: 4px 2px; }
 .tmenu button { font: 11px var(--vec); letter-spacing: .14em; text-align: left; color: #ffd27a; background: #141417; border: 1px solid #ff8a1f22;
   padding: 8px 10px; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; gap: 10px; }
 .tmenu button small { color: var(--dim); font-size: 9px; letter-spacing: .08em; }
@@ -1194,16 +1198,35 @@ let GROWN = "";
 function openMenu(btn, items, current, pick) {  // a small list under a button
   const m = $("#tmenu"), r = btn.getBoundingClientRect();
   m.innerHTML = items.map(([n, d, dis, cls], i) => `<button data-i="${i}" class="${i === current ? "on" : ""} ${cls || ""}" ${dis ? "disabled" : ""}>${n}<small>${d || ""}</small></button>`).join("");
-  m.classList.toggle("wide", items.length > 12); m.style.top = (r.bottom + 4) + "px"; m.classList.add("open");
+  m.classList.remove("lib"); m.classList.toggle("wide", items.length > 12); m.style.top = (r.bottom + 4) + "px"; m.classList.add("open");
   m.style.left = Math.max(8, Math.min(innerWidth - m.offsetWidth - 8, r.left)) + "px";
   m.onclick = e => { const b = e.target.closest("[data-i]"); if (!b || b.disabled) return; pick(+b.dataset.i); m.classList.remove("open"); };
 }
 addEventListener("pointerdown", e => { if (!e.target.closest(".tmenu,[data-tsel],[data-wsel]")) $("#tmenu").classList.remove("open"); }, true);
-document.querySelectorAll("[data-tsel]").forEach(b => b.onclick = () => {
-  const A = b.dataset.tsel === "A", par = A ? "Table" : "Table B";
-  const items = TABLES.map(([n, d]) => [n, d]).concat([[GROWN ? "GROWN · " + GROWN : "GROWN", GROWN ? "from your sound" : "load or drop a sound", !GROWN, "grown"]]);
-  openMenu(b, items, Math.round(P[par]), i => { setParam(par, i); if (!HOST) (A ? previewTable : previewTableB)(i); syncScan(); });
-});
+// the table browser: built-in, grown and your folder, then the TableForge library by family
+let LIB = [], USER_TABLES = [];
+const tableNameOf = i => i < 5 ? TABLES[i][0] : i === 5 ? (GROWN ? "GROWN · " + GROWN : "GROWN") : LIB[i - 6] ? LIB[i - 6][0] : "ORPHEO";
+function openTableMenu(btn, A) {
+  const par = A ? "Table" : "Table B", cur = Math.round(P[par]), m = $("#tmenu"), r = btn.getBoundingClientRect();
+  const item = (v, n, d, cls = "") => `<button data-v="${v}" class="${v === cur ? "on" : ""} ${cls}">${n}${d ? `<small>${d}</small>` : ""}</button>`;
+  const sec = (title, body) => `<div class="tsec"><div class="th">${title}</div>${body}</div>`;
+  let html = sec("BUILT-IN", TABLES.map(([n, d], i) => item(i, n, d)).join("")) +
+    sec("GROWN", item(5, GROWN ? GROWN : "GROWN", GROWN ? "from your sound" : "load or drop a sound", "grown") +
+      (USER_TABLES.length ? USER_TABLES.map(n => `<button data-user="${n.replace(/"/g, "")}" class="grown">${n}<small>your tables folder</small></button>`).join("") : `<div class="tnote">your tables: Music / Morpheus / Tables</div>`));
+  const fams = [...new Set(LIB.map(x => x[1]))];
+  for (const f of fams) html += sec(f, LIB.map((x, i) => x[1] === f ? item(6 + i, x[0]) : "").join(""));
+  if (!LIB.length) html += sec("LIBRARY", `<div class="tnote">the TableForge library loads inside the plugin</div>`);
+  m.innerHTML = html; m.classList.remove("wide"); m.classList.add("lib", "open");
+  m.style.top = Math.max(8, Math.min(innerHeight - m.offsetHeight - 8, r.bottom + 4)) + "px";
+  m.style.left = Math.max(8, Math.min(innerWidth - m.offsetWidth - 8, r.left)) + "px";
+  m.onclick = e => {
+    const b = e.target.closest("button"); if (!b || b.disabled) return;
+    if (b.dataset.user) { if (HOST) window.webkit.messageHandlers.lab.postMessage({ type: "usertable", name: b.dataset.user }); setParam(par, 5); NOTE_MSG = "LOADING " + b.dataset.user.toUpperCase(); noteUntil = performance.now() + 2000; }
+    else { const v = +b.dataset.v; setParam(par, v); if (!HOST && v < 6) (A ? previewTable : previewTableB)(v); }
+    m.classList.remove("open", "lib"); syncScan();
+  };
+}
+document.querySelectorAll("[data-tsel]").forEach(b => b.onclick = () => openTableMenu(b, b.dataset.tsel === "A"));
 document.querySelectorAll("[data-wsel]").forEach(b => b.onclick = () => {
   const par = b.dataset.wsel === "A" ? "Warp A" : "Warp B", other = b.dataset.wsel === "A" ? "B" : "A";
   const desc = ["", "hard sync, 1-8x", "squeeze toward the start", "squeeze toward the end", "forward, then back", "phase distortion (PWM on any table)", "lo-fi steps", "FM from OSC " + other, "ring mod with OSC " + other];
@@ -1252,6 +1275,7 @@ function syncScan() {  // every segmented switch shows the parameter's value (fr
   }
   if ($("#vmSeg")) $("#vmSeg").querySelectorAll("button").forEach((b, i) => b.classList.toggle("on", i === Math.round(P["Voice Mode"])));
   if ($("#ncSeg")) $("#ncSeg").querySelectorAll("button").forEach((b, i) => b.classList.toggle("on", i === Math.round(P["Noise Color"])));
+  if (HOST) TNB = tableNameOf(Math.round(P["Table B"]));
   if ($("#tselA")) { $("#tselA").textContent = TN + " ▾"; $("#tselB").textContent = TNB + " ▾";
     $("#wselA").textContent = "WARP " + WARPS[Math.round(P["Warp A"])] + " ▾"; $("#wselB").textContent = "WARP " + WARPS[Math.round(P["Warp B"])] + " ▾"; }
   if (typeof morphKnob !== "undefined") { morphKnob.repaint(); morphKnob.el.style.opacity = [1, 2, 3].includes(Math.round(P["Filter Type"])) ? .4 : 1; }
@@ -1274,6 +1298,9 @@ window.__host = h => {
   }
   if (h.lfo) h.lfo.forEach((x, i) => { LFOV[i] = x; });
   if (h.tn != null) { TN = h.tn; TI = h.ti || ""; GROWN = h.grown || ""; }
+  if (h.lib) LIB = h.lib;
+  if (h.ut) USER_TABLES = h.ut;
+  if (h.tb) { NOTE_MSG = "BUILDING TABLE…"; noteUntil = performance.now() + 400; }
   if (pending) {  // growing: wait for the plugin to start and finish, then play the new table
     if (h.busy) pending.seen = true;
     if (pending.seen && !h.busy) { pending = null; setGrowing(false, DROP_LABEL); setParam("Table", 5); }

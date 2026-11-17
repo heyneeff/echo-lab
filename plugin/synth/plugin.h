@@ -77,11 +77,21 @@ private:
     std::vector<wt::Spectrum> customSpectra;   // what the state saves
     std::string tableName = "ORPHEO", tableInfo = "FACTORY";
     std::thread worker;
+    // TableForge library: a table is built on this worker when it is picked (never on the audio thread). The audio
+    // thread only asks (want) and keeps playing the previous table until the new one is ready. At most kLibKeep stay built.
+    struct LibSlot { std::unique_ptr<wt::Wavetable> table; std::atomic<const wt::Wavetable*> ptr{nullptr}; std::atomic<bool> want{false}; double lastUse = 0; };
+    static constexpr int kLibKeep = 6;
+    mutable std::array<LibSlot, kTableSlots> lib;
+    std::thread libThread;
+    std::atomic<bool> libQuit{false};
+    void libLoop();
     std::atomic<bool> growing{false};
     double customSeconds = 0;
     std::atomic<const wt::Wavetable*> customPtr{nullptr};  // what the audio thread may play as GROWN
     std::atomic<bool> tableDirty{false};
     std::string presetName = "ORPHEO \u00B7 Dream Pad";  // shown in the face's browser, saved in the set (guarded by tableMx)
+    std::vector<std::string> userTables;  // ~/Music/Morpheus/Tables (feed thread only)
+    int userScan = 0, libFeed = 0;
     std::string exportNote;  // one-shot message for the face after exporting (guarded by tableMx)                    // a grown table arrived: re-pick the table
     const wt::Wavetable* lastShown = nullptr, *lastShownB = nullptr;  // editor thread: which tables the face has
     void setFromEditor(const std::string& name, double plain);
