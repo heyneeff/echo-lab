@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script>/* phones and small tablets: lay the unit out at desktop width and let the screen zoom it to fit */
+if (Math.min(screen.width, innerWidth || screen.width) < 1100) document.querySelector('meta[name=viewport]').setAttribute("content", "width=1460"), document.documentElement.classList.add("phone");</script>
 <title>Echo Nymph · Prometheus · Letheverb</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -25,6 +27,22 @@ html, body { margin: 0; height: 100%; background: radial-gradient(1200px 800px a
 .bar button.on { color: #0b0b0d; background: var(--amber); border-color: var(--amber); }
 .bar .sp { flex: 1; } .bar .hint { color: #5d5a60; }
 #stage { position: absolute; left: 0; right: 0; top: 46px; bottom: 0; display: grid; place-items: center; }
+html.phone #stage { place-items: start center; padding-top: 18px; }
+/* phones: a bigger top bar, and a nudge to turn sideways in portrait */
+html.phone .bar { height: auto; min-height: 96px; flex-wrap: wrap; gap: 14px 18px; padding: 16px 22px; font-size: 22px; }
+html.phone .bar .grp { gap: 12px; }
+html.phone .bar button, html.phone .bar label.btn { font-size: 24px; padding: 18px 26px; border-radius: 10px; }
+html.phone #stage { position: relative; top: 0; height: 900px; }
+html.phone body { overflow: auto; height: auto; min-height: 100%; }
+#turn { display: none; }
+@media (orientation: portrait) { html.phone:not(.keepportrait) #turn { display: grid; } }
+#turn { position: fixed; inset: 0; z-index: 99; place-items: center; text-align: center; background: #050404f2; color: #ffd27a;
+  font: 600 64px var(--vec, monospace); letter-spacing: .12em; padding: 60px; }
+#turn .ph { width: 220px; height: 360px; margin: 0 auto 60px; border: 6px solid #ffa53a; border-radius: 36px; animation: turnph 2.4s ease-in-out infinite; }
+@keyframes turnph { 0%, 25% { transform: rotate(0); } 55%, 100% { transform: rotate(-90deg); } }
+#turn small { display: block; margin-top: 30px; font-size: 34px; color: #9a968f; letter-spacing: .06em; }
+#turn button { margin-top: 70px; font: 600 36px var(--vec, monospace); letter-spacing: .14em; color: #d9d4cc; background: #141417; border: 2px solid #4a3324; border-radius: 12px; padding: 26px 44px; }
+
 #units { width: 1060px; height: 640px; transform-origin: 50% 50%; position: absolute; left: 50%; top: 50%; }
 .unit { position: absolute; inset: 0; display: none; } .unit.show { display: block; }
 .drop { position: fixed; inset: 0; background: #000a; display: none; place-items: center; font: 20px var(--vec); color: var(--amber); letter-spacing: .2em; z-index: 9; }
@@ -189,8 +207,16 @@ html.host body { background: #080606; }
 .hero > canvas:first-of-type { animation: crtflick 4s steps(1) infinite; }
 @keyframes crtflick { 0%, 100% { opacity: 1; } 47% { opacity: .96; } 48% { opacity: 1; } 83% { opacity: .975; } 84% { opacity: 1; } }
 </style>
+<script>/* phones: count as media playback so the silent switch doesn't mute the page (iOS) */
+try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch (e) {}
+if (!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.lab)) addEventListener("pointerdown", function unlock() { removeEventListener("pointerdown", unlock, true);
+  try { const a = new Audio("data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAAAA"); a.loop = false; a.play().catch(() => {}); } catch (e) {} }, true);
+</script>
 </head>
 <body>
+<div id="turn"><div><div class="ph"></div>TURN YOUR PHONE SIDEWAYS<small>the unit is made for a wide screen</small>
+<button onclick="document.documentElement.classList.add('keepportrait')">OR KEEP GOING</button></div></div>
+
 <div class="bar">
   <span>SOURCE</span>
   <div class="grp"><button id="srcDemo">DEMO</button><label class="btn" for="fileIn">FILE…</label><input id="fileIn" type="file" accept="audio/*" hidden><button id="srcMic">MIC</button><button id="srcStop">■ STOP</button></div>
@@ -391,6 +417,8 @@ const N = (type, opts) => new (window[type])(ctx, opts);
 const master = N("GainNode", { gain: 0.9 });
 // inside the plugin the page must never make sound itself: its audio engine is only the browser demo
 if (HOST) { ctx.suspend(); ctx.close && ctx.close(); }
+// browsers only let audio start inside a click: wake the context on every press (Safari also wants a sound in that same moment)
+if (!HOST) addEventListener("pointerdown", () => { if (ctx.state !== "running") { ctx.resume(); const b = ctx.createBufferSource(); b.buffer = ctx.createBuffer(1, 1, ctx.sampleRate); b.connect(ctx.destination); b.start(); } }, true);
 const input = N("GainNode");          // every source plugs in here
 // ---- DRIVE section
 const D = { drive: 4, style: 4, punish: false, tone: 0, mix: 100, pump: 0, rate: 1, filter: 20000, res: 20, out: 0, auto: true, on: true, bpm: 120 };
@@ -546,7 +574,7 @@ async function demoBuffer() { // sparse groove so the echoes have room: kick, sn
   return oc.startRendering();
 }
 let demoBuf = null;
-$("#srcDemo").onclick = async () => { demoBuf = demoBuf || await demoBuffer(); playBuffer(demoBuf, "DEMO · 120 BPM GROOVE"); $("#srcDemo").classList.add("on"); };
+$("#srcDemo").onclick = async () => { ctx.resume(); demoBuf = demoBuf || await demoBuffer(); playBuffer(demoBuf, "DEMO · 120 BPM GROOVE"); $("#srcDemo").classList.add("on"); };
 $("#srcStop").onclick = () => { stopSrc(); $("#srcName").textContent = "stopped"; };
 $("#srcMic").onclick = async () => { try { stopSrc(); await ctx.resume(); micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
   srcNode = ctx.createMediaStreamSource(micStream); srcNode.connect(input); $("#srcMic").classList.add("on"); $("#srcName").textContent = "MIC · use headphones"; } catch (e) { $("#srcName").textContent = "mic not allowed"; } };
