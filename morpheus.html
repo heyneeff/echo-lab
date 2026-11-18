@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script>/* phones and small tablets: lay the unit out at desktop width and let the screen zoom it to fit */
+if (Math.min(screen.width, innerWidth || screen.width) < 1100) document.querySelector('meta[name=viewport]').setAttribute("content", "width=1480"), document.documentElement.classList.add("phone");</script>
 <title>Morpheus</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -22,6 +24,7 @@ html, body { margin: 0; height: 100%; background: radial-gradient(1200px 800px a
 .bar { height: 46px; display: flex; align-items: center; gap: 10px; padding: 0 16px; font: 11px var(--vec); color: #9a968f; letter-spacing: .14em; }
 .bar .hint { color: #5d5a60; } .bar b { color: var(--amber); font-weight: 400; }
 #stage { position: absolute; left: 0; right: 0; top: 46px; bottom: 0; display: grid; place-items: center; }
+html.phone #stage { place-items: start center; padding-top: 18px; }
 #units { width: 1280px; height: 800px; transform-origin: 50% 50%; position: absolute; left: 50%; top: 50%; }
 html.host .bar { display: none; } html.host #stage { top: 0; } html.host body { background: #0b0b0d; }
 
@@ -374,6 +377,11 @@ html.host body { background: #080606; }
 :root { --amber: #ffa53a; --orange: #ff7a1f; }
 #subNoise { gap: 2px; padding-bottom: 6px; } #subNoise .unirow { padding-top: 2px; } #subNoise .krow .knob { gap: 1px; }
 </style>
+<script>/* phones: count as media playback so the silent switch doesn't mute the page (iOS) */
+try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch (e) {}
+if (!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.lab)) addEventListener("pointerdown", function unlock() { removeEventListener("pointerdown", unlock, true);
+  try { const a = new Audio("data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAAAA"); a.loop = false; a.play().catch(() => {}); } catch (e) {} }, true);
+</script>
 </head>
 <body>
 <div class="bar"><span>MORPHEUS</span><span class="hint">play with your keyboard: <b>A W S E D F T G Y H U J K</b> · octave <b>Z X</b> · drag the dreamscape</span></div>
@@ -1776,7 +1784,7 @@ function periodic(f) {
   return PW[f] = ctx.createPeriodicWave(re, im);
 }
 function audioOn(note, vel) {
-  if (!ctx) { ctx = new (window.AudioContext || window.webkitAudioContext)(); master = ctx.createGain(); master.gain.value = .5; master.connect(ctx.destination); }
+  if (!ctx) { ctx = new (window.AudioContext || window.webkitAudioContext)(); master = ctx.createGain(); master.gain.value = .5; master.connect(ctx.destination); } if (ctx.state !== "running") ctx.resume();
   const t = ctx.currentTime, f0 = 440 * Math.pow(2, (note - 69) / 12), n = Math.round(P["Unison"]);
   const fl = ctx.createBiquadFilter(); fl.type = "lowpass"; fl.Q.value = .5 + P["Resonance"] / 100 * 12;
   const fc = P["Cutoff"], fe = P["Filter Env"] / 100, peak = Math.min(20000, Math.max(20, fc * Math.pow(2, fe * 6)));
