@@ -28,6 +28,21 @@ html, body { margin: 0; height: 100%; background: radial-gradient(1200px 800px a
 .bar .sp { flex: 1; } .bar .hint { color: #5d5a60; }
 #stage { position: absolute; left: 0; right: 0; top: 46px; bottom: 0; display: grid; place-items: center; }
 html.phone #stage { place-items: start center; padding-top: 18px; }
+/* phones: a bigger top bar, and a nudge to turn sideways in portrait */
+html.phone .bar { height: auto; min-height: 76px; flex-wrap: wrap; gap: 10px 14px; padding: 10px 18px; font-size: 17px; }
+html.phone .bar .grp { gap: 8px; } html.phone .bar .hint { display: none; }
+html.phone .bar button, html.phone .bar label.btn { font-size: 19px; padding: 14px 18px; border-radius: 9px; letter-spacing: .1em; }
+html.phone #stage { position: relative; top: 0; height: 860px; padding-top: 4px; }
+html.phone body { overflow: auto; height: auto; min-height: 100%; }
+#turn { display: none; }
+@media (orientation: portrait) { html.phone:not(.keepportrait) #turn { display: grid; } }
+#turn { position: fixed; inset: 0; z-index: 99; place-items: center; text-align: center; background: #050404f2; color: #ffd27a;
+  font: 600 64px var(--vec, monospace); letter-spacing: .12em; padding: 60px; }
+#turn .ph { width: 220px; height: 360px; margin: 0 auto 60px; border: 6px solid #ffa53a; border-radius: 36px; animation: turnph 2.4s ease-in-out infinite; }
+@keyframes turnph { 0%, 25% { transform: rotate(0); } 55%, 100% { transform: rotate(-90deg); } }
+#turn small { display: block; margin-top: 30px; font-size: 34px; color: #9a968f; letter-spacing: .06em; }
+#turn button { margin-top: 70px; font: 600 36px var(--vec, monospace); letter-spacing: .14em; color: #d9d4cc; background: #141417; border: 2px solid #4a3324; border-radius: 12px; padding: 26px 44px; }
+
 #units { width: 1060px; height: 640px; transform-origin: 50% 50%; position: absolute; left: 50%; top: 50%; }
 .unit { position: absolute; inset: 0; display: none; } .unit.show { display: block; }
 .drop { position: fixed; inset: 0; background: #000a; display: none; place-items: center; font: 20px var(--vec); color: var(--amber); letter-spacing: .2em; z-index: 9; }
@@ -199,6 +214,9 @@ if (!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHan
 </script>
 </head>
 <body>
+<div id="turn"><div><div class="ph"></div>TURN YOUR PHONE SIDEWAYS<small>the unit is made for a wide screen</small>
+<button onclick="document.documentElement.classList.add('keepportrait')">OR KEEP GOING</button></div></div>
+
 <div class="bar">
   <span>SOURCE</span>
   <div class="grp"><button id="srcDemo">DEMO</button><label class="btn" for="fileIn">FILE…</label><input id="fileIn" type="file" accept="audio/*" hidden><button id="srcMic">MIC</button><button id="srcStop">■ STOP</button></div>
@@ -1147,6 +1165,6 @@ function tick() { window.__fr = (window.__fr || 0) + 1; hostSync();
 if (!HOST) nextFrame(tick); // in the plugin, each window.__host() update draws a frame (see the bridge)
 </script>
 <script>/* hosted demo: the first click anywhere starts the groove */
-addEventListener("pointerdown", function once(e){ removeEventListener("pointerdown", once, true);
+addEventListener("pointerdown", function once(e){ if (e.target.closest("#turn")) return; removeEventListener("pointerdown", once, true);
   if (!e.target.closest("button,label,input")) { const b=document.getElementById("srcDemo"); if (b) b.click(); } }, true);
 </script></body></html>
