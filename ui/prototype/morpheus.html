@@ -26,10 +26,10 @@ html, body { margin: 0; height: 100%; background: radial-gradient(1200px 800px a
 #stage { position: absolute; left: 0; right: 0; top: 46px; bottom: 0; display: grid; place-items: center; }
 html.phone #stage { place-items: start center; padding-top: 18px; }
 /* phones: a bigger top bar, and a nudge to turn sideways in portrait */
-html.phone .bar { height: auto; min-height: 96px; flex-wrap: wrap; gap: 14px 18px; padding: 16px 22px; font-size: 22px; }
-html.phone .bar .grp { gap: 12px; }
-html.phone .bar button, html.phone .bar label.btn { font-size: 24px; padding: 18px 26px; border-radius: 10px; }
-html.phone #stage { position: relative; top: 0; height: 900px; }
+html.phone .bar { height: auto; min-height: 76px; flex-wrap: wrap; gap: 10px 14px; padding: 10px 18px; font-size: 17px; }
+html.phone .bar .grp { gap: 8px; } html.phone .bar .hint { display: none; }
+html.phone .bar button, html.phone .bar label.btn { font-size: 19px; padding: 14px 18px; border-radius: 9px; letter-spacing: .1em; }
+html.phone #stage { position: relative; top: 0; height: 860px; padding-top: 4px; }
 html.phone body { overflow: auto; height: auto; min-height: 100%; }
 #turn { display: none; }
 @media (orientation: portrait) { html.phone:not(.keepportrait) #turn { display: grid; } }
@@ -1856,8 +1856,9 @@ function frame() {
   if (now * 1000 - flashT > 2500) $("#ampInfo").textContent = `${routes().length} / 16 ROUTES`;
 }
 function loop() { simulate(); frame(); requestAnimationFrame(loop); }
-const scaleNow = () => HOST ? Math.min(innerWidth / 1280, innerHeight / 800) : Math.min((innerWidth - 24) / 1280, (innerHeight - 46 - 24) / 800, 1.25);
-function scaleUnits() { $("#units").style.transform = `translate(-50%, -50%) scale(${scaleNow()})`; }  // centred explicitly: Safari pins an oversized grid item to the top
+const PHONE = document.documentElement.classList.contains("phone");  // phones: fill the width and let the page scroll
+const scaleNow = () => PHONE && !HOST ? Math.min((innerWidth - 16) / 1280, 1.25) : HOST ? Math.min(innerWidth / 1280, innerHeight / 800) : Math.min((innerWidth - 24) / 1280, (innerHeight - 46 - 24) / 800, 1.25);
+function scaleUnits() { const k = scaleNow(); $("#units").style.transform = `translate(-50%, -50%) scale(${k})`; if (PHONE && !HOST) $("#stage").style.height = Math.ceil(800 * k + 16) + "px"; }  // centred explicitly: Safari pins an oversized grid item to the top
 addEventListener("resize", scaleUnits); scaleUnits();
 if (!HOST) requestAnimationFrame(loop); else frame();
 </script>
