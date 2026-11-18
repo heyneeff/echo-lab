@@ -154,12 +154,15 @@ body.dragging .hero .dropzone, .hero.growing .dropzone { display: grid; }
 .oscrow .scr::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, #0000 0 2px, #0000001f 2px 3px); }
 .krow { display: flex; justify-content: space-around; align-items: flex-start; }
 .krow .knob .name { font-size: 7.5px; letter-spacing: .12em; }
+.tune .knob .name { font-size: 7.5px; letter-spacing: .12em; }
 .tune { display: flex; justify-content: space-around; border-top: 1px solid #ffffff0d; padding-top: 4px; }
 .voicerow { grid-template-columns: auto 1fr auto auto auto; align-items: center; gap: 14px; padding: 6px 14px; }
 .voicerow .lbl { font: 700 9px var(--sans); letter-spacing: .3em; color: var(--teal); }
 .fresp { height: 128px; border-radius: 9px; background: #0d0a09; box-shadow: 0 0 0 1px #ffffff0a inset; position: relative; overflow: hidden; }
 .fresp canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-.outgrid { display: grid; grid-template-columns: repeat(4, 1fr); align-items: start; }
+.outgrid { display: grid; grid-template-columns: repeat(4, 1fr); align-items: start; row-gap: 4px; }
+.outgrid .knob .name { font-size: 7.5px; letter-spacing: .12em; }
+.outgrid .envrow { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, 1fr); padding-bottom: 4px; border-bottom: 1px solid #ffffff0d; }
 .mtx { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 16px; align-content: start; padding: 14px; border-radius: 14px;
   background: linear-gradient(180deg, var(--rail-hi), var(--rail)); box-shadow: 0 0 0 1px #ffffff0a inset; overflow: auto; }
 .mrow { display: grid; grid-template-columns: 22px 1fr 14px 1fr 150px 22px; gap: 8px; align-items: center; font: 10px var(--vec); letter-spacing: .08em; color: var(--dim);
@@ -300,8 +303,8 @@ html.host body { background: #080606; }
 .voicerow .lbl, #subNoise .unirow .lbl { font-family: var(--cond); font-weight: 600; font-size: 14px; letter-spacing: .14em; }
 #panic { font-family: var(--cond); font-size: 16px; border-radius: 4px; }
 /* the GROW panel, over the dreamscape */
-.growpanel { position: absolute; inset: 22px; z-index: 6; display: none; grid-template-rows: auto 1fr auto auto auto auto auto; gap: 10px; padding: 16px 18px;
-  background: #0b0807f2; border: 1px solid #5a3a26; border-radius: 6px; box-shadow: 0 20px 50px #000c; cursor: default; }
+.growpanel { position: absolute; inset: 22px; z-index: 8; display: none; grid-template-rows: auto 1fr auto auto auto auto auto; gap: 10px; padding: 16px 18px;
+  background: #0b0807; border: 1px solid #5a3a26; border-radius: 6px; box-shadow: 0 20px 50px #000c; cursor: default; }
 .growpanel.on { display: grid; }
 .growpanel .gh { display: flex; align-items: baseline; gap: 10px; font: 600 15px var(--cond); letter-spacing: .14em; color: var(--rust); }
 .growpanel .gh b { font: 12px var(--vec); color: #ffd27a; letter-spacing: .08em; font-weight: 400; } .growpanel .gh .sp { flex: 1; }
@@ -401,7 +404,7 @@ html.host body { background: #080606; }
           <div class="tbtns"><label class="tbtn load" for="loadIn" title="Grow a wavetable from a sound, or open a wavetable .wav">⇪ LOAD SOUND…</label><input id="loadIn" type="file" accept="audio/*,.wav,.aif,.aiff,.mp3,.m4a,.flac" hidden>
             <div class="tbtn tab" id="exportBtn" title="Save OSC A's table as a wavetable .wav">⇩ SAVE TABLE</div></div>
           <div class="growpanel" id="growPanel"><div class="gh">GROW A TABLE<b id="growName"></b><span class="sp"></span><span id="growLen"></span></div>
-            <div class="gwave"><canvas id="growWave" title="drag the teal handles: the part of the sound to grow from"></canvas></div>
+            <div class="gwave"><canvas id="growWave" title="drag START and END to pick the part to grow from; drag the middle to slide it"></canvas></div>
             <div class="grow2"><span class="gl">MODE</span><div class="seg" id="growMode"></div></div><div class="gdesc" id="growDesc"></div>
             <div class="grow2"><span class="gl">SMOOTH</span><input type="range" id="growSmooth" min="0" max="100"><span class="gdesc" id="growSmoothV"></span>
               <span class="gl" style="margin-left:auto">INTO</span><div class="seg" id="growTarget"><button data-o="A">OSC A</button><button data-o="B">OSC B</button></div></div>
@@ -892,8 +895,11 @@ knob($("#snK"), { name: "Noise", label: "NOISE", min: 0, max: 100, size: 36, col
 knob($("#uniK"), { name: "Unison", label: "VOICES", min: 1, max: 7, step: 1, size: 36, color: COL.teal, fmt: v => Math.round(v) + "×" });
 knob($("#uniK"), { name: "Detune", label: "DETUNE", min: 0, max: 100, size: 36, color: COL.teal, fmt: v => v.toFixed(0) + " ct" });
 knob($("#uniK"), { name: "Spread", label: "SPREAD", min: 0, max: 100, size: 36, color: COL.teal, fmt: pct });
-knob($("#outK"), { name: "Drive", label: "DRIVE", min: 0, max: 10, size: 44, color: COL.red, fmt: v => v < .005 ? "OFF" : v.toFixed(1) });
-knob($("#outK"), { name: "Output", label: "OUTPUT", min: -24, max: 12, size: 44, color: COL.white, fmt: dB });
+{ const er = document.createElement("div"); er.className = "envrow"; $("#outK").appendChild(er);  // the amp envelope, always in view (same knobs as the AMP card below)
+  for (const [nm, mn, mx, f] of [["Attack", .5, 10000, ms], ["Decay", 5, 10000, ms], ["Sustain", 0, 100, pct], ["Release", 5, 10000, ms]])
+    knob(er, { name: nm, label: nm.toUpperCase(), min: mn, max: mx, log: nm !== "Sustain", size: 36, color: COL.teal, fmt: f }); }
+knob($("#outK"), { name: "Drive", label: "DRIVE", min: 0, max: 10, size: 36, color: COL.red, fmt: v => v < .005 ? "OFF" : v.toFixed(1) });
+knob($("#outK"), { name: "Output", label: "OUTPUT", min: -24, max: 12, size: 36, color: COL.white, fmt: dB });
 // ---- the mod deck: one body per source (built once), chips to switch, pills for routes
 const bodies = $("#bodies"), chips = $("#chips");
 let selSrc = 1;
@@ -933,8 +939,8 @@ const bMidi = body(8, `<div style="display:grid;gap:8px;align-content:start;min-
   </div>` + `<div class="pills" id="midiPills"></div>`, true);
 $("#vmSeg").innerHTML = ["POLY", "MONO", "LEGATO"].map((n, i) => `<button data-i="${i}">${n}</button>`).join("");
 $("#vmSeg").addEventListener("click", e => { const b = e.target.closest("[data-i]"); if (b) { setParam("Voice Mode", +b.dataset.i); syncScan(); } });
-knob($("#outK"), { name: "Glide", min: 1, max: 3000, log: true, color: "#c9b6ff", fmt: v => v < 1.2 ? "OFF" : ms(v), toParam: v => v < 1.2 ? 0 : v });
-knob($("#outK"), { name: "Bend Range", label: "BEND", min: 0, max: 24, step: 1, color: "#c9b6ff", fmt: v => Math.round(v) + " st" });
+knob($("#outK"), { name: "Glide", size: 36, min: 1, max: 3000, log: true, color: "#c9b6ff", fmt: v => v < 1.2 ? "OFF" : ms(v), toParam: v => v < 1.2 ? 0 : v });
+knob($("#outK"), { name: "Bend Range", label: "BEND", size: 36, min: 0, max: 24, step: 1, color: "#c9b6ff", fmt: v => Math.round(v) + " st" });
 // macro bodies (routes only)
 for (let q = 0; q < 8; q++) body(15 + q, `<div class="ph" style="font:10px var(--vec);letter-spacing:.14em;color:#f4e3c1;align-self:start;line-height:1.7">MACRO ${q + 1} · ${MACRO_NAMES[q]}<br><span style="color:var(--dim);font-size:9px">one knob, any number of routes: drag its ● onto knobs, or + ROUTE</span></div>` + pillsBox(15 + q), true);
 // chips (primary sources) and MIDI mini-chips
@@ -1275,6 +1281,7 @@ function drawWave(id, which) {
   g.strokeStyle = "#2a2622"; g.beginPath(); g.moveTo(6, H / 2); g.lineTo(W - 6, H / 2); g.stroke();
   g.beginPath(); for (let k = 0; k <= NP; k++) { const X = 6 + (W - 12) * k / NP, Y = H / 2 - y[k] * (H / 2 - 10); k ? g.lineTo(X, Y) : g.moveTo(X, Y); }
   glow(g, on ? col : "#4a4950", on ? 9 : 0); g.lineWidth = 1.6; g.stroke(); g.shadowBlur = 0;
+  g.fillStyle = "#090706e6"; g.fillRect(2, 2, 30, 14);  // backing so the trace never runs through the frame label
   text(g, "F" + (1 + Math.round((A ? P["Position"] : P["Position B"]) / 100 * ((A ? NF : NFB) - 1))), 6, 12, on ? col : "#4a4950", 9);
   bloom(c);
 }
@@ -1510,7 +1517,7 @@ const MAX_SECONDS = 30;
 // ===================================================================== the GROW panel: see the sound, pick the part and how to grow it
 const GROW_MODES = [["AUTO", "pitched or raw, decided by the sound"], ["PITCHED", "follows the pitch: clean harmonics, voices, synths"], ["RAW", "the sound's own cycles: grit and texture"],
   ["SPECTRAL", "each moment's smeared colour: glassy pads"], ["FORMANT", "the vowel / body of the sound over a bright saw"]];
-let GROW = null;
+let GROW = null; const GPAD = 16;  // the waveform sits inset so both handles are always whole
 function openGrow(mono, name) {
   GROW = { mono, name, s: 0, e: 1, mode: GROW ? GROW.mode : 0, smooth: GROW ? GROW.smooth : .2, osc: GROW ? GROW.osc : "A", drag: null };
   $("#growName").textContent = name.replace(/\.[^.]+$/, "").toUpperCase();
@@ -1523,15 +1530,24 @@ function renderGrow() {
   $("#growTarget").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.o === GROW.osc));
   $("#growDesc").textContent = GROW_MODES[GROW.mode][1];
   $("#growSmooth").value = GROW.smooth * 100; $("#growSmoothV").textContent = GROW.smooth < .1 ? "DETAILED" : GROW.smooth > .6 ? "SLOW MORPHS" : "BALANCED";
-  const c = $("#growWave"), [g, W, H] = fit(c), m = GROW.mono, n = m.length, x0 = GROW.s * W, x1 = GROW.e * W;
+  const c = $("#growWave"), [g, W, H] = fit(c), m = GROW.mono, n = m.length, X = f => GPAD + f * (W - 2 * GPAD), x0 = X(GROW.s), x1 = X(GROW.e);
+  const top = 18, h = H - top - 4, mid = top + h / 2;
   g.fillStyle = "#0a0807"; g.fillRect(0, 0, W, H);
-  g.fillStyle = rgba(COL.amber, .08); g.fillRect(x0, 0, x1 - x0, H);
-  for (let px = 0; px < W; px++) {  // peak per pixel
-    const a = Math.floor(px / W * n), b = Math.max(a + 1, Math.floor((px + 1) / W * n)); let lo = 0, hi = 0;
+  g.fillStyle = rgba(COL.amber, .09); g.fillRect(x0, top, x1 - x0, h);
+  for (let px = Math.ceil(GPAD); px < W - GPAD; px++) {  // peak per pixel
+    const f0 = (px - GPAD) / (W - 2 * GPAD), f1 = (px + 1 - GPAD) / (W - 2 * GPAD);
+    const a = Math.floor(f0 * n), b = Math.max(a + 1, Math.min(n, Math.floor(f1 * n))); let lo = 0, hi = 0;
     for (let i = a; i < b; i += Math.max(1, (b - a) >> 6)) { lo = Math.min(lo, m[i]); hi = Math.max(hi, m[i]); }
-    g.fillStyle = px >= x0 && px <= x1 ? COL.amber : "#5a3a26"; g.fillRect(px, H / 2 - hi * H * .45, 1, Math.max(1, (hi - lo) * H * .45));
+    g.fillStyle = px >= x0 && px <= x1 ? COL.amber : "#4a3020"; g.fillRect(px, mid - hi * h * .46, 1, Math.max(1, (hi - lo) * h * .46));
   }
-  for (const x of [x0, x1]) { glow(g, "#6ff0d6", 6); g.fillRect(x - 1, 0, 2, H); g.beginPath(); g.moveTo(x - 6, 0); g.lineTo(x + 6, 0); g.lineTo(x, 8); g.fill(); g.shadowBlur = 0; }
+  for (const [x, lbl] of [[x0, "START"], [x1, "END"]]) {  // handles: a full-height line and a labelled tab to grab
+    glow(g, "#6ff0d6", 6); g.fillStyle = "#6ff0d6"; g.fillRect(x - 1, top, 2, h); g.shadowBlur = 0;
+    g.font = "600 9px " + getComputedStyle(document.body).getPropertyValue("--vec"); const tw = g.measureText(lbl).width + 10;
+    const tx = Math.max(0, Math.min(W - tw, x - tw / 2));
+    g.fillStyle = GROW.drag === (lbl === "START" ? "s" : "e") ? "#6ff0d6" : "#173a33"; g.fillRect(tx, 0, tw, 15);
+    g.strokeStyle = "#6ff0d6"; g.strokeRect(tx + .5, .5, tw - 1, 14);
+    g.fillStyle = GROW.drag === (lbl === "START" ? "s" : "e") ? "#0a0807" : "#8ff0d2"; g.fillText(lbl, tx + 5, 11);
+  }
   const sec = (GROW.e - GROW.s) * n / 48000;
   $("#growLen").textContent = `${sec.toFixed(2)} s of ${(n / 48000).toFixed(1)} s`;
 }
@@ -1555,11 +1571,20 @@ $("#growTarget").addEventListener("click", e => { const b = e.target.closest("[d
 $("#growSmooth").addEventListener("input", e => { if (GROW) { GROW.smooth = e.target.value / 100; renderGrow(); } });
 $("#growCancel").onclick = () => $("#growPanel").classList.remove("on");
 $("#growGo").onclick = doGrow;
-$("#growWave").addEventListener("pointerdown", e => { if (!GROW) return; e.preventDefault(); e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(), f = (e.clientX - r.left) / r.width;
-  GROW.drag = Math.abs(f - GROW.s) < Math.abs(f - GROW.e) ? "s" : "e"; e.currentTarget.setPointerCapture(e.pointerId); });
-$("#growWave").addEventListener("pointermove", e => { if (!GROW || !GROW.drag) return; const r = e.currentTarget.getBoundingClientRect(), f = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
-  if (GROW.drag === "s") GROW.s = Math.min(f, GROW.e - .02); else GROW.e = Math.max(f, GROW.s + .02); renderGrow(); });
-$("#growWave").addEventListener("pointerup", () => { if (GROW) GROW.drag = null; });
+const growF = (e, el) => { const r = el.getBoundingClientRect(); return (e.clientX - r.left - GPAD) / Math.max(1, r.width - 2 * GPAD); };
+$("#growWave").addEventListener("pointerdown", e => { if (!GROW) return; e.preventDefault(); e.stopPropagation();
+  const el = e.currentTarget, f = growF(e, el), px = 1 / Math.max(1, el.getBoundingClientRect().width - 2 * GPAD);
+  const ds = Math.abs(f - GROW.s), de = Math.abs(f - GROW.e);
+  if (Math.min(ds, de) < 14 * px || f < GROW.s || f > GROW.e) GROW.drag = ds <= de ? "s" : "e";       // near a handle, or outside: that handle
+  else GROW.drag = { from: f, s: GROW.s, e: GROW.e };                                                // inside: slide the whole part
+  if (typeof GROW.drag === "string") { const v = Math.max(0, Math.min(1, f)); if (GROW.drag === "s") GROW.s = Math.min(v, GROW.e - .02); else GROW.e = Math.max(v, GROW.s + .02); }
+  el.setPointerCapture(e.pointerId); renderGrow(); });
+$("#growWave").addEventListener("pointermove", e => { if (!GROW || !GROW.drag) return; const f = Math.max(0, Math.min(1, growF(e, e.currentTarget)));
+  if (GROW.drag === "s") GROW.s = Math.min(f, GROW.e - .02); else if (GROW.drag === "e") GROW.e = Math.max(f, GROW.s + .02);
+  else { const w = GROW.drag.e - GROW.drag.s, d = Math.max(-GROW.drag.s, Math.min(1 - GROW.drag.e, growF(e, e.currentTarget) - GROW.drag.from)); GROW.s = GROW.drag.s + d; GROW.e = GROW.s + w; }
+  renderGrow(); });
+$("#growWave").addEventListener("pointerup", () => { if (GROW) { GROW.drag = null; renderGrow(); } });
+$("#growWave").addEventListener("lostpointercapture", () => { if (GROW && GROW.drag) { GROW.drag = null; renderGrow(); } });
 // a wavetable .wav: a "clm " chunk ("<!>2048 ..."), or a name that says so and a length in whole 2048 cycles
 function wavetableInfo(buf, name) {
   const dv = new DataView(buf); if (buf.byteLength < 44) return null;
