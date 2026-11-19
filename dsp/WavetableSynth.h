@@ -616,7 +616,7 @@ private:
                 const bool open = fs.type == kFilterSvf && fs.fc >= sr * 0.449 && fs.res <= 0.01 && fs.morph < 1e-4 && fs.driveDb < 0.01;
                 if (!open) v.filt.process(sl, sr_, fs, sr);
                 // ---- level and pan
-                const double g = a * velGain * sOut[i] * 0.35 * std::max(0.0, 1 + mods[kDstLevel]);
+                const double g = a * velGain * sOut[i] * kVoiceLevel * std::max(0.0, 1 + mods[kDstLevel]);
                 const double pan = std::clamp(mods[kDstPan], -1.0, 1.0);
                 L[i] += (float)(sl * g * (pan > 0 ? 1 - pan : 1));
                 R[i] += (float)(sr_ * g * (pan < 0 ? 1 + pan : 1));
@@ -754,6 +754,9 @@ public:
 
     // Master safety: transparent below kKnee, then rounds off smoothly towards 1.0 (never hard clips).
     static constexpr double kKnee = 0.8;
+    // per-voice level: one note at full velocity peaks near -6 dBFS (v0.10: was 0.35, too quiet; the output
+    // stage's limiter keeps chords clean)
+    static constexpr double kVoiceLevel = 0.6;
     static float safety(float x) {
         const double a = std::abs(x);
         if (a <= kKnee) return x;

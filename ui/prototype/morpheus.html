@@ -180,6 +180,7 @@ body.dragging .hero .dropzone, .hero.growing .dropzone { display: grid; }
 .fresp canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .outgrid { display: grid; grid-template-columns: repeat(4, 1fr); align-items: start; row-gap: 4px; }
 .outgrid .knob .name { font-size: 7.5px; letter-spacing: .12em; }
+.outgrid .eqrow { order: 9; border-bottom: 0; border-top: 1px solid #ffffff0d; padding: 4px 0 0; }
 .outgrid .envrow { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, 1fr); padding-bottom: 4px; border-bottom: 1px solid #ffffff0d; }
 .mtx { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 16px; align-content: start; padding: 14px; border-radius: 14px;
   background: linear-gradient(180deg, var(--rail-hi), var(--rail)); box-shadow: 0 0 0 1px #ffffff0a inset; overflow: auto; }
@@ -492,7 +493,8 @@ const log = m => { if (HOST) window.webkit.messageHandlers.lab.postMessage({ typ
 
 // ===================================================================== parameters (plain values; mirror plugin/synth/params.h)
 const DEF = { "Table": 0, "Scan": 0, "Scan Speed": 1, "Filter Type": 0, "Filter Morph": 0, "Filter Drive": 0, "HPF": 1, "Keytrack": 0, "Position": 40, "Unison": 1, "Detune": 15, "Spread": 60, "Sub": 0, "Cutoff": 20000, "Resonance": 10, "Filter Env": 0, "Position Env": 0,
-  "Attack": 3, "Decay": 300, "Sustain": 80, "Release": 300, "Mod Attack": 3, "Mod Decay": 600, "Velocity": 60, "Drive": 0, "Output": 0 };
+  "Attack": 3, "Decay": 300, "Sustain": 80, "Release": 300, "Mod Attack": 3, "Mod Decay": 600, "Velocity": 60, "Drive": 0, "Output": 0,
+  "EQ Low": 0, "EQ Mid": 0, "EQ Mid Freq": 1000, "EQ High": 0 };
 const P = { ...DEF };
 // the modulation parameters (names as in plugin/synth/params.h)
 for (let k = 1; k <= 16; k++) { DEF[`Mod ${k} Source`] = 0; DEF[`Mod ${k} Dest`] = 0; DEF[`Mod ${k} Amount`] = 0; }
@@ -512,7 +514,7 @@ let NF = 64;  // frames in the table being played (6 .. 64)
 let WTB = [], NFB = 64, TNB = "ORPHEO";  // OSC B's table
 const K = {};
 let userEdit = 0;
-function setParam(name, v) { P[name] = v; userEdit = performance.now(); if (HOST) window.webkit.messageHandlers.lab.postMessage({ type: "param", name, value: v }); }
+function setParam(name, v) { P[name] = v; userEdit = performance.now(); if (!HOST && name.startsWith("EQ")) applyEq(); if (HOST) window.webkit.messageHandlers.lab.postMessage({ type: "param", name, value: v }); }
 
 // ===================================================================== formatting
 const ms = v => v < 1000 ? (v < 10 ? v.toFixed(1) : v.toFixed(0)) + " ms" : (v / 1000).toFixed(2) + " s";
@@ -926,6 +928,11 @@ knob($("#uniK"), { name: "Spread", label: "SPREAD", min: 0, max: 100, size: 36, 
     knob(er, { name: nm, label: nm.toUpperCase(), min: mn, max: mx, log: nm !== "Sustain", size: 36, color: COL.teal, fmt: f }); }
 knob($("#outK"), { name: "Drive", label: "DRIVE", min: 0, max: 10, size: 36, color: COL.red, fmt: v => v < .005 ? "OFF" : v.toFixed(1) });
 knob($("#outK"), { name: "Output", label: "OUTPUT", min: -24, max: 12, size: 36, color: COL.white, fmt: dB });
+{ const er = document.createElement("div"); er.className = "envrow eqrow"; $("#outK").appendChild(er);  // the output EQ: shelves at 110 Hz and 7 kHz, a sweepable bell
+  knob(er, { name: "EQ Low", label: "LOW", min: -15, max: 15, size: 36, color: COL.amber, fmt: dB });
+  knob(er, { name: "EQ Mid", label: "MID", min: -15, max: 15, size: 36, color: COL.amber, fmt: dB });
+  knob(er, { name: "EQ Mid Freq", label: "MID FREQ", min: 150, max: 8000, log: true, size: 36, color: COL.amber, fmt: hz });
+  knob(er, { name: "EQ High", label: "HIGH", min: -15, max: 15, size: 36, color: COL.amber, fmt: dB }); }
 // ---- the mod deck: one body per source (built once), chips to switch, pills for routes
 const bodies = $("#bodies"), chips = $("#chips");
 let selSrc = 1;
@@ -1058,7 +1065,7 @@ const HELP = { "Position": "where in the wavetable OSC A plays (frame by frame)"
   "Resonance": "a peak at the cutoff; high = whistling", "Filter Morph": "SVF only: low-pass → band-pass → high-pass", "Filter Drive": "pushes the filter into saturation",
   "Keytrack": "higher notes open the filter more", "Attack": "how fast a note fades in", "Decay": "how fast it falls to the sustain level", "Sustain": "the level while you hold the key",
   "Release": "how long it rings after you let go", "Unison": "how many detuned copies of each voice", "Detune": "how far apart the unison voices are", "Spread": "how wide the unison voices are panned",
-  "Sub": "a sine one octave down", "Noise": "noise mixed in, through the filter", "Drive": "Prometheus saturation on the whole synth", "Output": "the final level",
+  "Sub": "a sine one octave down", "Noise": "noise mixed in, through the filter", "Drive": "Prometheus saturation on the whole synth", "Output": "the final level (a clean limiter after it keeps chords from clipping)", "EQ Low": "low shelf at 110 Hz", "EQ Mid": "a bell at MID FREQ", "EQ Mid Freq": "where the mid bell sits", "EQ High": "high shelf at 7 kHz",
   "Glide": "how long a note slides to the next", "Bend Range": "how far the pitch wheel bends, in semitones", "Scan Speed": "how fast SCAN moves through the table",
   "Warp A Amount": "how hard OSC A's warp bends the wave", "Warp B Amount": "how hard OSC B's warp bends the wave", "Osc B Level": "how loud OSC B is (off = not computed)",
   "Space X": "left ↔ right", "Space Y": "below ↔ above", "Space Z": "behind ↔ in front", "Space Amount": "how strong every space cue is", "Space Room": "how much room comes with distance",
@@ -1801,13 +1808,20 @@ function periodic(f) {
   const re = new Float32Array(257), im = new Float32Array(257); for (let h = 1; h <= 256; h++) im[h] = amp(f, h);
   return PW[f] = ctx.createPeriodicWave(re, im);
 }
+let EQN = null;
+function applyEq() { if (!EQN) return; const t = ctx.currentTime;
+  EQN[0].gain.setTargetAtTime(P["EQ Low"], t, .02); EQN[1].gain.setTargetAtTime(P["EQ Mid"], t, .02);
+  EQN[1].frequency.setTargetAtTime(P["EQ Mid Freq"], t, .02); EQN[2].gain.setTargetAtTime(P["EQ High"], t, .02); }
 function audioOn(note, vel) {
-  if (!ctx) { ctx = new (window.AudioContext || window.webkitAudioContext)(); master = ctx.createGain(); master.gain.value = .5; master.connect(ctx.destination); } if (ctx.state !== "running") ctx.resume();
+  if (!ctx) { ctx = new (window.AudioContext || window.webkitAudioContext)(); master = ctx.createGain(); master.gain.value = .5;
+    EQN = [["lowshelf", 110], ["peaking", 1000], ["highshelf", 7000]].map(([t, f]) => { const b = ctx.createBiquadFilter(); b.type = t; b.frequency.value = f; b.Q.value = .8; return b; });
+    const lim = ctx.createDynamicsCompressor(); lim.threshold.value = -2; lim.knee.value = 2; lim.ratio.value = 20; lim.attack.value = .002; lim.release.value = .12;
+    master.connect(EQN[0]); EQN[0].connect(EQN[1]); EQN[1].connect(EQN[2]); EQN[2].connect(lim); lim.connect(ctx.destination); applyEq(); } if (ctx.state !== "running") ctx.resume();
   const t = ctx.currentTime, f0 = 440 * Math.pow(2, (note - 69) / 12), n = Math.round(P["Unison"]);
   const fl = ctx.createBiquadFilter(); fl.type = "lowpass"; fl.Q.value = .5 + P["Resonance"] / 100 * 12;
   const fc = P["Cutoff"], fe = P["Filter Env"] / 100, peak = Math.min(20000, Math.max(20, fc * Math.pow(2, fe * 6)));
   fl.frequency.setValueAtTime(fc, t); fl.frequency.linearRampToValueAtTime(peak, t + P["Mod Attack"] / 1000); fl.frequency.setTargetAtTime(fc, t + P["Mod Attack"] / 1000, P["Mod Decay"] / 5000);
-  const env = ctx.createGain(), A = P["Attack"] / 1000, S = P["Sustain"] / 100, lv = (1 - P["Velocity"] / 100 + P["Velocity"] / 100 * vel) * .3 * Math.pow(10, P["Output"] / 20);
+  const env = ctx.createGain(), A = P["Attack"] / 1000, S = P["Sustain"] / 100, lv = (1 - P["Velocity"] / 100 + P["Velocity"] / 100 * vel) * .51 * Math.pow(10, P["Output"] / 20);
   env.gain.setValueAtTime(0, t); env.gain.linearRampToValueAtTime(lv, t + A); env.gain.setTargetAtTime(lv * S, t + A, P["Decay"] / 5000);
   fl.connect(env); env.connect(master);
   const fr = Math.round(Math.max(0, Math.min(1, P["Position"] / 100 + P["Position Env"] / 200)) * 63), oscs = [];

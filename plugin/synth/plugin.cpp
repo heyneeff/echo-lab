@@ -118,6 +118,7 @@ tresult PLUGIN_API SynthPlugin::setActive(TBool state) {
         synth.prepare(sampleRate);
         rack.prepare(sampleRate);
         spatial.prepare(sampleRate);
+        outStage.prepare(sampleRate);
         scFollow.prepare(sampleRate, 2, 150);
         applyParams();
         rack.reset();
@@ -258,6 +259,12 @@ void SynthPlugin::applyParams() {
     fp.pumpDepth = plain(kPumpDepth) / 100;
     fp.pumpMix = plain(kPumpMix) / 100;
     rack.update(fp, hostTempo);
+    out::Params op;
+    op.lowDb = plain(kEqLow);
+    op.midDb = plain(kEqMid);
+    op.midHz = plain(kEqMidFreq);
+    op.highDb = plain(kEqHigh);
+    outStage.update(op);
 }
 
 // a built-in table, or the grown one (ORPHEO if nothing has been grown yet)
@@ -347,7 +354,7 @@ tresult PLUGIN_API SynthPlugin::process(ProcessData& data) {
         }
     }
     if (tableDirty.exchange(false)) changed = true;
-    if (panicReq.exchange(false)) { synth.reset(); rack.reset(); spatial.reset(); }
+    if (panicReq.exchange(false)) { synth.reset(); rack.reset(); spatial.reset(); outStage.reset(); }
     if (auto* ctx = data.processContext) {  // tempo + song position for synced LFOs
         const bool tempoOk = (ctx->state & ProcessContext::kTempoValid) != 0;
         const bool posOk = (ctx->state & ProcessContext::kProjectTimeMusicValid) != 0;
@@ -401,6 +408,7 @@ tresult PLUGIN_API SynthPlugin::process(ProcessData& data) {
         if (spaceOn) spatial.process(L, R, n, fxBeat, bps);
         fxBeat += n * bps;
     }
+    outStage.process(L, R, n);
     float pk = 0;
     for (int i = 0; i < n; ++i) {
         L[i] = wt::Synth::safety(L[i]);

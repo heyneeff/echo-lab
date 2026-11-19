@@ -15,6 +15,7 @@
 #include "../../dsp/DriveVoices.h"
 #include "../../dsp/Resynth.h"
 #include "../../dsp/FxRack.h"
+#include "../../dsp/OutStage.h"
 
 namespace echolab {
 namespace wtsynth {
@@ -64,6 +65,7 @@ private:
     void defaultCCs();
     // LOCK: a locked parameter is left alone by the morph (and by Dice in the face)
     std::array<std::atomic<bool>, kNumParams> locked{};
+    out::Stage outStage;           // EQ + limiter: the very end, before the safety
     space::SpatialEngine spatial;  // SPACE: after the FX rack, before the safety limiter
     bool spaceOn = false;
     // morph snapshots: 4 whole-patch states (normalized values) on the X-Y pad corners A B / C D, blended by Morph X/Y.
